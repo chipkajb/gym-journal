@@ -2,6 +2,8 @@
 
 A full-stack progressive web application (PWA) for personal health and fitness tracking. Built with Next.js 14+, TypeScript, Prisma, and PostgreSQL, designed to run on your home server with zero hosting costs.
 
+> ⚠️ **WARNING**: This project is currently under active development and is a work in progress. Features may be incomplete, APIs may change, and the application may not be production-ready. Use at your own risk.
+
 ## Features
 
 - 🏋️ **Workout Library**: Create and manage custom workout templates with categorization and tagging
