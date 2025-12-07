@@ -1,0 +1,268 @@
+// Prisma Schema for Gym Journal
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Authentication & User Management
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  password      String? // Hashed password for email/password auth
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts          Account[]
+  sessions          Session[]
+  profile           Profile?
+  workoutTemplates  WorkoutTemplate[]
+  workoutSessions   WorkoutSession[]
+  bodyMetrics       BodyMetric[]
+  deviceConnections DeviceConnection[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================
+// User Profile & Preferences
+// ============================================
+
+model Profile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  bio              String?  @db.Text
+  goals            String?  @db.Text
+  preferredUnit    String   @default("metric") // metric or imperial
+  weekStartsOn     Int      @default(0) // 0 = Sunday, 1 = Monday
+  darkModeEnabled  Boolean  @default(false)
+  notificationsEnabled Boolean @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+// ============================================
+// Exercise Library
+// ============================================
+
+model Exercise {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?  @db.Text
+  category         String // Strength, Cardio, Flexibility, etc.
+  muscleGroup      String? // Primary muscle group
+  equipment        String? // Barbell, Dumbbell, Bodyweight, etc.
+  videoUrl         String?
+  imageUrl         String?
+  instructions     String?  @db.Text
+  isCustom         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  templateExercises TemplateExercise[]
+  exerciseLogs      ExerciseLog[]
+
+  @@map("exercises")
+}
+
+// ============================================
+// Workout Templates
+// ============================================
+
+model WorkoutTemplate {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?  @db.Text
+  category    String // Strength, Cardio, CrossFit, Flexibility
+  tags        String[] // Array of tags for filtering
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises         TemplateExercise[]
+  workoutSessions   WorkoutSession[]
+
+  @@map("workout_templates")
+}
+
+model TemplateExercise {
+  id                String   @id @default(cuid())
+  workoutTemplateId String
+  exerciseId        String
+  orderIndex        Int // Order in the workout
+  sets              Int?
+  reps              Int?
+  duration          Int? // in seconds
+  restTime          Int? // in seconds
+  notes             String?  @db.Text
+
+  // Relations
+  workoutTemplate WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id], onDelete: Cascade)
+  exercise        Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@map("template_exercises")
+}
+
+// ============================================
+// Workout Sessions (Logged Workouts)
+// ============================================
+
+model WorkoutSession {
+  id                String   @id @default(cuid())
+  userId            String
+  workoutTemplateId String?
+  name              String
+  category          String
+  notes             String?  @db.Text
+  startedAt         DateTime
+  completedAt       DateTime?
+  duration          Int? // Total duration in seconds
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutTemplate WorkoutTemplate? @relation(fields: [workoutTemplateId], references: [id], onDelete: SetNull)
+  exerciseLogs    ExerciseLog[]
+
+  @@map("workout_sessions")
+}
+
+model ExerciseLog {
+  id               String   @id @default(cuid())
+  workoutSessionId String
+  exerciseId       String
+  orderIndex       Int
+  sets             Int?
+  reps             Int?
+  weight           Float? // Weight in kg or lbs
+  duration         Int? // Duration in seconds
+  distance         Float? // Distance in km or miles
+  pace             Float? // Pace (min/km or min/mile)
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  // Relations
+  workoutSession WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+  exercise       Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@map("exercise_logs")
+}
+
+// ============================================
+// Body Metrics
+// ============================================
+
+model BodyMetric {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime
+  weight       Float? // in kg or lbs
+  bodyFatPct   Float? // Body fat percentage
+  muscleMass   Float? // in kg or lbs
+  bmi          Float?
+  measurements Json? // Flexible field for various measurements (chest, waist, etc.)
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("body_metrics")
+}
+
+// ============================================
+// Smart Device Integration (Future)
+// ============================================
+
+model DeviceConnection {
+  id           String   @id @default(cuid())
+  userId       String
+  provider     String // apple_health, google_fit, fitbit, etc.
+  accessToken  String   @db.Text
+  refreshToken String?  @db.Text
+  expiresAt    DateTime?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceData DeviceData[]
+
+  @@unique([userId, provider])
+  @@map("device_connections")
+}
+
+model DeviceData {
+  id                 String   @id @default(cuid())
+  deviceConnectionId String
+  dataType           String // steps, heart_rate, sleep, calories, etc.
+  value              Float
+  unit               String
+  timestamp          DateTime
+  metadata           Json? // Additional metadata
+  createdAt          DateTime @default(now())
+
+  deviceConnection DeviceConnection @relation(fields: [deviceConnectionId], references: [id], onDelete: Cascade)
+
+  @@map("device_data")
+}

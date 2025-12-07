@@ -1,0 +1,20 @@
+{
+  "name": "@gym-journal/database",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx seed.ts",
+    "db:reset": "prisma migrate reset"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.7.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

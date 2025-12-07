@@ -1,0 +1,42 @@
+{
+  "name": "gym-journal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A full-stack progressive web application for personal health and fitness tracking",
+  "author": "Your Name",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "start": "npm run start --workspace=apps/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:fix": "npm run lint:fix --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:watch": "npm run test:watch --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace=apps/web",
+    "db:generate": "npm run db:generate --workspace=packages/database",
+    "db:migrate": "npm run db:migrate --workspace=packages/database",
+    "db:studio": "npm run db:studio --workspace=packages/database",
+    "db:seed": "npm run db:seed --workspace=packages/database",
+    "db:reset": "npm run db:reset --workspace=packages/database",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "husky": "^8.0.3",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.17.0",
+    "npm": ">=9.0.0"
+  }
+}

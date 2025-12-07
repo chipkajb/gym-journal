@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gymjournal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gymjournal
+      POSTGRES_USER: gymjournal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gymjournal']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: gymjournal-app
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://gymjournal:${POSTGRES_PASSWORD:-changeme}@postgres:5432/gymjournal
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NODE_ENV: ${NODE_ENV:-production}
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  postgres_data:
+    driver: local
