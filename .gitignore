@@ -76,3 +76,4 @@ __pycache__/
 
 # AI context files
 ai/
+.cursorrules
