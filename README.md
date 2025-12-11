@@ -4,6 +4,8 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 
 > ⚠️ **WARNING**: This project is currently under active development and is a work in progress. Features may be incomplete, APIs may change, and the application may not be production-ready. Use at your own risk.
 
+> ⚠️ **DISCLOSURE**: This is a vibe coding project — expect experimental approaches, evolving architecture, and the occasional "let's see what happens" commit. The journey for this project is more about exploration than perfection.
+
 ## Features
 
 - 🏋️ **Workout Library**: Create and manage custom workout templates with categorization and tagging
