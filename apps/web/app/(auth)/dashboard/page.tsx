@@ -18,11 +18,15 @@ export default async function DashboardPage() {
     prisma.workoutTemplate.count({ where: { userId: session.user.id } }),
   ]);
 
+  const firstName = session.user.name?.trim()
+    ? session.user.name.trim().split(/\s+/)[0]
+    : session.user.email?.split("@")[0] ?? "there";
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Welcome back{session.user.name ? `, ${session.user.name}` : ""}
+          Welcome back, {firstName}
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
           Track your workouts and progress

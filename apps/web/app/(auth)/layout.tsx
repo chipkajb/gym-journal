@@ -2,7 +2,15 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { LayoutDashboard, BookOpen, PenLine, Calendar } from "lucide-react";
+import { LayoutDashboard, BookOpen, PenLine, Calendar, Settings } from "lucide-react";
+
+function displayName(session: { user?: { name?: string | null; email?: string | null } | null }) {
+  const name = session.user?.name?.trim();
+  if (name) return name;
+  const email = session.user?.email ?? "";
+  const local = email.split("@")[0];
+  return local || "Account";
+}
 
 export default async function AuthLayout({
   children,
@@ -11,6 +19,9 @@ export default async function AuthLayout({
 }) {
   const session = await getServerSession(authOptions);
   if (!session) return null;
+
+  const label = displayName(session);
+  const fullEmail = session.user?.email ?? "";
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -52,10 +63,20 @@ export default async function AuthLayout({
               <span className="hidden sm:inline">History</span>
             </Link>
           </nav>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
-              {session.user?.email}
+          <div className="flex items-center gap-1">
+            <span
+              className="text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[140px] sm:max-w-[180px] truncate"
+              title={fullEmail}
+            >
+              {label}
             </span>
+            <Link
+              href="/settings"
+              className="flex items-center gap-2 px-2 py-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200"
+              aria-label="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Link>
             <SignOutButton />
           </div>
         </div>
