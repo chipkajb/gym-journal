@@ -1,13 +1,18 @@
 # Documentation
 
-This directory contains additional documentation for the Gym Journal project.
+This directory is for additional project documentation.
 
-## Contents
+## Root docs
 
-- API documentation
-- Deployment guides
-- Architecture diagrams
+- **[../README.md](../README.md)** – Project overview, features, tech stack, structure, and development phases
+- **[../QUICK_START.md](../QUICK_START.md)** – Minimal setup to run the app locally
+
+## Planned contents
+
+As the project develops, this folder may include:
+
+- API documentation (endpoints, request/response shapes)
+- Deployment guides (Docker, Cloudflare Tunnel)
+- Architecture notes and diagrams
 - User guides
-- Development workflows
-
-Documentation will be added as the project develops.
+- Development workflows and conventions

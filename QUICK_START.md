@@ -28,7 +28,10 @@ Wait about 10–15 seconds for the database to be ready.
 
 ### 3. Environment variables
 
-Create `.env.local` in the project root (or copy from `.env.example` if present). At minimum:
+- **`.env`** (in the **project root**) – Read by **Docker Compose** when you run `docker-compose up`. Prevents “variable not set” warnings.
+- **`.env.local`** – Must be in **`apps/web/`** (the Next.js app directory). Next.js only loads env files from the app directory, not from the monorepo root. Used when you run `npm run dev`.
+
+Create **`apps/web/.env.local`** with at least (and optionally `.env` in the project root with the same values for Docker):
 
 ```env
 DATABASE_URL="postgresql://gymjournal:changeme@localhost:5432/gymjournal"
@@ -42,6 +45,8 @@ Generate a secure `NEXTAUTH_SECRET`:
 ```bash
 openssl rand -base64 32
 ```
+
+Keep env files in `.gitignore`; do not commit secrets. If **login gets stuck on “Signing in…”**, the app is likely not loading env: ensure **`apps/web/.env.local`** exists and contains `NEXTAUTH_SECRET` and `DATABASE_URL`.
 
 ### 4. Database
 
@@ -66,9 +71,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## What you’ll see
 
-- **/** – Home with links to login/register
-- **/login** – Login (UI; auth may not be wired yet)
-- **/register** – Register (UI; auth may not be wired yet)
+- **/** – Home. If not logged in: Sign In / Sign Up. If logged in: Go to Dashboard.
+- **/login** – Sign in with email and password (fully wired to NextAuth).
+- **/register** – Create an account (email, name, password). Redirects to dashboard after sign-in.
+- **/dashboard** – Dashboard with links to Library, Log workout, and History; recent workouts list.
+- **/library** – Workout templates list; “All exercises” and “New template”. Create and edit templates, add exercises with sets/reps.
+- **/workouts** – List of workout sessions; “Start workout” to begin from a template or freeform.
+- **/workouts/[id]** – Active or past session: timer, logged exercises, add exercise (sets/reps/weight/duration), “Finish workout”.
+- **/history** – Monthly calendar with color-coded workout days; click a day to see sessions.
+
+**First time:** Click Sign Up to create an account; you will land on the dashboard. Run `npm run db:seed` to add sample exercises to the library.
 
 ## Troubleshooting
 
@@ -81,7 +93,7 @@ Open [http://localhost:3000](http://localhost:3000).
 **Migrations fail**
 
 - Reset (dev only): `npm run db:reset`
-- Check `DATABASE_URL` in `.env.local` and that the Postgres container is running
+- Check `DATABASE_URL` in `.env` / `.env.local` and that the Postgres container is running
 
 **Port 3000 in use**
 

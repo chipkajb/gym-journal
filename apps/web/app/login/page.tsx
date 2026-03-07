@@ -1,16 +1,60 @@
-import Image from 'next/image';
-import Link from 'next/link';
+"use client";
 
-/**
- * Login page
- * Simple login interface with email/password fields.
- * For now, this is a placeholder UI - authentication will be added later.
- */
+import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const timeoutMs = 15000;
+      const res = await Promise.race([
+        signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        }),
+        new Promise<undefined>((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), timeoutMs)
+        ),
+      ]);
+      if (res?.error) {
+        setError("Invalid email or password.");
+        return;
+      }
+      if (!res?.ok) {
+        setError("Sign-in failed. Check the server console and ensure NEXTAUTH_SECRET and DATABASE_URL are set in apps/web/.env.local.");
+        return;
+      }
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message === "timeout"
+          ? "Request timed out. Check that the server is running and NEXTAUTH_SECRET is set in apps/web/.env.local."
+          : "Something went wrong. Please try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
       <div className="max-w-md w-full space-y-8">
-        {/* Logo and Title */}
         <div className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="relative w-24 h-24">
@@ -31,9 +75,13 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Login Form */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 space-y-6">
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {error && (
+              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded">
+                {error}
+              </p>
+            )}
             <div>
               <label
                 htmlFor="email"
@@ -46,6 +94,8 @@ export default function LoginPage() {
                 type="email"
                 name="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="you@example.com"
               />
@@ -63,44 +113,25 @@ export default function LoginPage() {
                 type="password"
                 name="password"
                 required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="••••••••"
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label
-                  htmlFor="remember"
-                  className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
-                >
-                  Remember me
-                </label>
-              </div>
-              <Link
-                href="/forgot-password"
-                className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
-              >
-                Forgot password?
-              </Link>
-            </div>
-
             <button
               type="submit"
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+              disabled={loading}
+              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
             >
-              Sign In
+              {loading ? "Signing in…" : "Sign In"}
             </button>
           </form>
 
           <div className="text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{" "}
               <Link
                 href="/register"
                 className="text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
@@ -111,7 +142,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Back to Home */}
         <div className="text-center">
           <Link
             href="/"
@@ -124,4 +154,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

@@ -7,32 +7,39 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 
 ## Features
 
-- 🏋️ **Workout Library**: Create and manage custom workout templates with categorization and tagging
-- 📝 **Workout Logging**: Quick entry interface with timer, set/rep/weight tracking, and auto-save
-- 📅 **Calendar & History**: Monthly/weekly visualization with color-coded workout types and streak tracking
-- 📊 **Progress Analytics**: Personal records tracking, progress charts, body metrics, and goal setting
-- 📱 **PWA Support**: Install as a native-like app on iOS and Android with offline functionality
-- 🔐 **Secure Authentication**: Email/password and OAuth (Google) via NextAuth.js
-- 🌙 **Dark Mode**: System preference detection with modern, accessible UI
-- 🔄 **Smart Device Integration** (Future): Apple HealthKit, Google Fit, Fitbit APIs
+**Currently implemented (MVP)**
+
+- 🔐 **Authentication**: Email/password sign up and sign in via NextAuth.js (Credentials + Prisma, JWT sessions). Protected routes and redirects.
+- 🏋️ **Workout Library**: Create and manage workout templates (name, category, description). Add exercises to templates with sets/reps. Browse the built-in exercise list (seed with `npm run db:seed`).
+- 📝 **Workout Logging**: Start a workout from a template or freeform. Session page with elapsed timer, log exercises (sets, reps, weight, duration), and finish workout.
+- 📅 **Calendar & History**: Monthly calendar view with color-coded workout types (Strength, Cardio, CrossFit, Flexibility). Click a day to see sessions.
+
+**Planned**
+
+- 📊 **Progress Analytics**: Personal records, progress charts, body metrics, goal setting
+- 📱 **PWA Support**: Offline functionality, install on iOS/Android
+- 🔐 **OAuth**: Google (and other providers) via NextAuth.js
+- 🌙 **Dark Mode**: System preference detection
+- 🔄 **Smart Device Integration**: Apple HealthKit, Google Fit, Fitbit APIs
 
 ## Tech Stack
 
 ### Frontend
 
-- **Next.js 14+** (App Router) - Full-stack React framework
+- **Next.js 16** (App Router) - Full-stack React framework
 - **TypeScript** - Type safety and maintainability
 - **Tailwind CSS** - Utility-first styling
-- **shadcn/ui** - Accessible component library
-- **React Query** - Server state management
-- **Recharts** - Data visualization
+- **date-fns** - Date formatting and calendar logic
+- **lucide-react** - Icons
+- **Recharts** - Data visualization (for future analytics)
 
 ### Backend
 
-- **Next.js API Routes** - RESTful endpoints
-- **Prisma ORM** - Type-safe database access
-- **NextAuth.js** - Authentication and session management
-- **Zod** - Runtime validation
+- **Next.js Route Handlers** (App Router) - RESTful API routes
+- **Prisma ORM** - Type-safe database access (monorepo package `@gym-journal/database`)
+- **NextAuth.js v4** - Authentication (Credentials provider, JWT sessions, Prisma adapter)
+- **bcryptjs** - Password hashing
+- **Zod** - Request/response validation
 
 ### Database & Deployment
 
@@ -57,7 +64,7 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 
 ## Getting Started
 
-To run the app locally, see **[QUICK_START.md](QUICK_START.md)** for a minimal setup guide (clone, install, env, database, dev server).
+To run the app locally, see **[QUICK_START.md](QUICK_START.md)** for a minimal setup guide (clone, install, env, database, dev server). The project uses **`.env`** (for Docker Compose) and **`.env.local`** (for Next.js); both should be set with the same values so that `docker-compose` and the dev server have the required variables.
 
 ## Project Structure
 
@@ -66,12 +73,11 @@ gym-journal/
 ├── apps/
 │   └── web/                    # Next.js application
 │       ├── app/                # App Router pages and layouts
-│       │   ├── (auth)/         # Protected routes
+│       │   ├── (auth)/         # Protected routes (require sign-in)
 │       │   │   ├── dashboard/
-│       │   │   ├── workouts/
-│       │   │   ├── history/
-│       │   │   ├── library/
-│       │   │   └── profile/
+│       │   │   ├── library/    # Templates + exercises
+│       │   │   ├── workouts/   # Sessions + log
+│       │   │   └── history/    # Calendar view
 │       │   ├── api/            # API route handlers
 │       │   ├── login/
 │       │   └── register/
@@ -103,19 +109,21 @@ gym-journal/
 ### Development
 
 ```bash
-npm run dev          # Start development server
+npm run dev          # Start development server (apps/web)
 npm run build        # Build for production
 npm start            # Start production server
 ```
 
 ### Database
 
+Run from project root (these delegate to `packages/database`):
+
 ```bash
-npx prisma studio              # Open Prisma Studio GUI
-npx prisma generate            # Generate Prisma Client
-npx prisma migrate dev         # Create and apply migration
-npx prisma migrate reset       # Reset database (dev only)
-npm run db:seed                # Seed database
+npm run db:generate   # Generate Prisma Client
+npm run db:migrate    # Create and apply migrations
+npm run db:studio     # Open Prisma Studio GUI
+npm run db:seed       # Seed exercises (optional)
+npm run db:reset      # Reset database (dev only)
 ```
 
 ### Code Quality
@@ -181,7 +189,7 @@ See `packages/database/prisma/schema.prisma` for complete schema definition.
 
 ### Environment Variables for Production
 
-Update your production `.env` file:
+The app and Docker Compose read from **`.env`** in the project root. Next.js also reads **`.env.local`** when running locally. For production (e.g. Docker), set variables in `.env`. Update your production `.env` file:
 
 ```env
 DATABASE_URL="postgresql://user:password@postgres:5432/gymjournal"
@@ -217,10 +225,11 @@ This is a personal project, but suggestions and feedback are welcome!
 
 ## Development Phases
 
-- **Phase 1 (MVP)** ✅ In Progress
-  - Project scaffolding and authentication
-  - Basic workout library and logging
-  - Calendar view
+- **Phase 1 (MVP)** ✅ Done
+  - Project scaffolding and **working** authentication (email/password, register + login)
+  - Workout library (templates CRUD, exercise list, add exercises to templates)
+  - Workout logging (start session, timer, log sets/reps/weight/duration, finish workout)
+  - Calendar/history view (month view, color-coded by category, click day for sessions)
 
 - **Phase 2** 🔄 Next
   - Progress tracking and analytics
