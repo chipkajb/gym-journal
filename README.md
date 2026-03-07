@@ -3,7 +3,6 @@
 A full-stack progressive web application (PWA) for personal health and fitness tracking. Built with Next.js 14+, TypeScript, Prisma, and PostgreSQL, designed to run on your home server with zero hosting costs.
 
 > ⚠️ **WARNING**: This project is currently under active development and is a work in progress. Features may be incomplete, APIs may change, and the application may not be production-ready. Use at your own risk.
-
 > ⚠️ **DISCLOSURE**: This is a vibe coding project — expect experimental approaches, evolving architecture, and the occasional "let's see what happens" commit. The journey for this project is more about exploration than perfection.
 
 ## Features
@@ -20,6 +19,7 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 ## Tech Stack
 
 ### Frontend
+
 - **Next.js 14+** (App Router) - Full-stack React framework
 - **TypeScript** - Type safety and maintainability
 - **Tailwind CSS** - Utility-first styling
@@ -28,18 +28,21 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 - **Recharts** - Data visualization
 
 ### Backend
+
 - **Next.js API Routes** - RESTful endpoints
 - **Prisma ORM** - Type-safe database access
 - **NextAuth.js** - Authentication and session management
 - **Zod** - Runtime validation
 
 ### Database & Deployment
+
 - **PostgreSQL 16** - Production database (Docker)
 - **Docker & Docker Compose** - Containerization
 - **Cloudflare Tunnel** - Secure external access
 - **Let's Encrypt** - Free SSL/TLS certificates
 
 ### Development Tools
+
 - **ESLint & Prettier** - Code quality and formatting
 - **Jest & React Testing Library** - Unit and component testing
 - **Playwright** - End-to-end testing
@@ -54,72 +57,11 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 
 ## Getting Started
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/yourusername/gym-journal.git
-cd gym-journal
-```
-
-### 2. Install dependencies
-
-```bash
-npm install
-```
-
-### 3. Set up environment variables
-
-Copy the example environment file and update with your values:
-
-```bash
-cp .env.example .env.local
-```
-
-Update the following variables in `.env.local`:
-
-```env
-# Database
-DATABASE_URL="postgresql://gymjournal:your_password@localhost:5432/gymjournal"
-
-# NextAuth.js
-NEXTAUTH_SECRET="your-secret-key-here" # Generate with: openssl rand -base64 32
-NEXTAUTH_URL="http://localhost:3000"
-
-# OAuth Providers (optional)
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-```
-
-### 4. Start PostgreSQL with Docker
-
-```bash
-docker-compose up -d postgres
-```
-
-### 5. Run database migrations
-
-```bash
-npx prisma migrate dev
-npx prisma generate
-```
-
-### 6. Seed the database (optional)
-
-```bash
-npm run db:seed
-```
-
-### 7. Start the development server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+To run the app locally, see **[QUICK_START.md](QUICK_START.md)** for a minimal setup guide (clone, install, env, database, dev server).
 
 ## Project Structure
 
-```
+```text
 gym-journal/
 ├── apps/
 │   └── web/                    # Next.js application
@@ -225,17 +167,17 @@ See `packages/database/prisma/schema.prisma` for complete schema definition.
 
 1. **Set up Docker on your server**
 
-```bash
-docker-compose -f docker/docker-compose.yml up -d
-```
+    ```bash
+    docker-compose -f docker/docker-compose.yml up -d
+    ```
 
 2. **Configure Cloudflare Tunnel**
 
-Follow the [Cloudflare Tunnel documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) to expose your app securely.
+    Follow the [Cloudflare Tunnel documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) to expose your app securely.
 
 3. **Set up SSL/TLS with Let's Encrypt**
 
-Certificates are automatically managed by Cloudflare Tunnel.
+    Certificates are automatically managed by Cloudflare Tunnel.
 
 ### Environment Variables for Production
 
@@ -258,6 +200,7 @@ The app is configured as a Progressive Web App with:
 - **Background Sync** for data synchronization
 
 To install on iOS/Android:
+
 1. Open the app in your mobile browser
 2. Tap "Add to Home Screen" or "Install App"
 3. The app will launch in fullscreen mode
