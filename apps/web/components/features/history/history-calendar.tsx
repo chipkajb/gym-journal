@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import {
   format,
   startOfMonth,
@@ -14,19 +15,18 @@ import {
   parseISO,
 } from "date-fns";
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Strength: "bg-blue-500",
-  Cardio: "bg-green-500",
-  CrossFit: "bg-amber-500",
-  Flexibility: "bg-purple-500",
+const RX_SCALED_COLORS: Record<string, string> = {
+  RX: "bg-amber-500",
+  SCALED: "bg-blue-500",
 };
 
 type Session = {
   id: string;
-  name: string;
-  category: string;
-  startedAt: string;
-  completedAt: string | null;
+  title: string;
+  workoutDate: string;
+  bestResultDisplay: string | null;
+  scoreType: string | null;
+  rxOrScaled: string | null;
 };
 
 type Props = { userId: string };
@@ -66,7 +66,7 @@ export function HistoryCalendar({ userId }: Props) {
   const sessionsByDay = useMemo(() => {
     const map = new Map<string, Session[]>();
     for (const s of sessions) {
-      const day = format(parseISO(s.startedAt), "yyyy-MM-dd");
+      const day = format(parseISO(s.workoutDate), "yyyy-MM-dd");
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(s);
     }
@@ -130,8 +130,8 @@ export function HistoryCalendar({ userId }: Props) {
                   {daySessions.slice(0, 3).map((s) => (
                     <span
                       key={s.id}
-                      className={`w-1.5 h-1.5 rounded-full ${CATEGORY_COLORS[s.category] ?? "bg-gray-400"}`}
-                      title={s.name}
+                      className={`w-1.5 h-1.5 rounded-full ${RX_SCALED_COLORS[s.rxOrScaled ?? ""] ?? "bg-gray-400"}`}
+                      title={s.title}
                     />
                   ))}
                   {daySessions.length > 3 && (
@@ -164,19 +164,21 @@ export function HistoryCalendar({ userId }: Props) {
           ) : (
             <ul className="space-y-2">
               {selectedSessions.map((s) => (
-                <li
-                  key={s.id}
-                  className="flex items-center gap-2 text-sm"
-                >
+                <li key={s.id} className="flex items-center gap-2 text-sm">
                   <span
-                    className={`w-2 h-2 rounded-full flex-shrink-0 ${CATEGORY_COLORS[s.category] ?? "bg-gray-400"}`}
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${RX_SCALED_COLORS[s.rxOrScaled ?? ""] ?? "bg-gray-400"}`}
                   />
-                  <span className="text-gray-900 dark:text-white">
-                    {s.name}
-                  </span>
-                  <span className="text-gray-500 dark:text-gray-400">
-                    {format(parseISO(s.startedAt), "h:mm a")}
-                  </span>
+                  <Link
+                    href={`/workouts/${s.id}`}
+                    className="text-gray-900 dark:text-white hover:underline"
+                  >
+                    {s.title}
+                  </Link>
+                  {s.bestResultDisplay && (
+                    <span className="text-gray-500 dark:text-gray-400">
+                      {s.bestResultDisplay}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -185,7 +187,7 @@ export function HistoryCalendar({ userId }: Props) {
       )}
 
       <div className="flex flex-wrap gap-3 text-sm">
-        {Object.entries(CATEGORY_COLORS).map(([label, color]) => (
+        {Object.entries(RX_SCALED_COLORS).map(([label, color]) => (
           <span key={label} className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${color}`} />
             {label}

@@ -97,16 +97,16 @@ model Profile {
 }
 
 // ============================================
-// Exercise Library
+// Exercise Library (reference; optional for CrossFit-style flows)
 // ============================================
 
 model Exercise {
   id               String   @id @default(cuid())
   name             String
   description      String?  @db.Text
-  category         String // Strength, Cardio, Flexibility, etc.
-  muscleGroup      String? // Primary muscle group
-  equipment        String? // Barbell, Dumbbell, Bodyweight, etc.
+  category         String
+  muscleGroup      String?  // Primary muscle group
+  equipment        String?  // Barbell, Dumbbell, Bodyweight, etc.
   videoUrl         String?
   imageUrl         String?
   instructions     String?  @db.Text
@@ -114,98 +114,57 @@ model Exercise {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  // Relations
-  templateExercises TemplateExercise[]
-  exerciseLogs      ExerciseLog[]
-
   @@map("exercises")
 }
 
 // ============================================
-// Workout Templates
+// Workout Templates (CrossFit-style: named WODs)
 // ============================================
 
 model WorkoutTemplate {
   id          String   @id @default(cuid())
   userId      String
-  name        String
+  title       String   // Workout name (e.g. "DT", "Linda")
   description String?  @db.Text
-  category    String // Strength, Cardio, CrossFit, Flexibility
-  tags        String[] // Array of tags for filtering
-  isPublic    Boolean  @default(false)
+  scoreType   String?  // Time, Reps, Load, Rounds + Reps, etc.
+  barbellLift String?  // Barbell lift name if applicable
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercises         TemplateExercise[]
-  workoutSessions   WorkoutSession[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutSessions WorkoutSession[]
 
   @@map("workout_templates")
 }
 
-model TemplateExercise {
-  id                String   @id @default(cuid())
-  workoutTemplateId String
-  exerciseId        String
-  orderIndex        Int // Order in the workout
-  sets              Int?
-  reps              Int?
-  duration          Int? // in seconds
-  restTime          Int? // in seconds
-  notes             String?  @db.Text
-
-  // Relations
-  workoutTemplate WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id], onDelete: Cascade)
-  exercise        Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@map("template_exercises")
-}
-
 // ============================================
-// Workout Sessions (Logged Workouts)
+// Workout Sessions (Logged workouts – one per occurrence)
 // ============================================
 
 model WorkoutSession {
-  id                String   @id @default(cuid())
-  userId            String
-  workoutTemplateId String?
-  name              String
-  category          String
-  notes             String?  @db.Text
-  startedAt         DateTime
-  completedAt       DateTime?
-  duration          Int? // Total duration in seconds
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  userId             String
+  workoutTemplateId  String?
+  title              String
+  description        String?  @db.Text
+  workoutDate        DateTime // Date of the workout
+  bestResultRaw      Float?   // Numeric value for sorting (seconds, reps, load, etc.)
+  bestResultDisplay  String?  // Formatted display (e.g. "10:44", "5+2")
+  scoreType          String?  // Time, Reps, Load, Rounds + Reps, etc.
+  barbellLift        String?
+  setDetails         Json?    // Set-by-set details if applicable
+  notes              String?  @db.Text
+  rxOrScaled         String?  // RX or SCALED
+  isPr               Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // Relations
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   workoutTemplate WorkoutTemplate? @relation(fields: [workoutTemplateId], references: [id], onDelete: SetNull)
-  exerciseLogs    ExerciseLog[]
 
   @@map("workout_sessions")
-}
-
-model ExerciseLog {
-  id               String   @id @default(cuid())
-  workoutSessionId String
-  exerciseId       String
-  orderIndex       Int
-  sets             Int?
-  reps             Int?
-  weight           Float? // Weight in kg or lbs
-  duration         Int? // Duration in seconds
-  distance         Float? // Distance in km or miles
-  pace             Float? // Pace (min/km or min/mile)
-  notes            String?  @db.Text
-  createdAt        DateTime @default(now())
-
-  // Relations
-  workoutSession WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
-  exercise       Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@map("exercise_logs")
 }
 
 // ============================================

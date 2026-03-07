@@ -5,8 +5,17 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const createSessionSchema = z.object({
-  name: z.string().min(1),
-  category: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().optional().nullable(),
+  workoutDate: z.string().optional(), // ISO date or YYYY-MM-DD; default today
+  bestResultRaw: z.number().optional().nullable(),
+  bestResultDisplay: z.string().optional().nullable(),
+  scoreType: z.string().optional().nullable(),
+  barbellLift: z.string().optional().nullable(),
+  setDetails: z.unknown().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  rxOrScaled: z.string().optional().nullable(),
+  isPr: z.boolean().optional().default(false),
   templateId: z.string().optional().nullable(),
 });
 
@@ -19,20 +28,21 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   try {
-    const where: { userId: string; startedAt?: { gte?: Date; lte?: Date } } = {
-      userId: session.user.id,
-    };
+    const where: {
+      userId: string;
+      workoutDate?: { gte?: Date; lte?: Date };
+    } = { userId: session.user.id };
     if (from && to) {
-      where.startedAt = {
+      where.workoutDate = {
         gte: new Date(from),
         lte: new Date(to),
       };
     }
     const sessions = await prisma.workoutSession.findMany({
       where,
-      orderBy: { startedAt: "desc" },
+      orderBy: { workoutDate: "desc" },
       ...(from && to ? {} : { take: 50 }),
-      include: { exerciseLogs: { include: { exercise: true } } },
+      include: { workoutTemplate: true },
     });
     return NextResponse.json(sessions);
   } catch (e) {
@@ -58,20 +68,32 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    const data = parsed.data;
+    const workoutDate = data.workoutDate
+      ? new Date(data.workoutDate)
+      : new Date();
     const workoutSession = await prisma.workoutSession.create({
       data: {
         userId: session.user.id,
-        name: parsed.data.name,
-        category: parsed.data.category,
-        workoutTemplateId: parsed.data.templateId ?? null,
-        startedAt: new Date(),
+        workoutTemplateId: data.templateId ?? null,
+        title: data.title,
+        description: data.description ?? null,
+        workoutDate,
+        bestResultRaw: data.bestResultRaw ?? null,
+        bestResultDisplay: data.bestResultDisplay ?? null,
+        scoreType: data.scoreType ?? null,
+        barbellLift: data.barbellLift ?? null,
+        setDetails: (data.setDetails as object) ?? null,
+        notes: data.notes ?? null,
+        rxOrScaled: data.rxOrScaled ?? null,
+        isPr: data.isPr ?? false,
       },
     });
     return NextResponse.json(workoutSession);
   } catch (e) {
     console.error("Session create error:", e);
     return NextResponse.json(
-      { error: "Failed to start workout" },
+      { error: "Failed to log workout" },
       { status: 500 }
     );
   }

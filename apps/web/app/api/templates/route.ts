@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const createTemplateSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  category: z.string().min(1),
-  tags: z.array(z.string()).optional().default([]),
+  title: z.string().min(1),
+  description: z.string().optional().nullable(),
+  scoreType: z.string().optional().nullable(),
+  barbellLift: z.string().optional().nullable(),
 });
 
 export async function GET() {
@@ -19,12 +19,6 @@ export async function GET() {
   try {
     const templates = await prisma.workoutTemplate.findMany({
       where: { userId: session.user.id },
-      include: {
-        exercises: {
-          include: { exercise: true },
-          orderBy: { orderIndex: "asc" },
-        },
-      },
       orderBy: { updatedAt: "desc" },
     });
     return NextResponse.json(templates);
@@ -54,10 +48,10 @@ export async function POST(request: Request) {
     const template = await prisma.workoutTemplate.create({
       data: {
         userId: session.user.id,
-        name: parsed.data.name,
+        title: parsed.data.title,
         description: parsed.data.description ?? null,
-        category: parsed.data.category,
-        tags: parsed.data.tags ?? [],
+        scoreType: parsed.data.scoreType ?? null,
+        barbellLift: parsed.data.barbellLift ?? null,
       },
     });
     return NextResponse.json(template);

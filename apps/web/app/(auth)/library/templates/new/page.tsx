@@ -2,8 +2,6 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { TemplateForm } from "@/components/features/library/template-form";
 
-const CATEGORIES = ["Strength", "Cardio", "CrossFit", "Flexibility"];
-
 export default function NewTemplatePage() {
   return (
     <div className="space-y-6">
@@ -20,7 +18,7 @@ export default function NewTemplatePage() {
         </h1>
       </div>
 
-      <TemplateForm categories={CATEGORIES} />
+      <TemplateForm />
     </div>
   );
 }

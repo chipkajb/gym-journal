@@ -27,6 +27,8 @@
     "db:studio": "npm run db:studio --workspace=packages/database",
     "db:seed": "npm run db:seed --workspace=packages/database",
     "db:reset": "npm run db:reset --workspace=packages/database",
+    "db:clear-workouts": "npm run db:clear-workouts --workspace=packages/database",
+    "db:import-workouts": "npm run db:import-workouts --workspace=packages/database",
     "prepare": "husky install"
   },
   "devDependencies": {

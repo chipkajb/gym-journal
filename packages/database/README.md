@@ -32,13 +32,16 @@ See **`prisma/schema.prisma`** for the full schema.
 
 - **User & auth** – Users, accounts, sessions, verification tokens (NextAuth)
 - **Profile** – User preferences and settings
-- **Exercise** – Exercise library (name, category, equipment, etc.)
-- **WorkoutTemplate** – Saved workout blueprints (user-scoped)
-- **TemplateExercise** – Exercises in a template (order, sets, reps, duration)
-- **WorkoutSession** – Logged workout instances (started/completed, optional template)
-- **ExerciseLog** – Sets, reps, weight, duration per exercise in a session
+- **Exercise** – Exercise library (optional; seed with `db:seed`)
+- **WorkoutTemplate** – CrossFit-style workout blueprints (title, description, scoreType, barbellLift; user-scoped)
+- **WorkoutSession** – Logged workouts (workoutDate, title, result, scoreType, rxOrScaled, isPr, notes; optional template link)
 - **BodyMetric** – Weight, body fat, measurements (for future use)
 - **DeviceConnection / DeviceData** – Smart device integrations (future)
+
+### Scripts
+
+- **`scripts/clear-workout-data.ts`** – Deletes all workout sessions and templates (keeps users). Run before re-importing.
+- **`scripts/import-workouts.ts`** – Imports from `workouts.csv` at repo root (or `WORKOUTS_CSV`). Uses first user unless `WORKOUT_USER_ID` is set.
 
 ## Environment
 

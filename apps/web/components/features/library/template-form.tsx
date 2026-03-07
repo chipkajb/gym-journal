@@ -3,27 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const SCORE_TYPES = ["", "Time", "Reps", "Load", "Rounds + Reps", "Rounds"];
+
 type TemplateFormProps = {
-  categories: string[];
   template?: {
     id: string;
-    name: string;
+    title: string;
     description: string | null;
-    category: string;
-    tags: string[];
+    scoreType: string | null;
+    barbellLift: string | null;
   };
 };
 
-export function TemplateForm({
-  categories,
-  template,
-}: TemplateFormProps) {
+export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
-  const [name, setName] = useState(template?.name ?? "");
+  const [title, setTitle] = useState(template?.title ?? "");
   const [description, setDescription] = useState(
     template?.description ?? ""
   );
-  const [category, setCategory] = useState(template?.category ?? categories[0]);
+  const [scoreType, setScoreType] = useState(template?.scoreType ?? "");
+  const [barbellLift, setBarbellLift] = useState(template?.barbellLift ?? "");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,14 +38,15 @@ export function TemplateForm({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: name.trim(),
+            title: title.trim(),
             description: description.trim() || null,
-            category,
+            scoreType: scoreType || null,
+            barbellLift: barbellLift.trim() || null,
           }),
         });
         if (!res.ok) {
           const data = await res.json();
-          setError(data.error?.name?.[0] ?? "Failed to update");
+          setError(data.error?.title?.[0] ?? "Failed to update");
           setLoading(false);
           return;
         }
@@ -57,15 +57,15 @@ export function TemplateForm({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: name.trim(),
+            title: title.trim(),
             description: description.trim() || undefined,
-            category,
-            tags: [],
+            scoreType: scoreType || null,
+            barbellLift: barbellLift.trim() || null,
           }),
         });
         if (!res.ok) {
           const data = await res.json();
-          setError(data.error?.name?.[0] ?? "Failed to create");
+          setError(data.error?.title?.[0] ?? "Failed to create");
           setLoading(false);
           return;
         }
@@ -91,40 +91,56 @@ export function TemplateForm({
       )}
       <div>
         <label
-          htmlFor="name"
+          htmlFor="title"
           className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
         >
-          Name
+          Title
         </label>
         <input
-          id="name"
+          id="title"
           type="text"
           required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          placeholder="e.g. Upper body push"
+          placeholder="e.g. DT, Linda"
         />
       </div>
       <div>
         <label
-          htmlFor="category"
+          htmlFor="scoreType"
           className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
         >
-          Category
+          Score type
         </label>
         <select
-          id="category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          id="scoreType"
+          value={scoreType}
+          onChange={(e) => setScoreType(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
         >
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
+          {SCORE_TYPES.map((s) => (
+            <option key={s || "none"} value={s}>
+              {s || "—"}
             </option>
           ))}
         </select>
+      </div>
+      <div>
+        <label
+          htmlFor="barbellLift"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+        >
+          Barbell lift (optional)
+        </label>
+        <input
+          id="barbellLift"
+          type="text"
+          value={barbellLift}
+          onChange={(e) => setBarbellLift(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          placeholder="e.g. Back Squat"
+        />
       </div>
       <div>
         <label
@@ -135,11 +151,11 @@ export function TemplateForm({
         </label>
         <textarea
           id="description"
-          rows={2}
+          rows={4}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          placeholder="Notes about this workout"
+          placeholder="Workout description / WOD details"
         />
       </div>
       <button

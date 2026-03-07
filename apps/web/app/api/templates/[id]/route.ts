@@ -5,23 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const updateTemplateSchema = z.object({
-  name: z.string().min(1).optional(),
+  title: z.string().min(1).optional(),
   description: z.string().optional().nullable(),
-  category: z.string().min(1).optional(),
-  tags: z.array(z.string()).optional(),
-  exercises: z
-    .array(
-      z.object({
-        exerciseId: z.string(),
-        orderIndex: z.number(),
-        sets: z.number().optional().nullable(),
-        reps: z.number().optional().nullable(),
-        duration: z.number().optional().nullable(),
-        restTime: z.number().optional().nullable(),
-        notes: z.string().optional().nullable(),
-      })
-    )
-    .optional(),
+  scoreType: z.string().optional().nullable(),
+  barbellLift: z.string().optional().nullable(),
 });
 
 export async function GET(
@@ -36,12 +23,6 @@ export async function GET(
   try {
     const template = await prisma.workoutTemplate.findFirst({
       where: { id, userId: session.user.id },
-      include: {
-        exercises: {
-          include: { exercise: true },
-          orderBy: { orderIndex: "asc" },
-        },
-      },
     });
     if (!template) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -81,38 +62,13 @@ export async function PATCH(
       );
     }
     const data = parsed.data;
-    if (data.exercises !== undefined) {
-      await prisma.templateExercise.deleteMany({
-        where: { workoutTemplateId: id },
-      });
-      if (data.exercises.length > 0) {
-        await prisma.templateExercise.createMany({
-          data: data.exercises.map((e) => ({
-            workoutTemplateId: id,
-            exerciseId: e.exerciseId,
-            orderIndex: e.orderIndex,
-            sets: e.sets ?? null,
-            reps: e.reps ?? null,
-            duration: e.duration ?? null,
-            restTime: e.restTime ?? null,
-            notes: e.notes ?? null,
-          })),
-        });
-      }
-    }
     const template = await prisma.workoutTemplate.update({
       where: { id },
       data: {
-        ...(data.name !== undefined && { name: data.name }),
+        ...(data.title !== undefined && { title: data.title }),
         ...(data.description !== undefined && { description: data.description }),
-        ...(data.category !== undefined && { category: data.category }),
-        ...(data.tags !== undefined && { tags: data.tags }),
-      },
-      include: {
-        exercises: {
-          include: { exercise: true },
-          orderBy: { orderIndex: "asc" },
-        },
+        ...(data.scoreType !== undefined && { scoreType: data.scoreType }),
+        ...(data.barbellLift !== undefined && { barbellLift: data.barbellLift }),
       },
     });
     return NextResponse.json(template);

@@ -1,18 +1,22 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
-const addLogSchema = z.object({
-  exerciseId: z.string(),
-  orderIndex: z.number(),
-  sets: z.number().optional().nullable(),
-  reps: z.number().optional().nullable(),
-  weight: z.number().optional().nullable(),
-  duration: z.number().optional().nullable(),
-  distance: z.number().optional().nullable(),
+const updateSessionSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional().nullable(),
+  workoutDate: z.string().optional(),
+  bestResultRaw: z.number().optional().nullable(),
+  bestResultDisplay: z.string().optional().nullable(),
+  scoreType: z.string().optional().nullable(),
+  barbellLift: z.string().optional().nullable(),
+  setDetails: z.unknown().optional().nullable(),
   notes: z.string().optional().nullable(),
+  rxOrScaled: z.string().optional().nullable(),
+  isPr: z.boolean().optional(),
 });
 
 export async function GET(
@@ -27,12 +31,7 @@ export async function GET(
   try {
     const workoutSession = await prisma.workoutSession.findFirst({
       where: { id, userId: session.user.id },
-      include: {
-        exerciseLogs: {
-          include: { exercise: true },
-          orderBy: { orderIndex: "asc" },
-        },
-      },
+      include: { workoutTemplate: true },
     });
     if (!workoutSession) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -65,27 +64,72 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    if (body.completedAt !== undefined) {
-      const completedAt = body.completedAt === true ? new Date() : null;
-      const duration = completedAt
-        ? Math.round(
-            (completedAt.getTime() - existing.startedAt.getTime()) / 1000
-          )
-        : null;
-      const updated = await prisma.workoutSession.update({
-        where: { id },
-        data: { completedAt, duration },
-        include: {
-          exerciseLogs: { include: { exercise: true }, orderBy: { orderIndex: "asc" } },
-        },
-      });
-      return NextResponse.json(updated);
+    const parsed = updateSessionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
     }
-    return NextResponse.json(existing);
+    const data = parsed.data;
+    const updated = await prisma.workoutSession.update({
+      where: { id },
+      data: {
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.workoutDate !== undefined && {
+          workoutDate: new Date(data.workoutDate),
+        }),
+        ...(data.bestResultRaw !== undefined && { bestResultRaw: data.bestResultRaw }),
+        ...(data.bestResultDisplay !== undefined && {
+          bestResultDisplay: data.bestResultDisplay,
+        }),
+        ...(data.scoreType !== undefined && { scoreType: data.scoreType }),
+        ...(data.barbellLift !== undefined && { barbellLift: data.barbellLift }),
+        ...(data.setDetails !== undefined && {
+          setDetails:
+            data.setDetails === null
+              ? Prisma.JsonNull
+              : (data.setDetails as object),
+        }),
+        ...(data.notes !== undefined && { notes: data.notes }),
+        ...(data.rxOrScaled !== undefined && { rxOrScaled: data.rxOrScaled }),
+        ...(data.isPr !== undefined && { isPr: data.isPr }),
+      },
+      include: { workoutTemplate: true },
+    });
+    return NextResponse.json(updated);
   } catch (e) {
-    console.error("Session complete error:", e);
+    console.error("Session update error:", e);
     return NextResponse.json(
       { error: "Failed to update session" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { id } = await params;
+  try {
+    const existing = await prisma.workoutSession.findFirst({
+      where: { id, userId: session.user.id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    await prisma.workoutSession.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("Session delete error:", e);
+    return NextResponse.json(
+      { error: "Failed to delete session" },
       { status: 500 }
     );
   }

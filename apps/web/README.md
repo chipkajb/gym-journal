@@ -1,6 +1,6 @@
 # Gym Journal Web App
 
-Next.js (App Router) application for Gym Journal. Provides authentication, workout library, session logging, and calendar history.
+Next.js (App Router) application for Gym Journal. Provides authentication, CrossFit-style workout library, session logging, and calendar + table history.
 
 ## Structure
 
@@ -10,7 +10,7 @@ Next.js (App Router) application for Gym Journal. Provides authentication, worko
   - **`login/`**, **`register/`** – Public auth pages
   - **`page.tsx`** – Home (sign in / sign up or “Go to Dashboard”)
 - **`components/`**
-  - **`features/`** – Library (templates, exercises editor), workouts (start form, timer, log list), history (calendar)
+  - **`features/`** – Library (templates, table view, log-from-template), workouts (log form, edit form, session detail), history (calendar, table view with filters)
   - **`providers/`** – `SessionProvider` for NextAuth
   - **`auth/`** – Sign-out button
   - **`ui/`** – Shared UI (e.g. shadcn/ui when added)

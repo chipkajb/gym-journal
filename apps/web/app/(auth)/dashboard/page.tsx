@@ -11,9 +11,8 @@ export default async function DashboardPage() {
   const [recentSessions, templateCount] = await Promise.all([
     prisma.workoutSession.findMany({
       where: { userId: session.user.id },
-      orderBy: { startedAt: "desc" },
+      orderBy: { workoutDate: "desc" },
       take: 5,
-      include: { exerciseLogs: true },
     }),
     prisma.workoutTemplate.count({ where: { userId: session.user.id } }),
   ]);
@@ -51,7 +50,7 @@ export default async function DashboardPage() {
           </div>
         </Link>
         <Link
-          href="/workouts"
+          href="/workouts/new"
           className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
         >
           <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
@@ -62,7 +61,7 @@ export default async function DashboardPage() {
               Log Workout
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Start a new session
+              Log a workout from template or freeform
             </p>
           </div>
         </Link>
@@ -91,20 +90,22 @@ export default async function DashboardPage() {
           </h2>
           <ul className="space-y-2">
             {recentSessions.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
-              >
-                <Dumbbell className="w-5 h-5 text-gray-400" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 dark:text-white truncate">
-                    {s.name}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(s.startedAt).toLocaleDateString()} ·{" "}
-                    {s.exerciseLogs.length} exercise{s.exerciseLogs.length !== 1 ? "s" : ""}
-                  </p>
-                </div>
+              <li key={s.id}>
+                <Link
+                  href={`/workouts/${s.id}`}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
+                >
+                  <Dumbbell className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-white truncate">
+                      {s.title}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(s.workoutDate).toLocaleDateString()}
+                      {s.bestResultDisplay && ` · ${s.bestResultDisplay}`}
+                    </p>
+                  </div>
+                </Link>
               </li>
             ))}
           </ul>

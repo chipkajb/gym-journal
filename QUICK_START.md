@@ -75,12 +75,12 @@ Open [http://localhost:3000](http://localhost:3000).
 - **/login** – Sign in with email and password (fully wired to NextAuth).
 - **/register** – Create an account (email, name, password). Redirects to dashboard after sign-in.
 - **/dashboard** – Dashboard with links to Library, Log workout, and History; recent workouts list.
-- **/library** – Workout templates list; “All exercises” and “New template”. Create and edit templates, add exercises with sets/reps.
+- **/library** – Workout templates (card view); “All exercises” and “New template”. Create and edit templates, add exercises with sets/reps.
 - **/workouts** – List of workout sessions; “Start workout” to begin from a template or freeform.
 - **/workouts/[id]** – Active or past session: timer, logged exercises, add exercise (sets/reps/weight/duration), “Finish workout”.
-- **/history** – Monthly calendar with color-coded workout days; click a day to see sessions.
+- **/history** – Monthly calendar (RX/scaled dots); click a day to see sessions. "Table view" for filterable history table.
 
-**First time:** Click Sign Up to create an account; you will land on the dashboard. Run `npm run db:seed` to add sample exercises to the library.
+**First time:** Click Sign Up to create an account; you will land on the dashboard. To import past workouts from CSV, place `workouts.csv` at the repo root and run `npm run db:import-workouts` (optionally run `npm run db:clear-workouts` first to remove existing workout data; users are kept). Run `npm run db:seed` to add sample exercises to the exercise library.
 
 ## Troubleshooting
 

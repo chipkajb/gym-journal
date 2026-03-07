@@ -5,9 +5,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ChevronLeft } from "lucide-react";
 import { TemplateForm } from "@/components/features/library/template-form";
-import { TemplateExercisesEditor } from "@/components/features/library/template-exercises-editor";
-
-const CATEGORIES = ["Strength", "Cardio", "CrossFit", "Flexibility"];
 
 export default async function EditTemplatePage({
   params,
@@ -20,22 +17,12 @@ export default async function EditTemplatePage({
   const { id } = await params;
   const template = await prisma.workoutTemplate.findFirst({
     where: { id, userId: session.user.id },
-    include: {
-      exercises: {
-        include: { exercise: true },
-        orderBy: { orderIndex: "asc" },
-      },
-    },
   });
 
   if (!template) notFound();
 
-  const exercises = await prisma.exercise.findMany({
-    orderBy: [{ category: "asc" }, { name: "asc" }],
-  });
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link
           href="/library"
@@ -50,30 +37,13 @@ export default async function EditTemplatePage({
       </div>
 
       <TemplateForm
-        categories={CATEGORIES}
         template={{
           id: template.id,
-          name: template.name,
+          title: template.title,
           description: template.description,
-          category: template.category,
-          tags: template.tags,
+          scoreType: template.scoreType,
+          barbellLift: template.barbellLift,
         }}
-      />
-
-      <TemplateExercisesEditor
-        templateId={template.id}
-        templateExercises={template.exercises.map((te) => ({
-          id: te.id,
-          exerciseId: te.exerciseId,
-          exerciseName: te.exercise.name,
-          orderIndex: te.orderIndex,
-          sets: te.sets,
-          reps: te.reps,
-          duration: te.duration,
-          restTime: te.restTime,
-          notes: te.notes,
-        }))}
-        allExercises={exercises}
       />
     </div>
   );

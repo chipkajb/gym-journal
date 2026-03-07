@@ -10,9 +10,10 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 **Currently implemented (MVP)**
 
 - 🔐 **Authentication**: Email/password sign up and sign in via NextAuth.js (Credentials + Prisma, JWT sessions). Protected routes and redirects.
-- 🏋️ **Workout Library**: Create and manage workout templates (name, category, description). Add exercises to templates with sets/reps. Browse the built-in exercise list (seed with `npm run db:seed`).
-- 📝 **Workout Logging**: Start a workout from a template or freeform. Session page with elapsed timer, log exercises (sets, reps, weight, duration), and finish workout.
-- 📅 **Calendar & History**: Monthly calendar view with color-coded workout types (Strength, Cardio, CrossFit, Flexibility). Click a day to see sessions.
+- 🏋️ **Workout Library**: Create and manage CrossFit-style workout templates (title, description, score type, barbell lift). Card and **table views** with filters. **Log a workout** from any template to retry and beat your performance.
+- 📝 **Workout Logging**: Log a workout from a template or freeform. Record date, result (time/reps/load/rounds), RX or scaled, notes, and PR. Edit or delete past sessions.
+- 📅 **Calendar & History**: Monthly calendar view (RX/scaled dots). **Table view** with filters (date range, title, score type, RX/scaled) on a separate page.
+- 📥 **CSV Import**: Import historical workouts from `workouts.csv` with `npm run db:import-workouts` (run `npm run db:clear-workouts` first to wipe old data; users are preserved).
 
 **Planned**
 
@@ -124,6 +125,8 @@ npm run db:migrate    # Create and apply migrations
 npm run db:studio     # Open Prisma Studio GUI
 npm run db:seed       # Seed exercises (optional)
 npm run db:reset      # Reset database (dev only)
+npm run db:clear-workouts   # Remove all workout sessions and templates (keeps users)
+npm run db:import-workouts  # Import workouts from repo-root workouts.csv (uses first user)
 ```
 
 ### Code Quality
@@ -159,10 +162,9 @@ docker-compose up -d --build   # Rebuild and start
 
 - **users** - User accounts and authentication
 - **profiles** - Extended user information and preferences
-- **exercises** - Master exercise library
-- **workout_templates** - Saved workout blueprints
-- **workout_sessions** - Individual workout instances
-- **exercise_logs** - Exercise performance within sessions
+- **exercises** - Master exercise library (optional; seed with `npm run db:seed`)
+- **workout_templates** - CrossFit-style workout blueprints (title, description, score type, barbell lift)
+- **workout_sessions** - Logged workouts (date, result, RX/scaled, PR, notes, optional template link)
 - **body_metrics** - Weight, body fat %, measurements over time
 - **device_connections** - Smart device OAuth tokens (future)
 - **device_data** - Synced data from wearables (future)

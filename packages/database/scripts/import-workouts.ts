@@ -1,0 +1,193 @@
+/**
+ * Imports workouts from workouts.csv into the database.
+ * - Clears existing workout sessions and templates for the target user.
+ * - Creates one WorkoutTemplate per distinct workout title (first occurrence's description/scoreType/barbellLift).
+ * - Creates one WorkoutSession per CSV row, linked to template when title matches.
+ *
+ * Expects workouts.csv at repo root or path in WORKOUTS_CSV env.
+ * Uses the first user in the DB as owner unless WORKOUT_USER_ID is set.
+ *
+ * Usage (from repo root, DATABASE_URL set):
+ *   npx tsx packages/database/scripts/import-workouts.ts
+ * Or: npm run db:import-workouts
+ */
+
+import { PrismaClient } from "@prisma/client";
+import * as fs from "fs";
+import * as path from "path";
+
+const prisma = new PrismaClient();
+
+type CsvRow = {
+  date: string;
+  title: string;
+  description: string;
+  best_result_raw: string;
+  best_result_display: string;
+  score_type: string;
+  barbell_lift: string;
+  set_details: string;
+  notes: string;
+  rx_or_scaled: string;
+  pr: string;
+};
+
+// Simple CSV parse: split by comma but respect double-quoted fields
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      inQuotes = !inQuotes;
+    } else if (c === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += c;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseCsv(content: string): CsvRow[] {
+  const lines = content.split(/\r?\n/).filter((l) => l.length > 0);
+  if (lines.length < 2) return [];
+  const header = parseCsvLine(lines[0]);
+  const rows: CsvRow[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCsvLine(lines[i]);
+    const row: Record<string, string> = {};
+    header.forEach((h, j) => {
+      row[h] = values[j] ?? "";
+    });
+    rows.push(row as unknown as CsvRow);
+  }
+  return rows;
+}
+
+function parseDate(mmDdYyyy: string): Date {
+  const [m, d, y] = mmDdYyyy.split("/").map(Number);
+  if (!m || !d || !y) return new Date();
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+function parseSetDetails(raw: string): unknown {
+  if (!raw || !raw.trim()) return null;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function parseFloatSafe(s: string): number | null {
+  const n = parseFloat(s);
+  return Number.isNaN(n) ? null : n;
+}
+
+async function main() {
+  // Resolve CSV path: env, then repo root (cwd or two levels up from this script)
+  const repoRoot = process.cwd().endsWith("packages/database")
+    ? path.join(process.cwd(), "..", "..")
+    : process.cwd();
+  const csvPath =
+    process.env.WORKOUTS_CSV || path.join(repoRoot, "workouts.csv");
+  if (!fs.existsSync(csvPath)) {
+    console.error("CSV not found at", csvPath);
+    process.exit(1);
+  }
+
+  const userId =
+    process.env.WORKOUT_USER_ID ||
+    (await prisma.user.findFirst().then((u) => u?.id));
+  if (!userId) {
+    console.error("No user found. Create an account first or set WORKOUT_USER_ID.");
+    process.exit(1);
+  }
+
+  console.log("Clearing existing workout data for user...");
+  await prisma.workoutSession.deleteMany({ where: { userId } });
+  await prisma.workoutTemplate.deleteMany({ where: { userId } });
+
+  const content = fs.readFileSync(csvPath, "utf-8");
+  const rows = parseCsv(content);
+  console.log(`Parsed ${rows.length} rows from ${csvPath}`);
+
+  // Build unique templates by title (first occurrence wins for description/scoreType/barbellLift)
+  const templateByTitle = new Map<
+    string,
+    { title: string; description: string; scoreType: string; barbellLift: string }
+  >();
+  for (const r of rows) {
+    const t = r.title?.trim();
+    if (!t) continue;
+    if (!templateByTitle.has(t)) {
+      templateByTitle.set(t, {
+        title: t,
+        description: r.description?.trim() ?? "",
+        scoreType: r.score_type?.trim() ?? "",
+        barbellLift: r.barbell_lift?.trim() ?? "",
+      });
+    }
+  }
+
+  const createdTemplates = await prisma.workoutTemplate.createMany({
+    data: Array.from(templateByTitle.values()).map((v) => ({
+      userId,
+      title: v.title,
+      description: v.description || null,
+      scoreType: v.scoreType || null,
+      barbellLift: v.barbellLift || null,
+    })),
+  });
+  console.log(`Created ${createdTemplates.count} templates`);
+
+  const templates = await prisma.workoutTemplate.findMany({
+    where: { userId },
+    select: { id: true, title: true },
+  });
+  const templateIdByTitle = new Map(templates.map((t) => [t.title, t.id]));
+
+  let created = 0;
+  for (const r of rows) {
+    const title = r.title?.trim();
+    if (!title) continue;
+    const workoutDate = parseDate(r.date);
+    const bestResultRaw = parseFloatSafe(r.best_result_raw);
+    const setDetails = parseSetDetails(r.set_details);
+    const isPr = /^PR$/i.test(r.pr?.trim() ?? "");
+
+    await prisma.workoutSession.create({
+      data: {
+        userId,
+        workoutTemplateId: templateIdByTitle.get(title) ?? null,
+        title,
+        description: r.description?.trim() || null,
+        workoutDate,
+        bestResultRaw,
+        bestResultDisplay: r.best_result_display?.trim() || null,
+        scoreType: r.score_type?.trim() || null,
+        barbellLift: r.barbell_lift?.trim() || null,
+        setDetails: setDetails as object | null,
+        notes: r.notes?.trim() || null,
+        rxOrScaled: r.rx_or_scaled?.trim() || null,
+        isPr,
+      },
+    });
+    created++;
+  }
+
+  console.log(`Created ${created} workout sessions. Import done.`);
+}
+
+main()
+  .catch((e) => {
+    console.error("Error:", e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
