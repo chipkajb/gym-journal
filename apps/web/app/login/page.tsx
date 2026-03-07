@@ -57,12 +57,12 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center space-y-4">
           <div className="flex justify-center">
-            <div className="relative w-24 h-24">
+            <div className="relative h-24 w-24 overflow-hidden rounded-full">
               <Image
                 src="/logo.png"
                 alt="Gym Journal Logo"
                 fill
-                className="object-contain"
+                className="object-cover"
                 priority
               />
             </div>

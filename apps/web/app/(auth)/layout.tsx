@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -29,9 +30,17 @@ export default async function AuthLayout({
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link
             href="/dashboard"
-            className="font-semibold text-lg text-gray-900 dark:text-white"
+            className="flex items-center gap-2 font-semibold text-lg text-gray-900 dark:text-white"
           >
-            Gym Journal
+            <span className="relative flex h-7 w-7 shrink-0 overflow-hidden rounded-full">
+              <Image
+                src="/logo.png"
+                alt=""
+                fill
+                className="object-cover"
+              />
+            </span>
+            <span>Gym Journal</span>
           </Link>
           <nav className="flex items-center gap-1">
             <Link

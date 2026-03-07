@@ -15,12 +15,12 @@ export default async function HomePage() {
       <div className="max-w-md w-full space-y-8 text-center">
         {/* Logo */}
         <div className="flex justify-center">
-          <div className="relative w-32 h-32 md:w-40 md:h-40">
+          <div className="relative h-32 w-32 overflow-hidden rounded-full md:h-40 md:w-40">
             <Image
               src="/logo.png"
               alt="Gym Journal Logo"
               fill
-              className="object-contain"
+              className="object-cover"
               priority
             />
           </div>
