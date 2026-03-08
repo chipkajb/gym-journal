@@ -3,24 +3,26 @@
 A full-stack progressive web application (PWA) for personal health and fitness tracking. Built with Next.js 14+, TypeScript, Prisma, and PostgreSQL, designed to run on your home server with zero hosting costs.
 
 > ⚠️ **WARNING**: This project is currently under active development and is a work in progress. Features may be incomplete, APIs may change, and the application may not be production-ready. Use at your own risk.
+
 > ⚠️ **DISCLOSURE**: This is a vibe coding project — expect experimental approaches, evolving architecture, and the occasional "let's see what happens" commit. The journey for this project is more about exploration than perfection.
 
 ## Features
 
-**Currently implemented (MVP)**
+**Currently implemented (MVP + Phase 2)**
 
 - 🔐 **Authentication**: Email/password sign up and sign in via NextAuth.js (Credentials + Prisma, JWT sessions). Protected routes and redirects.
 - 🏋️ **Workout Library**: Create and manage CrossFit-style workout templates (title, description, score type, barbell lift). Card and **table views** with filters. **Log a workout** from any template to retry and beat your performance.
 - 📝 **Workout Logging**: Log a workout from a template or freeform. Record date, result (time/reps/load/rounds), RX or scaled, notes, and PR. Edit or delete past sessions.
 - 📅 **Calendar & History**: Monthly calendar view (RX/scaled dots). **Table view** with filters (date range, title, score type, RX/scaled) on a separate page.
 - 📥 **CSV Import**: Import historical workouts from `workouts.csv` with `npm run db:import-workouts` (run `npm run db:clear-workouts` first to wipe old data; users are preserved).
+- 📊 **Progress & Analytics**: Personal records (PRs) list, progress-over-time charts by workout, summary stats (total workouts, PR count, last 30 days). **Analytics** page with Recharts.
+- 📏 **Body Metrics**: Track weight, body fat %, muscle mass, BMI, and notes over time. Add/edit/delete entries; weight trend chart. **Metrics** page; respects profile preferred unit (metric/imperial).
+- 📱 **PWA & Offline**: Web app manifest, service worker (via `@ducanh2912/next-pwa`), offline fallback page, offline banner when disconnected. Installable on iOS/Android. Production build uses webpack for PWA; API responses can be cached for resilience.
 
 **Planned**
 
-- 📊 **Progress Analytics**: Personal records, progress charts, body metrics, goal setting
-- 📱 **PWA Support**: Offline functionality, install on iOS/Android
 - 🔐 **OAuth**: Google (and other providers) via NextAuth.js
-- 🌙 **Dark Mode**: System preference detection
+- 🌙 **Dark Mode**: System preference detection (theme toggle exists in settings)
 - 🔄 **Smart Device Integration**: Apple HealthKit, Google Fit, Fitbit APIs
 
 ## Tech Stack
@@ -32,7 +34,7 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 - **Tailwind CSS** - Utility-first styling
 - **date-fns** - Date formatting and calendar logic
 - **lucide-react** - Icons
-- **Recharts** - Data visualization (for future analytics)
+- **Recharts** - Data visualization (analytics and body metrics charts)
 
 ### Backend
 
@@ -78,10 +80,13 @@ gym-journal/
 │       │   │   ├── dashboard/
 │       │   │   ├── library/    # Templates + exercises
 │       │   │   ├── workouts/   # Sessions + log
-│       │   │   └── history/    # Calendar view
+│       │   │   ├── history/    # Calendar view
+│       │   │   ├── metrics/    # Body metrics
+│       │   │   └── analytics/  # Progress & PRs
 │       │   ├── api/            # API route handlers
 │       │   ├── login/
-│       │   └── register/
+│       │   ├── register/
+│       │   └── offline/        # PWA offline fallback page
 │       ├── components/         # React components
 │       │   ├── ui/             # shadcn/ui components
 │       │   ├── features/       # Feature-specific components
@@ -204,16 +209,17 @@ NODE_ENV="production"
 
 The app is configured as a Progressive Web App with:
 
-- **Service Workers** for offline functionality
-- **Web App Manifest** for installation on mobile devices
-- **IndexedDB** for offline data caching
-- **Background Sync** for data synchronization
+- **Service worker** (`/sw.js`) generated at build time via `@ducanh2912/next-pwa` (webpack build only; disabled in development).
+- **Web app manifest** (`/manifest.json`) for name, icons, theme colors, and installability.
+- **Offline fallback**: When a route is unavailable offline, the app shows the `/offline` page.
+- **Offline banner**: A sticky banner appears when the browser reports no connection.
+- **Runtime caching**: API responses can be cached (NetworkFirst) for better resilience.
 
-To install on iOS/Android:
+Production build uses `next build --webpack` so the PWA plugin can generate the service worker. To install on iOS/Android:
 
-1. Open the app in your mobile browser
-2. Tap "Add to Home Screen" or "Install App"
-3. The app will launch in fullscreen mode
+1. Open the app in your mobile browser (over HTTPS).
+2. Tap "Add to Home Screen" or "Install App".
+3. The app will launch in standalone mode.
 
 ## Contributing
 
@@ -233,12 +239,12 @@ This is a personal project, but suggestions and feedback are welcome!
   - Workout logging (start session, timer, log sets/reps/weight/duration, finish workout)
   - Calendar/history view (month view, color-coded by category, click day for sessions)
 
-- **Phase 2** 🔄 Next
-  - Progress tracking and analytics
-  - Body metrics
-  - PWA features and offline mode
+- **Phase 2** ✅ Done
+  - Progress tracking and analytics (PRs, progress-by-workout charts, summary stats)
+  - Body metrics (weight, body fat %, muscle mass, BMI, trend chart)
+  - PWA features and offline mode (manifest, service worker, offline page, offline banner)
 
-- **Phase 3** 📋 Planned
+- **Phase 3** 📋 Next
   - Smart device integrations
   - Data sync and exports
   - Advanced analytics

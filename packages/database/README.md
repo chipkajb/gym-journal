@@ -35,7 +35,7 @@ See **`prisma/schema.prisma`** for the full schema.
 - **Exercise** – Exercise library (optional; seed with `db:seed`)
 - **WorkoutTemplate** – CrossFit-style workout blueprints (title, description, scoreType, barbellLift; user-scoped)
 - **WorkoutSession** – Logged workouts (workoutDate, title, result, scoreType, rxOrScaled, isPr, notes; optional template link)
-- **BodyMetric** – Weight, body fat, measurements (for future use)
+- **BodyMetric** – Weight, body fat %, muscle mass, BMI, measurements (JSON), notes; used by Metrics page and API
 - **DeviceConnection / DeviceData** – Smart device integrations (future)
 
 ### Scripts

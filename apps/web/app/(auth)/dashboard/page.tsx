@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { BookOpen, PenLine, Calendar, Dumbbell } from "lucide-react";
+import { BookOpen, PenLine, Calendar, Scale, BarChart3, Dumbbell } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -78,6 +78,38 @@ export default async function DashboardPage() {
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Calendar view
+            </p>
+          </div>
+        </Link>
+        <Link
+          href="/metrics"
+          className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
+        >
+          <div className="p-3 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+            <Scale className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-white">
+              Body metrics
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Weight, body fat, trends
+            </p>
+          </div>
+        </Link>
+        <Link
+          href="/analytics"
+          className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
+        >
+          <div className="p-3 rounded-lg bg-violet-100 dark:bg-violet-900/30">
+            <BarChart3 className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-white">
+              Analytics
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              PRs and progress
             </p>
           </div>
         </Link>

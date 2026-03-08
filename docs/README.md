@@ -4,7 +4,7 @@ This directory is for additional project documentation.
 
 ## Root docs
 
-- **[../README.md](../README.md)** – Project overview, features, tech stack, structure, and development phases
+- **[../README.md](../README.md)** – Project overview, features (MVP + Phase 2: analytics, body metrics, PWA), tech stack, structure, and development phases
 - **[../QUICK_START.md](../QUICK_START.md)** – Minimal setup to run the app locally
 
 ## Planned contents

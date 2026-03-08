@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { LayoutDashboard, BookOpen, PenLine, Calendar, Settings } from "lucide-react";
+import { LayoutDashboard, BookOpen, PenLine, Calendar, Scale, BarChart3, Settings } from "lucide-react";
 
 function displayName(session: { user?: { name?: string | null; email?: string | null } | null }) {
   const name = session.user?.name?.trim();
@@ -70,6 +70,20 @@ export default async function AuthLayout({
             >
               <Calendar className="w-4 h-4" />
               <span className="hidden sm:inline">History</span>
+            </Link>
+            <Link
+              href="/metrics"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+            >
+              <Scale className="w-4 h-4" />
+              <span className="hidden sm:inline">Metrics</span>
+            </Link>
+            <Link
+              href="/analytics"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Analytics</span>
             </Link>
           </nav>
           <div className="flex items-center gap-1">
