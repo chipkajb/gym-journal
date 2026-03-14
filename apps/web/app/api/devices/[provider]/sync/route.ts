@@ -9,20 +9,21 @@ import { SUPPORTED_PROVIDERS } from "../../route";
 // OAuth tokens and persist new data points to device_data.
 export async function POST(
   _request: Request,
-  { params }: { params: { provider: string } }
+  { params }: { params: Promise<{ provider: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const provider = SUPPORTED_PROVIDERS.find((p) => p.id === params.provider);
+  const { provider: providerId } = await params;
+  const provider = SUPPORTED_PROVIDERS.find((p) => p.id === providerId);
   if (!provider) {
     return NextResponse.json({ error: "Unknown provider" }, { status: 404 });
   }
 
   const conn = await prisma.deviceConnection.findUnique({
-    where: { userId_provider: { userId: session.user.id, provider: params.provider } },
+    where: { userId_provider: { userId: session.user.id, provider: providerId } },
   });
 
   if (!conn || !conn.isActive) {
@@ -42,7 +43,7 @@ export async function POST(
 
   return NextResponse.json({
     synced: true,
-    provider: params.provider,
+    provider: providerId,
     syncedAt: new Date().toISOString(),
     note: "Sync infrastructure is in place. Configure OAuth credentials to enable live data import.",
   });

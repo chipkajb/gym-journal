@@ -37,7 +37,7 @@ export default function IntegrationsPage() {
 
   useEffect(() => { loadDevices(); }, [loadDevices]);
 
-  async function handleConnect(providerId: string) {
+  function handleConnect(providerId: string) {
     setFeedback({
       id: providerId,
       message:

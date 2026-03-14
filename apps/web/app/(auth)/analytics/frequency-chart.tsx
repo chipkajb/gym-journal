@@ -101,9 +101,8 @@ export function FrequencyChart() {
                 cursor={{ fill: "rgba(99,102,241,0.08)" }}
               />
               <Legend />
-              <Bar dataKey="rx" name="RX" stackId="a" fill="rgb(59,130,246)" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="scaled" name="Scaled" stackId="a" fill="rgb(147,197,253)" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="total" name="Total" fill="rgb(209,213,219)" radius={[4, 4, 0, 0]} hide />
+              <Bar dataKey="rx" name="RX" stackId="a" fill="rgb(59,130,246)" />
+              <Bar dataKey="scaled" name="Scaled" stackId="a" fill="rgb(147,197,253)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

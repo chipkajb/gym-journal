@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   LineChart,
   Line,
@@ -75,7 +76,10 @@ export function BodyCompositionChart({ unit = "metric" }: { unit?: string }) {
       ) : data.length === 0 ? (
         <p className="text-gray-500 dark:text-gray-400 py-8 text-center text-sm">
           No body metrics in this range. Add metrics on the{" "}
-          <a href="/metrics" className="text-blue-600 dark:text-blue-400 underline">Metrics</a> page.
+          <Link href="/metrics" className="text-blue-600 dark:text-blue-400 underline">
+            Metrics
+          </Link>{" "}
+          page.
         </p>
       ) : (
         <>

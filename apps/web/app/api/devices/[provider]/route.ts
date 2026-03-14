@@ -7,21 +7,22 @@ import { SUPPORTED_PROVIDERS } from "../route";
 // GET /api/devices/[provider] — fetch connection status
 export async function GET(
   _request: Request,
-  { params }: { params: { provider: string } }
+  { params }: { params: Promise<{ provider: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const provider = SUPPORTED_PROVIDERS.find((p) => p.id === params.provider);
+  const { provider: providerId } = await params;
+  const provider = SUPPORTED_PROVIDERS.find((p) => p.id === providerId);
   if (!provider) {
     return NextResponse.json({ error: "Unknown provider" }, { status: 404 });
   }
 
   try {
     const conn = await prisma.deviceConnection.findUnique({
-      where: { userId_provider: { userId: session.user.id, provider: params.provider } },
+      where: { userId_provider: { userId: session.user.id, provider: providerId } },
       select: {
         id: true,
         provider: true,
@@ -51,14 +52,15 @@ export async function GET(
 //   would redirect to OAuth and receive token via callback)
 export async function POST(
   request: Request,
-  { params }: { params: { provider: string } }
+  { params }: { params: Promise<{ provider: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const provider = SUPPORTED_PROVIDERS.find((p) => p.id === params.provider);
+  const { provider: providerId } = await params;
+  const provider = SUPPORTED_PROVIDERS.find((p) => p.id === providerId);
   if (!provider) {
     return NextResponse.json({ error: "Unknown provider" }, { status: 404 });
   }
@@ -75,10 +77,10 @@ export async function POST(
 
   try {
     const conn = await prisma.deviceConnection.upsert({
-      where: { userId_provider: { userId: session.user.id, provider: params.provider } },
+      where: { userId_provider: { userId: session.user.id, provider: providerId } },
       create: {
         userId: session.user.id,
-        provider: params.provider,
+        provider: providerId,
         accessToken,
         isActive: true,
       },
@@ -105,16 +107,17 @@ export async function POST(
 // DELETE /api/devices/[provider] — disconnect integration
 export async function DELETE(
   _request: Request,
-  { params }: { params: { provider: string } }
+  { params }: { params: Promise<{ provider: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { provider: providerId } = await params;
   try {
     await prisma.deviceConnection.delete({
-      where: { userId_provider: { userId: session.user.id, provider: params.provider } },
+      where: { userId_provider: { userId: session.user.id, provider: providerId } },
     });
     return NextResponse.json({ disconnected: true });
   } catch {
