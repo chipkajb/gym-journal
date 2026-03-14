@@ -25,7 +25,7 @@ test.describe("Authentication", () => {
     await expect(page.getByRole("heading", { name: /create account|sign up|register/i })).toBeVisible();
     await expect(page.getByLabel(/name/i)).toBeVisible();
     await expect(page.getByLabel(/email/i)).toBeVisible();
-    await expect(page.getByLabel(/password/i)).toBeVisible();
+    await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
   });
 
   test("login page renders the login form", async ({ page }) => {
@@ -45,7 +45,7 @@ test.describe("Authentication", () => {
     await page.goto("/register");
     await page.getByLabel(/name/i).fill(TEST_NAME);
     await page.getByLabel(/email/i).fill(TEST_EMAIL);
-    await page.getByLabel(/password/i).fill(TEST_PASSWORD);
+    await page.getByLabel("Password", { exact: true }).fill(TEST_PASSWORD);
     await page.getByRole("button", { name: /create account|sign up|register/i }).click();
 
     // After registration, app redirects to dashboard (or login)
