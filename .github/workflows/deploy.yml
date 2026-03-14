@@ -36,7 +36,7 @@ jobs:
         with:
           context: .
           file: ./docker/Dockerfile
-          push: ${{ vars.REGISTRY != '' }}
+          push: ${{ vars.REGISTRY != '' && 'true' || 'false' }}
           tags: |
             ${{ vars.REGISTRY && format('{0}/gym-journal:{1}', vars.REGISTRY, github.sha) || 'gym-journal:latest' }}
             ${{ vars.REGISTRY && format('{0}/gym-journal:latest', vars.REGISTRY) || 'gym-journal:latest' }}
@@ -45,7 +45,7 @@ jobs:
 
       - name: Deploy to home server via SSH
         # Configure SERVER_HOST, SERVER_USER, SSH_PRIVATE_KEY secrets
-        if: secrets.SERVER_HOST != ''
+        # in GitHub → Settings → Secrets and variables → Actions
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_HOST }}
