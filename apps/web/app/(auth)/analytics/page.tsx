@@ -7,7 +7,7 @@ export default async function AnalyticsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
 
-  const [prs, summary, titleRows] = await Promise.all([
+  const [prs, summary, titleRows, profile] = await Promise.all([
     prisma.workoutSession.findMany({
       where: { userId: session.user.id, isPr: true },
       orderBy: { workoutDate: "desc" },
@@ -36,6 +36,10 @@ export default async function AnalyticsPage() {
       where: { userId: session.user.id },
       orderBy: { title: "asc" },
     }),
+    prisma.profile.findUnique({
+      where: { userId: session.user.id },
+      select: { preferredUnit: true },
+    }),
   ]);
 
   const prsForClient = prs.map((p) => ({
@@ -54,6 +58,7 @@ export default async function AnalyticsPage() {
       initialPrs={prsForClient}
       workoutTitles={workoutTitles}
       summary={summary}
+      preferredUnit={profile?.preferredUnit ?? "metric"}
     />
   );
 }

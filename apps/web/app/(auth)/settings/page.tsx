@@ -2,9 +2,10 @@
 
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { setThemeCookie } from "@/lib/theme";
 import { useTheme } from "@/components/providers/theme-provider";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, Download, Smartphone } from "lucide-react";
 
 type ProfileData = {
   name: string;
@@ -177,6 +178,61 @@ export default function SettingsPage() {
           {saving ? "Saving…" : "Save changes"}
         </button>
       </form>
+
+      {/* Data Export */}
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <Download className="w-5 h-5" />
+          Export your data
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Download all your workout logs and body metrics as CSV or JSON.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <a
+            href="/api/export?format=csv&type=workouts"
+            download="workouts.csv"
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Workouts CSV
+          </a>
+          <a
+            href="/api/export?format=csv&type=metrics"
+            download="body-metrics.csv"
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Metrics CSV
+          </a>
+          <a
+            href="/api/export?format=json&type=all"
+            download="gym-journal-export.json"
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Full export (JSON)
+          </a>
+        </div>
+      </div>
+
+      {/* Device Integrations shortcut */}
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Smartphone className="w-5 h-5" />
+              Device integrations
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Connect Apple Health, Google Fit, Fitbit, and Garmin to sync your activity data.
+            </p>
+          </div>
+          <Link
+            href="/settings/integrations"
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0"
+          >
+            Manage
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

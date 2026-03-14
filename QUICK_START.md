@@ -80,7 +80,9 @@ Open [http://localhost:3000](http://localhost:3000).
 - **/workouts/[id]** – Active or past session: timer, logged exercises, add exercise (sets/reps/weight/duration), “Finish workout”.
 - **/history** – Monthly calendar (RX/scaled dots); click a day to see sessions. "Table view" for filterable history table.
 - **/metrics** – Body metrics: add weight, body fat %, muscle mass, BMI; view list and weight trend chart.
-- **/analytics** – Progress and analytics: total workouts, PR count, last 30 days; progress-over-time chart by workout; PR list.
+- **/analytics** – Progress and analytics: total workouts, PR count, last 30 days; progress-over-time chart by workout; **workout frequency** chart (by week/month, RX vs Scaled); **body composition trends** chart; PR list.
+- **/settings** – Preferences (name, dark mode), **data export** (workouts CSV, metrics CSV, full JSON), and a shortcut to device integrations.
+- **/settings/integrations** – Manage connected fitness devices (Apple Health, Google Fit, Fitbit, Garmin). Connect, sync, and disconnect integrations.
 
 **First time:** Click Sign Up to create an account; you will land on the dashboard. To import past workouts from CSV, place `workouts.csv` at the repo root and run `npm run db:import-workouts` (optionally run `npm run db:clear-workouts` first to remove existing workout data; users are kept). Run `npm run db:seed` to add sample exercises to the exercise library.
 
