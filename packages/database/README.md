@@ -36,7 +36,8 @@ See **`prisma/schema.prisma`** for the full schema.
 - **WorkoutTemplate** – CrossFit-style workout blueprints (title, description, scoreType, barbellLift; user-scoped)
 - **WorkoutSession** – Logged workouts (workoutDate, title, result, scoreType, rxOrScaled, isPr, notes; optional template link)
 - **BodyMetric** – Weight, body fat %, muscle mass, BMI, measurements (JSON), notes; used by Metrics page and API
-- **DeviceConnection / DeviceData** – Smart device integrations (future)
+- **DeviceConnection** – OAuth tokens for connected wearables (Apple Health, Google Fit, Fitbit, Garmin). Unique per user+provider.
+- **DeviceData** – Individual data points synced from connected devices (steps, heart rate, sleep, calories, etc.)
 
 ### Scripts
 

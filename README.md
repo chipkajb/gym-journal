@@ -8,22 +8,26 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 
 ## Features
 
-**Currently implemented (MVP + Phase 2)**
+**Currently implemented (MVP + Phases 1–4)**
 
 - 🔐 **Authentication**: Email/password sign up and sign in via NextAuth.js (Credentials + Prisma, JWT sessions). Protected routes and redirects.
 - 🏋️ **Workout Library**: Create and manage CrossFit-style workout templates (title, description, score type, barbell lift). Card and **table views** with filters. **Log a workout** from any template to retry and beat your performance.
 - 📝 **Workout Logging**: Log a workout from a template or freeform. Record date, result (time/reps/load/rounds), RX or scaled, notes, and PR. Edit or delete past sessions.
 - 📅 **Calendar & History**: Monthly calendar view (RX/scaled dots). **Table view** with filters (date range, title, score type, RX/scaled) on a separate page.
 - 📥 **CSV Import**: Import historical workouts from `workouts.csv` with `npm run db:import-workouts` (run `npm run db:clear-workouts` first to wipe old data; users are preserved).
-- 📊 **Progress & Analytics**: Personal records (PRs) list, progress-over-time charts by workout, summary stats (total workouts, PR count, last 30 days). **Analytics** page with Recharts.
+- 📊 **Progress & Analytics**: Personal records (PRs) list, progress-over-time charts by workout, summary stats (total workouts, PR count, last 30 days). **Workout frequency** bar chart (by week/month, RX vs Scaled breakdown). **Body composition trends** chart (weight, body fat %, muscle mass). All charts have time-range filters.
 - 📏 **Body Metrics**: Track weight, body fat %, muscle mass, BMI, and notes over time. Add/edit/delete entries; weight trend chart. **Metrics** page; respects profile preferred unit (metric/imperial).
 - 📱 **PWA & Offline**: Web app manifest, service worker (via `@ducanh2912/next-pwa`), offline fallback page, offline banner when disconnected. Installable on iOS/Android. Production build uses webpack for PWA; API responses can be cached for resilience.
+- 📤 **Data Export**: Export all workout sessions and body metrics as **CSV** or **JSON** directly from the Settings page (`/api/export`).
+- 🔗 **Device Integrations**: Full API and UI framework for connecting wearables (Apple Health, Google Fit, Fitbit, Garmin). Connect, sync, and disconnect integrations from `/settings/integrations`. OAuth credentials must be configured per provider (see `docs/INTEGRATIONS.md`).
+- ⚡ **Performance**: Next.js `loading.tsx` skeleton screens and `error.tsx` error boundaries on all major pages for instant perceived performance and graceful failure handling.
+- 🧪 **Testing**: Jest unit tests (lib utilities, API helpers, analytics logic) with React Testing Library component tests. Playwright E2E tests covering authentication flows, navigation, and protected routes.
+- 🚀 **CI/CD**: GitHub Actions pipelines for lint, type-check, unit tests, build verification, E2E tests (with Postgres service), and Docker image builds. Separate deployment workflow for home server via SSH.
 
 **Planned**
 
 - 🔐 **OAuth**: Google (and other providers) via NextAuth.js
 - 🌙 **Dark Mode**: System preference detection (theme toggle exists in settings)
-- 🔄 **Smart Device Integration**: Apple HealthKit, Google Fit, Fitbit APIs
 
 ## Tech Stack
 
@@ -73,6 +77,10 @@ To run the app locally, see **[QUICK_START.md](QUICK_START.md)** for a minimal s
 
 ```text
 gym-journal/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml              # CI: lint, test, build, E2E, Docker
+│       └── deploy.yml          # Manual deploy to home server
 ├── apps/
 │   └── web/                    # Next.js application
 │       ├── app/                # App Router pages and layouts
@@ -82,11 +90,23 @@ gym-journal/
 │       │   │   ├── workouts/   # Sessions + log
 │       │   │   ├── history/    # Calendar view
 │       │   │   ├── metrics/    # Body metrics
-│       │   │   └── analytics/  # Progress & PRs
+│       │   │   ├── analytics/  # Progress, PRs, frequency, body composition
+│       │   │   └── settings/   # Preferences + export + integrations
+│       │   │       └── integrations/  # Device integration management
 │       │   ├── api/            # API route handlers
+│       │   │   ├── export/     # CSV/JSON data export
+│       │   │   ├── devices/    # Device integration CRUD + sync
+│       │   │   └── analytics/
+│       │   │       ├── frequency/       # Workout frequency analytics
+│       │   │       └── body-composition/ # Body composition trends
 │       │   ├── login/
 │       │   ├── register/
 │       │   └── offline/        # PWA offline fallback page
+│       ├── __tests__/          # Jest unit & component tests
+│       │   ├── lib/
+│       │   ├── api/
+│       │   └── components/
+│       ├── e2e/                # Playwright E2E tests
 │       ├── components/         # React components
 │       │   ├── ui/             # shadcn/ui components
 │       │   ├── features/       # Feature-specific components
@@ -146,10 +166,10 @@ npm run type-check   # Run TypeScript compiler
 ### Testing
 
 ```bash
-npm test             # Run all tests
+npm test             # Run all Jest unit & component tests
 npm run test:watch   # Run tests in watch mode
-npm run test:coverage # Run tests with coverage
-npm run test:e2e     # Run end-to-end tests
+npm run test:coverage # Run tests with coverage report
+npm run test:e2e     # Run Playwright end-to-end tests (requires running app)
 ```
 
 ### Docker
@@ -171,8 +191,8 @@ docker-compose up -d --build   # Rebuild and start
 - **workout_templates** - CrossFit-style workout blueprints (title, description, score type, barbell lift)
 - **workout_sessions** - Logged workouts (date, result, RX/scaled, PR, notes, optional template link)
 - **body_metrics** - Weight, body fat %, measurements over time
-- **device_connections** - Smart device OAuth tokens (future)
-- **device_data** - Synced data from wearables (future)
+- **device_connections** - Smart device OAuth tokens (Apple Health, Google Fit, Fitbit, Garmin)
+- **device_data** - Synced data points from connected wearables (steps, heart rate, sleep, calories, etc.)
 
 See `packages/database/prisma/schema.prisma` for complete schema definition.
 
@@ -244,15 +264,15 @@ This is a personal project, but suggestions and feedback are welcome!
   - Body metrics (weight, body fat %, muscle mass, BMI, trend chart)
   - PWA features and offline mode (manifest, service worker, offline page, offline banner)
 
-- **Phase 3** 📋 Next
-  - Smart device integrations
-  - Data sync and exports
-  - Advanced analytics
+- **Phase 3** ✅ Done
+  - **Smart device integrations**: Full API (`/api/devices`) and Settings UI (`/settings/integrations`) for connecting Apple Health, Google Fit, Fitbit, and Garmin. Connect/disconnect/sync workflows with provider-level status display. Schema-backed `DeviceConnection` and `DeviceData` tables with real sync infrastructure (configure OAuth per provider to enable live data — see `docs/INTEGRATIONS.md`).
+  - **Data export**: Export workouts and body metrics as CSV or JSON from `/settings` via `/api/export`.
+  - **Advanced analytics**: Workout frequency bar chart (by week/month, RX vs Scaled breakdown) and body composition trend chart (weight + body fat % + muscle mass over time) on the Analytics page.
 
-- **Phase 4** 📋 Planned
-  - Performance optimization
-  - Comprehensive testing
-  - CI/CD pipeline
+- **Phase 4** ✅ Done
+  - **Performance optimization**: `loading.tsx` skeleton screens and `error.tsx` error boundaries on all major pages (analytics, metrics, dashboard, history, workouts, library).
+  - **Comprehensive testing**: Jest unit tests for lib utilities and analytics logic; React Testing Library component tests (OfflineBanner); Playwright E2E tests for auth flows and navigation across all protected routes.
+  - **CI/CD pipeline**: GitHub Actions CI workflow (lint, type-check, unit tests, Next.js build, Playwright E2E with Postgres service, Docker build on main). Separate deploy workflow for home server via SSH.
 
 ## License
 

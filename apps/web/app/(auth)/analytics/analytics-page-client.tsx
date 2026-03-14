@@ -11,6 +11,8 @@ import {
   TrendingUp,
   List,
 } from "lucide-react";
+import { FrequencyChart } from "./frequency-chart";
+import { BodyCompositionChart } from "./body-composition-chart";
 import {
   LineChart,
   Line,
@@ -76,12 +78,14 @@ type Props = {
   initialPrs: PrEntry[];
   workoutTitles: string[];
   summary: Summary;
+  preferredUnit?: string;
 };
 
 export function AnalyticsPageClient({
   initialPrs,
   workoutTitles,
   summary,
+  preferredUnit = "metric",
 }: Props) {
   const [workoutFilter, setWorkoutFilter] = useState<string>("");
   const [timeRange, setTimeRange] = useState<TimeRangeKey>("all");
@@ -430,6 +434,10 @@ export function AnalyticsPageClient({
           </div>
         </div>
       )}
+
+      {/* Advanced analytics: workout frequency and body composition */}
+      <FrequencyChart />
+      <BodyCompositionChart unit={preferredUnit} />
 
       <div>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
