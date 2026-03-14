@@ -12,10 +12,10 @@ concurrency:
 
 jobs:
   # ─────────────────────────────────────────────
-  # 1. Lint & type-check
+  # 1. Lint (ESLint only — fast, no DB required)
   # ─────────────────────────────────────────────
   lint:
-    name: Lint & type-check
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,14 +29,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Run ESLint directly to avoid next lint / eslint-config-next version mismatch
       - name: Run ESLint
-        run: npm run lint
-
-      - name: Run TypeScript type-check
-        run: npm run type-check
+        run: npx eslint apps/web/app apps/web/components apps/web/lib --ext .ts,.tsx
 
   # ─────────────────────────────────────────────
-  # 2. Unit & component tests (Jest)
+  # 2. Unit tests (Jest — node environment only)
   # ─────────────────────────────────────────────
   test:
     name: Unit tests
@@ -69,10 +67,12 @@ jobs:
           retention-days: 7
 
   # ─────────────────────────────────────────────
-  # 3. Build check
+  # 3. Build + type-check
+  #    next build runs tsc internally; we also
+  #    run db:generate so Prisma types are present
   # ─────────────────────────────────────────────
   build:
-    name: Build
+    name: Build & type-check
     runs-on: ubuntu-latest
     needs: [lint]
     steps:
@@ -87,9 +87,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma client (no DB needed)
+      - name: Generate Prisma client
         run: npm run db:generate
 
+      # next build runs TypeScript type-checking automatically
       - name: Build Next.js app
         run: npm run build
         env:
@@ -97,7 +98,6 @@ jobs:
           NEXTAUTH_SECRET: "ci-build-secret-32chars-minimum!!"
           NEXTAUTH_URL: "http://localhost:3000"
           NODE_ENV: "production"
-          SKIP_ENV_VALIDATION: "1"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -107,14 +107,12 @@ jobs:
           retention-days: 1
 
   # ─────────────────────────────────────────────
-  # 4. E2E tests (Playwright) — runs against a
-  #    real Postgres instance in CI
+  # 4. E2E tests (Playwright)
   # ─────────────────────────────────────────────
   e2e:
     name: E2E tests (Playwright)
     runs-on: ubuntu-latest
     needs: [build]
-    # Only run E2E on PRs to main or manual triggers (expensive)
     if: >
       github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch'
