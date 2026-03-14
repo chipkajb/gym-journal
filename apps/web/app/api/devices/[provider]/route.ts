@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { SUPPORTED_PROVIDERS } from "../route";
+import { SUPPORTED_PROVIDERS } from "@/lib/device-providers";
 
 // GET /api/devices/[provider] — fetch connection status
 export async function GET(
