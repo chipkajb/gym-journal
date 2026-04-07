@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, PenLine, Calendar, Scale, BarChart3, Shuffle, Trophy } from "lucide-react";
+import { LayoutDashboard, BookOpen, PenLine, Calendar, Scale, BarChart3, Shuffle, Trophy, Timer } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/wod", label: "WOD", icon: Shuffle },
+  { href: "/timer", label: "Timer", icon: Timer },
   { href: "/library", label: "Library", icon: BookOpen },
   { href: "/workouts", label: "Log", icon: PenLine },
   { href: "/history", label: "History", icon: Calendar },

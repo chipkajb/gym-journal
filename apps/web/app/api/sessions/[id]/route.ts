@@ -17,6 +17,12 @@ const updateSessionSchema = z.object({
   notes: z.string().optional().nullable(),
   rxOrScaled: z.string().optional().nullable(),
   isPr: z.boolean().optional(),
+  // Health metrics
+  calories: z.number().int().optional().nullable(),
+  maxHeartRate: z.number().int().optional().nullable(),
+  avgHeartRate: z.number().int().optional().nullable(),
+  totalDurationSeconds: z.number().int().optional().nullable(),
+  timedDurationSeconds: z.number().int().optional().nullable(),
 });
 
 export async function GET(
@@ -95,6 +101,11 @@ export async function PATCH(
         ...(data.notes !== undefined && { notes: data.notes }),
         ...(data.rxOrScaled !== undefined && { rxOrScaled: data.rxOrScaled }),
         ...(data.isPr !== undefined && { isPr: data.isPr }),
+        ...(data.calories !== undefined && { calories: data.calories }),
+        ...(data.maxHeartRate !== undefined && { maxHeartRate: data.maxHeartRate }),
+        ...(data.avgHeartRate !== undefined && { avgHeartRate: data.avgHeartRate }),
+        ...(data.totalDurationSeconds !== undefined && { totalDurationSeconds: data.totalDurationSeconds }),
+        ...(data.timedDurationSeconds !== undefined && { timedDurationSeconds: data.timedDurationSeconds }),
       },
       include: { workoutTemplate: true },
     });

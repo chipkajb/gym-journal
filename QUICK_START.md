@@ -41,6 +41,10 @@ NEXTAUTH_SECRET="your-generated-secret-here"
 NEXTAUTH_URL="http://localhost:3000"
 NODE_ENV="development"
 
+# AI workout name generator — get your key at https://console.anthropic.com/
+# Without this, the "Generate name" button will show an error but the rest of the app works fine.
+ANTHROPIC_API_KEY="sk-ant-..."
+
 # Optional: Google OAuth (enables "Continue with Google" on login/register)
 # GOOGLE_CLIENT_ID="your-google-client-id"
 # GOOGLE_CLIENT_SECRET="your-google-client-secret"
@@ -82,11 +86,14 @@ Open [http://localhost:3000](http://localhost:3000).
 - **`/register`** — Create an account. Redirects to dashboard after sign-in.
 - **`/dashboard`** — Overview with streak counter, this week's workouts, PR count, all-time totals, quick action cards, and recent workouts.
 - **`/wod`** — WOD Picker: randomly select a workout from your library. Filter by score type, duration, history, and RX/Scaled level. Hit "Try Another" to respin.
-- **`/library`** — Workout templates (card and table views). Create and edit templates.
+- **`/timer`** — Standalone timer: For Time, AMRAP, Tabata, EMOM, or free timer. Works without logging a workout.
+- **`/library`** — Workout templates (card and table views). Create and edit templates. AI name generator on all template forms.
 - **`/workouts`** — List of workout sessions; start a workout from a template or freeform.
-- **`/workouts/[id]`** — View or edit a past session.
+- **`/workouts/new`** — Log a workout with embedded timer, AI name generator, and health metrics (calories, HR, total time).
+- **`/workouts/[id]`** — View a past session including health & performance metrics.
+- **`/workouts/[id]/edit`** — Edit a past session; regenerate name with AI; edit timer result and health metrics.
 - **`/history`** — Monthly calendar (RX/scaled dots); click a day to see sessions. Table view for filterable history.
-- **`/leaderboards`** — Personal achievement board: streak, RX rate, PRs, best month ever, monthly volume chart, favorite training days, recent PRs.
+- **`/leaderboards`** — Personal achievement board: streak, RX rate, PRs, best month ever, monthly volume chart, favorite training days, recent PRs, and health stats (total calories, peak HR, total time trained).
 - **`/metrics`** — Body metrics: add weight, body fat %, muscle mass, BMI; view trend chart.
 - **`/analytics`** — Progress charts: PRs, progress-over-time, workout frequency, body composition trends.
 - **`/settings`** — Preferences (name, dark mode, units), data export (CSV/JSON), and device integrations link.

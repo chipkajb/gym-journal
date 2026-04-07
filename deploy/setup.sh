@@ -70,6 +70,12 @@ DEFAULT_PG_PASS="$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 32)"
 read -rp "POSTGRES_PASSWORD [auto-generated, press Enter to accept]: " INPUT_PG_PASS
 POSTGRES_PASSWORD="${INPUT_PG_PASS:-$DEFAULT_PG_PASS}"
 
+# Prompt for ANTHROPIC_API_KEY
+echo ""
+echo "ANTHROPIC_API_KEY is required for the AI workout name generator."
+echo "Get your key at: https://console.anthropic.com/"
+read -rp "ANTHROPIC_API_KEY (leave blank to skip): " ANTHROPIC_API_KEY
+
 echo ""
 
 # Write .env file
@@ -80,6 +86,7 @@ TAILSCALE_IP=${TAILSCALE_IP}
 NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
 NEXTAUTH_URL=${NEXTAUTH_URL}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
 NODE_ENV=production
 EOF
 chmod 600 "$ENV_FILE"

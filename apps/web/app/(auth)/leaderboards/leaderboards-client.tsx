@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Trophy, Flame, Zap, Target, TrendingUp, Calendar, Medal, Star, BarChart2 } from "lucide-react";
+import { Trophy, Flame, Zap, Target, TrendingUp, Calendar, Medal, Star, BarChart2, Heart, Clock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 type Stats = {
@@ -15,6 +15,12 @@ type Stats = {
   uniqueWorkouts: number;
   bestMonthLabel: string;
   bestMonthCount: number;
+  // Health
+  totalCalories: number;
+  maxCaloriesInSession: number | null;
+  allTimeMaxHR: number | null;
+  avgHROverall: number | null;
+  totalMinutes: number | null;
 };
 
 type MonthlyData = { month: string; total: number; rx: number }[];
@@ -27,6 +33,13 @@ type PR = {
   rxOrScaled: string | null;
   scoreType: string | null;
 };
+
+function formatMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
 
 export function LeaderboardsClient({
   stats,
@@ -114,6 +127,8 @@ export function LeaderboardsClient({
     },
   ];
 
+  const hasHealthStats = stats.totalCalories > 0 || stats.allTimeMaxHR != null || stats.avgHROverall != null || stats.totalMinutes != null;
+
   return (
     <div className="space-y-8">
       <div>
@@ -154,6 +169,53 @@ export function LeaderboardsClient({
         ))}
       </div>
 
+      {/* Health & Performance Stats */}
+      {hasHealthStats && (
+        <div className="p-5 rounded-xl bg-card border border-border">
+          <div className="flex items-center gap-2 mb-4">
+            <Heart className="w-4 h-4 text-muted-foreground" />
+            <h2 className="font-semibold text-foreground">Health & Performance</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {stats.totalCalories > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground">Total Calories Burned</p>
+                <p className="text-xl font-bold text-orange-500">{stats.totalCalories.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">kcal all time</p>
+              </div>
+            )}
+            {stats.maxCaloriesInSession != null && (
+              <div>
+                <p className="text-xs text-muted-foreground">Best Single Session</p>
+                <p className="text-xl font-bold text-orange-400">{stats.maxCaloriesInSession}</p>
+                <p className="text-xs text-muted-foreground">kcal in one workout</p>
+              </div>
+            )}
+            {stats.allTimeMaxHR != null && (
+              <div>
+                <p className="text-xs text-muted-foreground">Peak Heart Rate</p>
+                <p className="text-xl font-bold text-red-500">{stats.allTimeMaxHR}</p>
+                <p className="text-xs text-muted-foreground">bpm all time</p>
+              </div>
+            )}
+            {stats.avgHROverall != null && (
+              <div>
+                <p className="text-xs text-muted-foreground">Avg Heart Rate</p>
+                <p className="text-xl font-bold text-pink-500">{stats.avgHROverall}</p>
+                <p className="text-xs text-muted-foreground">bpm across workouts</p>
+              </div>
+            )}
+            {stats.totalMinutes != null && stats.totalMinutes > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground">Total Time Training</p>
+                <p className="text-xl font-bold text-blue-500">{formatMinutes(stats.totalMinutes)}</p>
+                <p className="text-xs text-muted-foreground">all time (incl. warmup)</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Monthly Volume Chart */}
       <div className="p-5 rounded-xl bg-card border border-border">
         <div className="flex items-center gap-2 mb-4">
@@ -166,12 +228,7 @@ export function LeaderboardsClient({
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
+              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
             />
             <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
             <Bar dataKey="rx" name="RX" fill="#10b981" radius={[3, 3, 0, 0]} />
@@ -201,12 +258,7 @@ export function LeaderboardsClient({
             <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
+              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
             />
             <Bar dataKey="count" name="Workouts" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
           </BarChart>

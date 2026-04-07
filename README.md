@@ -7,13 +7,16 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 - 🔐 **Authentication**: Email/password sign up and sign in via NextAuth.js (Credentials + Prisma, JWT sessions). Optional Google OAuth (configure `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` to enable). Protected routes and redirects.
 - 🏋️ **Workout Library**: Create and manage CrossFit-style workout templates (title, description, score type, barbell lift). Card and table views with filters. Log a workout directly from any template.
 - 📝 **Workout Logging**: Log a workout from a template or freeform. Record date, result (time/reps/load/rounds), RX or scaled, notes, and PR. Edit or delete past sessions.
+- 🤖 **AI Workout Name Generator**: Generate creative CrossFit-style names (like Fran, Murph, DT) for your workouts using the Claude API. Get 6 name suggestions at once based on the workout description, score type, and barbell lift. Regenerate for more options. Available on new workout templates, log form, and when editing existing workouts.
+- ⏱️ **Workout Timers**: Full-featured timer supporting all CrossFit formats — **For Time** (with optional time cap), **AMRAP** (count-down), **Tabata** (configurable work/rest rounds), **EMOM** (per-minute tracking), and **Free Timer**. Timers auto-stop at completion and offer a "Use this time" button to log the result. Editable after the fact. Standalone timer page (`/timer`) works without being tied to a workout.
+- ❤️ **Health & Performance Metrics**: Manually log calories burned, max heart rate, average heart rate (from your smartwatch), and total workout duration (including warm-up/cool-down) per session. All data surfaces in leaderboards and analytics.
 - 🎲 **WOD Picker**: Randomly select a workout from your library. Filter by score type, duration bucket (based on your past times), history (done before / never done), and RX/Scaled. Hit "Try Another" to respin.
 - 📅 **Calendar & History**: Monthly calendar view with RX/scaled indicators. Table view with filters (date range, title, score type, RX/scaled).
 - 📥 **CSV Import**: Import historical workouts from `workouts.csv` with `npm run db:import-workouts`.
 - 📊 **Progress & Analytics**: Personal records (PRs) list, progress-over-time charts by workout, summary stats. Workout frequency bar chart (by week/month, RX vs Scaled breakdown). Body composition trends chart (weight, body fat %, muscle mass). All charts have time-range filters.
-- 🏆 **Leaderboard**: Personal achievement dashboard — current streak, longest streak, RX rate, total PRs, best month ever, monthly volume chart, favorite training days chart, and recent PRs list.
+- 🏆 **Leaderboard**: Personal achievement dashboard — current streak, longest streak, RX rate, total PRs, best month ever, monthly volume chart, favorite training days chart, recent PRs, and health stats (total calories, peak heart rate, total time trained).
 - 📏 **Body Metrics**: Track weight, body fat %, muscle mass, BMI, and notes over time. Add/edit/delete entries; weight trend chart. Respects profile preferred unit (metric/imperial).
-- 📱 **PWA & Offline**: Web app manifest, service worker, offline fallback page, offline banner. Installable on iOS/Android from the browser.
+- 📱 **PWA & Mobile**: Web app manifest, service worker, offline fallback page, offline banner. Installable on iOS/Android from the browser. Mobile-optimized timer and logging UX.
 - 📤 **Data Export**: Export all workout sessions and body metrics as CSV or JSON from the Settings page.
 - 🔗 **Device Integrations**: Full API and UI for connecting wearables (Apple Health, Google Fit, Fitbit, Garmin). Connect, sync, and disconnect from `/settings/integrations`. See [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) for OAuth setup.
 - 🌙 **Dark Mode**: System preference detection with manual toggle in Settings. Preference persisted per user.
@@ -37,6 +40,7 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 - **Next.js Route Handlers** — RESTful API routes
 - **Prisma ORM** — Type-safe database access (`@gym-journal/database`)
 - **NextAuth.js v4** — Authentication (Credentials + optional Google OAuth, JWT sessions, Prisma adapter)
+- **Anthropic Claude API** (`@anthropic-ai/sdk`) — AI workout name generation (claude-haiku-4-5-20251001)
 - **bcryptjs** — Password hashing
 - **Zod** — Request/response validation
 
