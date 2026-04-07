@@ -105,14 +105,21 @@ export default async function LeaderboardsPage() {
       };
     });
 
-  // Best month
-  const bestMonthEntry = Object.entries(monthlyMap).reduce((best, [key, val]) => {
-    return val.total > (best[1]?.total ?? 0) ? [key, val] : best;
-  }, ["", { total: 0, rx: 0 }] as [string, { total: number; rx: number }]);
-
+  // Best month ever (all-time, not limited to last 12)
+  const allTimeMonthlyMap: Record<string, number> = {};
+  allSessions.forEach(s => {
+    const d = new Date(s.workoutDate);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    allTimeMonthlyMap[key] = (allTimeMonthlyMap[key] ?? 0) + 1;
+  });
+  let bestMonthKey = "";
+  let bestMonthCount = 0;
+  for (const [key, count] of Object.entries(allTimeMonthlyMap)) {
+    if (count > bestMonthCount) { bestMonthCount = count; bestMonthKey = key; }
+  }
   let bestMonthLabel = "—";
-  if (bestMonthEntry[0]) {
-    const [year, month] = bestMonthEntry[0].split("-");
+  if (bestMonthKey) {
+    const [year, month] = bestMonthKey.split("-");
     const d = new Date(parseInt(year), parseInt(month) - 1, 1);
     bestMonthLabel = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   }
@@ -139,7 +146,7 @@ export default async function LeaderboardsPage() {
     rxRate,
     uniqueWorkouts,
     bestMonthLabel,
-    bestMonthCount: bestMonthEntry[1]?.total ?? 0,
+    bestMonthCount,
   };
 
   const recentPrs = prSessions.slice(0, 10).map(s => ({

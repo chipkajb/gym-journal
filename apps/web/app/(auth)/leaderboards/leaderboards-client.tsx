@@ -92,7 +92,7 @@ export function LeaderboardsClient({
       icon: TrendingUp,
       color: "text-sky-500",
       bg: "bg-sky-50 dark:bg-sky-950/30",
-      note: `${Math.round(stats.thisYearCount / 12)} avg/month`,
+      note: `${Math.round(stats.thisYearCount / (new Date().getMonth() + 1))} avg/month`,
     },
     {
       label: "Total Workouts",
@@ -162,9 +162,9 @@ export function LeaderboardsClient({
         </div>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-            <XAxis dataKey="month" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-            <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <Tooltip
               contentStyle={{
                 background: "hsl(var(--card))",
@@ -174,7 +174,7 @@ export function LeaderboardsClient({
               }}
             />
             <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="rx" name="RX" fill="hsl(var(--success, 142.1 76.2% 36.3%))" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="rx" name="RX" fill="#10b981" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
         <div className="flex gap-4 mt-2 justify-end">
@@ -197,9 +197,9 @@ export function LeaderboardsClient({
         </div>
         <ResponsiveContainer width="100%" height={150}>
           <BarChart data={dayOfWeekData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-            <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <Tooltip
               contentStyle={{
                 background: "hsl(var(--card))",

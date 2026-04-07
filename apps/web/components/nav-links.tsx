@@ -21,7 +21,7 @@ export function NavLinks() {
   return (
     <nav className="flex items-center gap-0.5 overflow-x-auto">
       {navItems.map(({ href, label, icon: Icon }) => {
-        const isActive = pathname === href || (href !== "/workouts" && pathname.startsWith(href + "/")) || (href === "/workouts" && pathname === "/workouts");
+        const isActive = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link
             key={href}

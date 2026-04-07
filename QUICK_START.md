@@ -24,6 +24,8 @@ npm install
 docker-compose up -d postgres
 ```
 
+> For a full home server setup (systemd, backups, Tailscale), see `deploy/setup.sh` instead.
+
 Wait about 10–15 seconds for the database to be ready.
 
 ### 3. Environment variables
@@ -78,11 +80,13 @@ Open [http://localhost:3000](http://localhost:3000).
 - **`/`** — Home. Sign In / Sign Up if not logged in; Go to Dashboard if logged in.
 - **`/login`** — Sign in with email and password (or Google if configured).
 - **`/register`** — Create an account. Redirects to dashboard after sign-in.
-- **`/dashboard`** — Overview with links to Library, Workouts, and History; recent workouts list.
+- **`/dashboard`** — Overview with streak counter, this week's workouts, PR count, all-time totals, quick action cards, and recent workouts.
+- **`/wod`** — WOD Picker: randomly select a workout from your library. Filter by score type, duration, history, and RX/Scaled level. Hit "Try Another" to respin.
 - **`/library`** — Workout templates (card and table views). Create and edit templates.
-- **`/workouts`** — List of workout sessions; Start a workout from a template or freeform.
-- **`/workouts/[id]`** — Active or past session: timer, logged exercises, finish workout.
+- **`/workouts`** — List of workout sessions; start a workout from a template or freeform.
+- **`/workouts/[id]`** — View or edit a past session.
 - **`/history`** — Monthly calendar (RX/scaled dots); click a day to see sessions. Table view for filterable history.
+- **`/leaderboards`** — Personal achievement board: streak, RX rate, PRs, best month ever, monthly volume chart, favorite training days, recent PRs.
 - **`/metrics`** — Body metrics: add weight, body fat %, muscle mass, BMI; view trend chart.
 - **`/analytics`** — Progress charts: PRs, progress-over-time, workout frequency, body composition trends.
 - **`/settings`** — Preferences (name, dark mode, units), data export (CSV/JSON), and device integrations link.

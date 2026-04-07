@@ -7,9 +7,11 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 - 🔐 **Authentication**: Email/password sign up and sign in via NextAuth.js (Credentials + Prisma, JWT sessions). Optional Google OAuth (configure `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` to enable). Protected routes and redirects.
 - 🏋️ **Workout Library**: Create and manage CrossFit-style workout templates (title, description, score type, barbell lift). Card and table views with filters. Log a workout directly from any template.
 - 📝 **Workout Logging**: Log a workout from a template or freeform. Record date, result (time/reps/load/rounds), RX or scaled, notes, and PR. Edit or delete past sessions.
+- 🎲 **WOD Picker**: Randomly select a workout from your library. Filter by score type, duration bucket (based on your past times), history (done before / never done), and RX/Scaled. Hit "Try Another" to respin.
 - 📅 **Calendar & History**: Monthly calendar view with RX/scaled indicators. Table view with filters (date range, title, score type, RX/scaled).
 - 📥 **CSV Import**: Import historical workouts from `workouts.csv` with `npm run db:import-workouts`.
 - 📊 **Progress & Analytics**: Personal records (PRs) list, progress-over-time charts by workout, summary stats. Workout frequency bar chart (by week/month, RX vs Scaled breakdown). Body composition trends chart (weight, body fat %, muscle mass). All charts have time-range filters.
+- 🏆 **Leaderboard**: Personal achievement dashboard — current streak, longest streak, RX rate, total PRs, best month ever, monthly volume chart, favorite training days chart, and recent PRs list.
 - 📏 **Body Metrics**: Track weight, body fat %, muscle mass, BMI, and notes over time. Add/edit/delete entries; weight trend chart. Respects profile preferred unit (metric/imperial).
 - 📱 **PWA & Offline**: Web app manifest, service worker, offline fallback page, offline banner. Installable on iOS/Android from the browser.
 - 📤 **Data Export**: Export all workout sessions and body metrics as CSV or JSON from the Settings page.
@@ -74,15 +76,18 @@ gym-journal/
 │   └── web/                    # Next.js application
 │       ├── app/                # App Router pages and layouts
 │       │   ├── (auth)/         # Protected routes (require sign-in)
-│       │   │   ├── dashboard/
+│       │   │   ├── dashboard/  # Home with stats, streak, quick actions
+│       │   │   ├── wod/        # WOD Picker (random workout selector)
 │       │   │   ├── library/    # Templates + exercises
 │       │   │   ├── workouts/   # Sessions + log
 │       │   │   ├── history/    # Calendar and table views
+│       │   │   ├── leaderboards/ # Personal achievements & stats
 │       │   │   ├── metrics/    # Body metrics
 │       │   │   ├── analytics/  # Progress, PRs, frequency, body composition
 │       │   │   └── settings/   # Preferences, export, integrations
 │       │   │       └── integrations/  # Device integration management
 │       │   ├── api/            # API route handlers
+│       │   │   ├── health/     # Health check (unauthenticated)
 │       │   │   ├── export/     # CSV/JSON data export
 │       │   │   ├── devices/    # Device integration CRUD + sync
 │       │   │   └── analytics/
@@ -94,6 +99,7 @@ gym-journal/
 │       ├── components/         # React components
 │       │   ├── ui/             # Shared UI primitives
 │       │   ├── features/       # Feature-specific components
+│       │   ├── nav-links.tsx   # Active-state navigation (client component)
 │       │   └── providers/      # SessionProvider, ThemeProvider
 │       ├── lib/                # Prisma client, auth config, utilities
 │       ├── hooks/              # Custom React hooks
@@ -106,9 +112,15 @@ gym-journal/
 │   │   │   └── migrations/
 │   │   └── seed.ts
 │   └── config/                 # Shared ESLint and TypeScript configs
-├── docker/                     # Docker configuration
-│   ├── docker-compose.yml
-│   └── Dockerfile
+├── deploy/                     # Home server deployment scripts
+│   ├── setup.sh                # One-time setup (Tailscale + systemd + secrets)
+│   ├── redeploy.sh             # Rebuild & restart
+│   ├── backup.sh               # PostgreSQL pg_dump with 7-day rotation
+│   ├── gym-journal.service     # systemd service unit
+│   ├── gym-journal-backup.service
+│   └── gym-journal-backup.timer  # Daily 02:00 backup timer
+├── Dockerfile                  # Multi-stage production build
+├── docker-compose.yml          # PostgreSQL + app services
 └── docs/                       # Documentation
 ```
 
@@ -182,19 +194,34 @@ See `packages/database/prisma/schema.prisma` for the complete schema.
 
 ### Home Server Deployment
 
-1. **Start services with Docker Compose**
+The `deploy/` directory contains scripts for running Gym Journal on a home server with systemd and daily backups.
 
-    ```bash
-    docker-compose -f docker/docker-compose.yml up -d
-    ```
+**One-command setup** (requires Docker and Tailscale already installed):
 
-2. **Configure Cloudflare Tunnel**
+```bash
+git clone https://github.com/yourusername/gym-journal /opt/gym-journal
+cd /opt/gym-journal
+sudo bash deploy/setup.sh
+```
 
-    Follow the [Cloudflare Tunnel documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) to expose the app securely.
+`setup.sh` auto-detects your Tailscale IP, generates secrets, writes `.env` with `chmod 600`, builds the Docker image, and installs the systemd service + daily backup timer.
 
-3. **SSL/TLS**
+**Rebuild after updates:**
 
-    Certificates are automatically managed by Cloudflare Tunnel.
+```bash
+sudo bash deploy/redeploy.sh
+```
+
+**Manual Docker Compose (local / dev):**
+
+```bash
+docker-compose up -d           # Start all services
+docker-compose down            # Stop all services
+docker-compose logs -f app     # Stream app logs
+docker-compose up -d --build   # Rebuild and start
+```
+
+See [docs/home-server-deployment.md](docs/home-server-deployment.md) for the full walkthrough including Tailscale setup, non-Starlink port forwarding, Caddy HTTPS, and security hardening.
 
 ### Environment Variables for Production
 
