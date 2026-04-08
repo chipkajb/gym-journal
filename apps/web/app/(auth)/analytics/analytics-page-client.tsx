@@ -12,7 +12,6 @@ import {
   List,
 } from "lucide-react";
 import { FrequencyChart } from "./frequency-chart";
-import { BodyCompositionChart } from "./body-composition-chart";
 import {
   LineChart,
   Line,
@@ -435,9 +434,8 @@ export function AnalyticsPageClient({
         </div>
       )}
 
-      {/* Advanced analytics: workout frequency and body composition */}
+      {/* Advanced analytics: workout frequency */}
       <FrequencyChart />
-      <BodyCompositionChart unit={preferredUnit} />
 
       <div>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">

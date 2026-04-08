@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { BookOpen, PenLine, Calendar, Scale, BarChart3, Dumbbell, Shuffle, Trophy, Flame, Target, Zap, TrendingUp } from "lucide-react";
+import { BookOpen, PenLine, Calendar, BarChart3, Dumbbell, Shuffle, Trophy, Flame, Target, Zap, TrendingUp } from "lucide-react";
 
 // Calculate current streak from sorted dates (descending)
 function calcStreak(dates: Date[]): number {
@@ -87,7 +87,6 @@ export default async function DashboardPage() {
     { href: "/leaderboards", label: "Leaderboard", desc: "Track achievements", icon: Trophy, accent: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/30", border: "hover:border-amber-400 dark:hover:border-amber-500" },
     { href: "/history", label: "History", desc: "Calendar & past workouts", icon: Calendar, accent: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-950/30", border: "hover:border-sky-400 dark:hover:border-sky-500" },
     { href: "/analytics", label: "Analytics", desc: "Progress & PRs", icon: BarChart3, accent: "text-violet-600 dark:text-violet-400", bg: "bg-violet-50 dark:bg-violet-950/30", border: "hover:border-violet-400 dark:hover:border-violet-500" },
-    { href: "/metrics", label: "Body Metrics", desc: "Weight & composition", icon: Scale, accent: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-950/30", border: "hover:border-rose-400 dark:hover:border-rose-500" },
   ];
 
   return (

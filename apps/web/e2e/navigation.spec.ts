@@ -55,11 +55,6 @@ test.describe("Protected pages (authenticated)", () => {
     await expect(page).toHaveURL(/\/(analytics|login)/);
   });
 
-  test("metrics page is accessible when authenticated", async ({ page }) => {
-    await page.goto("/metrics");
-    await expect(page).toHaveURL(/\/(metrics|login)/);
-  });
-
   test("library page is accessible when authenticated", async ({ page }) => {
     await page.goto("/library");
     await expect(page).toHaveURL(/\/(library|login)/);

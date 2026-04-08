@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, PenLine, Calendar, Scale, BarChart3, Shuffle, Trophy, Timer } from "lucide-react";
+import { LayoutDashboard, BookOpen, PenLine, Calendar, BarChart3, Shuffle, Trophy, Timer } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -13,7 +13,6 @@ const navItems = [
   { href: "/history", label: "History", icon: Calendar },
   { href: "/leaderboards", label: "Leaderboard", icon: Trophy },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/metrics", label: "Metrics", icon: Scale },
 ];
 
 export function NavLinks() {
