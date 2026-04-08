@@ -26,18 +26,18 @@ services:
     container_name: gymjournal-app
     restart: unless-stopped
     ports:
-      - '${TAILSCALE_IP:-127.0.0.1}:3000:3000'
+      - '${TAILSCALE_IP:-127.0.0.1}:3001:3001'
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://gymjournal:${POSTGRES_PASSWORD:-changeme}@postgres:5432/gymjournal
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3001}
       NODE_ENV: ${NODE_ENV:-production}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/api/health || exit 1']
       interval: 30s
       timeout: 10s
       retries: 3
