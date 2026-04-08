@@ -56,7 +56,7 @@ jobs:
         env:
           DATABASE_URL: "postgresql://test:test@localhost:5432/test"
           NEXTAUTH_SECRET: "ci-test-secret-32chars-minimum!!"
-          NEXTAUTH_URL: "http://localhost:3000"
+          NEXTAUTH_URL: "http://localhost:3001"
 
       - name: Upload coverage report
         if: always()
@@ -96,7 +96,7 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/gymjournal"
           NEXTAUTH_SECRET: "ci-build-secret-32chars-minimum!!"
-          NEXTAUTH_URL: "http://localhost:3000"
+          NEXTAUTH_URL: "http://localhost:3001"
           NODE_ENV: "production"
 
       - name: Upload build artifact
@@ -163,7 +163,7 @@ jobs:
         env:
           DATABASE_URL: "postgresql://gymjournal:changeme@localhost:5432/gymjournal"
           NEXTAUTH_SECRET: "ci-e2e-secret-32chars-minimum!!!"
-          NEXTAUTH_URL: "http://localhost:3000"
+          NEXTAUTH_URL: "http://localhost:3001"
           NODE_ENV: "test"
           CI: "true"
 
@@ -202,4 +202,4 @@ jobs:
           build-args: |
             DATABASE_URL=postgresql://dummy:dummy@localhost:5432/gymjournal
             NEXTAUTH_SECRET=docker-build-secret
-            NEXTAUTH_URL=http://localhost:3000
+            NEXTAUTH_URL=http://localhost:3001
