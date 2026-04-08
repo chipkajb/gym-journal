@@ -17,7 +17,6 @@ type Props = {
     barbellLift: string;
     notes: string;
     rxOrScaled: string;
-    isPr: boolean;
     calories: string;
     maxHeartRate: string;
     avgHeartRate: string;
@@ -59,7 +58,6 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
   const [barbellLift, setBarbellLift] = useState(initial.barbellLift);
   const [notes, setNotes] = useState(initial.notes);
   const [rxOrScaled, setRxOrScaled] = useState(initial.rxOrScaled);
-  const [isPr, setIsPr] = useState(initial.isPr);
   // Health metrics
   const [calories, setCalories] = useState(initial.calories);
   const [maxHeartRate, setMaxHeartRate] = useState(initial.maxHeartRate);
@@ -94,7 +92,6 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           barbellLift: barbellLift.trim() || null,
           notes: notes.trim() || null,
           rxOrScaled: rxOrScaled || null,
-          isPr,
           calories: calories === "" ? null : parseInt(calories, 10),
           maxHeartRate: maxHeartRate === "" ? null : parseInt(maxHeartRate, 10),
           avgHeartRate: avgHeartRate === "" ? null : parseInt(avgHeartRate, 10),
@@ -205,11 +202,6 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
         />
       </div>
-
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" checked={isPr} onChange={(e) => setIsPr(e.target.checked)} className="rounded" />
-        <span className="text-sm text-foreground">Personal record (PR)</span>
-      </label>
 
       <div className="border-t border-border pt-3">
         <button

@@ -16,7 +16,6 @@ const updateSessionSchema = z.object({
   setDetails: z.unknown().optional().nullable(),
   notes: z.string().optional().nullable(),
   rxOrScaled: z.string().optional().nullable(),
-  isPr: z.boolean().optional(),
   // Health metrics
   calories: z.number().int().optional().nullable(),
   maxHeartRate: z.number().int().optional().nullable(),
@@ -24,6 +23,33 @@ const updateSessionSchema = z.object({
   totalDurationSeconds: z.number().int().optional().nullable(),
   timedDurationSeconds: z.number().int().optional().nullable(),
 });
+
+async function detectIsPr(params: {
+  userId: string;
+  newRaw: number;
+  scoreType: string | null;
+  workoutTemplateId: string | null;
+  title: string;
+  excludeId: string;
+}): Promise<boolean> {
+  const { userId, newRaw, scoreType, workoutTemplateId, title, excludeId } = params;
+  const isTimeBased = scoreType === "Time";
+  const best = await prisma.workoutSession.findFirst({
+    where: {
+      userId,
+      bestResultRaw: { not: null },
+      scoreType: scoreType ?? null,
+      NOT: { id: excludeId },
+      ...(workoutTemplateId
+        ? { workoutTemplateId }
+        : { title: { equals: title, mode: "insensitive" } }),
+    },
+    orderBy: { bestResultRaw: isTimeBased ? "asc" : "desc" },
+    select: { bestResultRaw: true },
+  });
+  if (!best) return true; // first time doing this workout
+  return isTimeBased ? newRaw < best.bestResultRaw! : newRaw > best.bestResultRaw!;
+}
 
 export async function GET(
   _request: Request,
@@ -78,6 +104,23 @@ export async function PATCH(
       );
     }
     const data = parsed.data;
+
+    const effectiveRaw = data.bestResultRaw !== undefined ? data.bestResultRaw : existing.bestResultRaw;
+    const effectiveScoreType = data.scoreType !== undefined ? (data.scoreType ?? null) : existing.scoreType;
+    const effectiveTitle = data.title ?? existing.title;
+    const effectiveTemplateId = existing.workoutTemplateId;
+    const isPr =
+      effectiveRaw != null
+        ? await detectIsPr({
+            userId: session.user.id,
+            newRaw: effectiveRaw,
+            scoreType: effectiveScoreType,
+            workoutTemplateId: effectiveTemplateId,
+            title: effectiveTitle,
+            excludeId: id,
+          })
+        : false;
+
     const updated = await prisma.workoutSession.update({
       where: { id },
       data: {
@@ -100,7 +143,7 @@ export async function PATCH(
         }),
         ...(data.notes !== undefined && { notes: data.notes }),
         ...(data.rxOrScaled !== undefined && { rxOrScaled: data.rxOrScaled }),
-        ...(data.isPr !== undefined && { isPr: data.isPr }),
+        isPr,
         ...(data.calories !== undefined && { calories: data.calories }),
         ...(data.maxHeartRate !== undefined && { maxHeartRate: data.maxHeartRate }),
         ...(data.avgHeartRate !== undefined && { avgHeartRate: data.avgHeartRate }),

@@ -15,7 +15,6 @@ const createSessionSchema = z.object({
   setDetails: z.unknown().optional().nullable(),
   notes: z.string().optional().nullable(),
   rxOrScaled: z.string().optional().nullable(),
-  isPr: z.boolean().optional().default(false),
   templateId: z.string().optional().nullable(),
   // Health metrics
   calories: z.number().int().optional().nullable(),
@@ -24,6 +23,33 @@ const createSessionSchema = z.object({
   totalDurationSeconds: z.number().int().optional().nullable(),
   timedDurationSeconds: z.number().int().optional().nullable(),
 });
+
+async function detectIsPr(params: {
+  userId: string;
+  newRaw: number;
+  scoreType: string | null;
+  workoutTemplateId: string | null;
+  title: string;
+  excludeId?: string;
+}): Promise<boolean> {
+  const { userId, newRaw, scoreType, workoutTemplateId, title, excludeId } = params;
+  const isTimeBased = scoreType === "Time";
+  const best = await prisma.workoutSession.findFirst({
+    where: {
+      userId,
+      bestResultRaw: { not: null },
+      scoreType: scoreType ?? null,
+      ...(workoutTemplateId
+        ? { workoutTemplateId }
+        : { title: { equals: title, mode: "insensitive" } }),
+      ...(excludeId ? { NOT: { id: excludeId } } : {}),
+    },
+    orderBy: { bestResultRaw: isTimeBased ? "asc" : "desc" },
+    select: { bestResultRaw: true },
+  });
+  if (!best) return true; // first time doing this workout
+  return isTimeBased ? newRaw < best.bestResultRaw! : newRaw > best.bestResultRaw!;
+}
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -78,21 +104,35 @@ export async function POST(request: Request) {
     const workoutDate = data.workoutDate
       ? new Date(data.workoutDate)
       : new Date();
+    const templateId = data.templateId ?? null;
+    const scoreType = data.scoreType ?? null;
+    const bestResultRaw = data.bestResultRaw ?? null;
+    const isPr =
+      bestResultRaw != null
+        ? await detectIsPr({
+            userId: session.user.id,
+            newRaw: bestResultRaw,
+            scoreType,
+            workoutTemplateId: templateId,
+            title: data.title,
+          })
+        : false;
+
     const workoutSession = await prisma.workoutSession.create({
       data: {
         userId: session.user.id,
-        workoutTemplateId: data.templateId ?? null,
+        workoutTemplateId: templateId,
         title: data.title,
         description: data.description ?? null,
         workoutDate,
-        bestResultRaw: data.bestResultRaw ?? null,
+        bestResultRaw,
         bestResultDisplay: data.bestResultDisplay ?? null,
-        scoreType: data.scoreType ?? null,
+        scoreType,
         barbellLift: data.barbellLift ?? null,
         setDetails: (data.setDetails as object) ?? null,
         notes: data.notes ?? null,
         rxOrScaled: data.rxOrScaled ?? null,
-        isPr: data.isPr ?? false,
+        isPr,
         calories: data.calories ?? null,
         maxHeartRate: data.maxHeartRate ?? null,
         avgHeartRate: data.avgHeartRate ?? null,

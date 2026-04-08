@@ -37,7 +37,6 @@ export function LogWorkoutForm({ templates }: Props) {
   const [barbellLift, setBarbellLift] = useState("");
   const [notes, setNotes] = useState("");
   const [rxOrScaled, setRxOrScaled] = useState("");
-  const [isPr, setIsPr] = useState(false);
   const [calories, setCalories] = useState("");
   const [maxHeartRate, setMaxHeartRate] = useState("");
   const [avgHeartRate, setAvgHeartRate] = useState("");
@@ -109,7 +108,6 @@ export function LogWorkoutForm({ templates }: Props) {
         barbellLift: barbellLift.trim() || null,
         notes: notes.trim() || null,
         rxOrScaled: rxOrScaled || null,
-        isPr,
         templateId: useTemplate && templateId ? templateId : null,
         calories: calories === "" ? null : parseInt(calories, 10),
         maxHeartRate: maxHeartRate === "" ? null : parseInt(maxHeartRate, 10),
@@ -313,11 +311,6 @@ export function LogWorkoutForm({ templates }: Props) {
             placeholder="How did it feel? Modifications? Strategy?"
           />
         </div>
-
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={isPr} onChange={(e) => setIsPr(e.target.checked)} className="rounded" />
-          <span className="text-sm text-foreground">Personal record (PR)</span>
-        </label>
 
         <div className="border-t border-border pt-3">
           <button
