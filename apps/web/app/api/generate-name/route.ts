@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
+import { APIError } from "@anthropic-ai/sdk";
 import { z } from "zod";
 
 const requestSchema = z.object({
@@ -114,8 +115,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ names: names.slice(0, 6) });
   } catch (e) {
     console.error("Name generation error:", e);
+
+    if (e instanceof APIError) {
+      if (e.status === 401) {
+        return NextResponse.json(
+          { error: "Invalid Anthropic API key — check your ANTHROPIC_API_KEY environment variable" },
+          { status: 502 }
+        );
+      }
+      if (e.status === 429) {
+        return NextResponse.json(
+          { error: "Claude API rate limit reached — please wait a moment and try again" },
+          { status: 429 }
+        );
+      }
+      if (e.status === 529 || e.status === 503) {
+        return NextResponse.json(
+          { error: "Claude API is temporarily overloaded — please try again in a few seconds" },
+          { status: 503 }
+        );
+      }
+      return NextResponse.json(
+        { error: `Claude API error (${e.status}): ${e.message}` },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Failed to generate names" },
+      { error: "Failed to generate names — unexpected error" },
       { status: 500 }
     );
   }

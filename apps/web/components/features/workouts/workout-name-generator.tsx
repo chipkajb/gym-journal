@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Wand2, RotateCcw, Check, Loader2 } from "lucide-react";
+import { Wand2, RotateCcw, Check, Loader2, AlertTriangle } from "lucide-react";
 
 type Props = {
   description?: string;
@@ -76,7 +76,10 @@ export function WorkoutNameGenerator({
       </div>
 
       {error && (
-        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-700 dark:text-red-400">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
       )}
 
       {names.length > 0 && (
