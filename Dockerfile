@@ -42,6 +42,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN apk add --no-cache openssl
+
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -51,6 +53,10 @@ COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
+
+# Standalone image has no prisma CLI; `npx prisma` would fetch Prisma 7+, which rejects our schema.
+# Install Prisma 5 locally (not global) so the nextjs user can use engine cache under node_modules.
+RUN npm install prisma@5.22.0 --prefix /app/.prisma-migrate
 
 # Set permissions
 RUN chown -R nextjs:nodejs /app
@@ -63,4 +69,4 @@ ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
 # Run database migrations and start app
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=./packages/database/prisma/schema.prisma && node apps/web/server.js"]
+CMD ["sh", "-c", "/app/.prisma-migrate/node_modules/.bin/prisma migrate deploy --schema=./packages/database/prisma/schema.prisma && node apps/web/server.js"]

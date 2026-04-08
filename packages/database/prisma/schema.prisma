@@ -1,8 +1,10 @@
 // Prisma Schema for Gym Journal
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../../../node_modules/.prisma/client"
+  provider      = "prisma-client-js"
+  output        = "../../../node_modules/.prisma/client"
+  // alpine + openssl 3 (node:20-alpine) for docker production image
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
