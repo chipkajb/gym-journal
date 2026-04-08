@@ -279,8 +279,8 @@ export function AnalyticsPageClient({
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor:
-                          "var(--tooltip-bg, #fff)",
+                        backgroundColor: "var(--tooltip-bg, #fff)",
+                        color: "var(--tooltip-color, #111827)",
                         border: "1px solid #e5e7eb",
                         borderRadius: "8px",
                       }}
