@@ -46,7 +46,6 @@ export default async function EditWorkoutPage({
           barbellLift: workoutSession.barbellLift ?? "",
           notes: workoutSession.notes ?? "",
           rxOrScaled: workoutSession.rxOrScaled ?? "",
-          isPr: workoutSession.isPr,
           calories: workoutSession.calories?.toString() ?? "",
           maxHeartRate: workoutSession.maxHeartRate?.toString() ?? "",
           avgHeartRate: workoutSession.avgHeartRate?.toString() ?? "",

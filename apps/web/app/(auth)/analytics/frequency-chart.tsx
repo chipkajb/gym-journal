@@ -97,7 +97,7 @@ export function FrequencyChart() {
               />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} className="text-gray-500 dark:text-gray-400" />
               <Tooltip
-                contentStyle={{ backgroundColor: "var(--tooltip-bg, #fff)", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                contentStyle={{ backgroundColor: "var(--tooltip-bg, #fff)", color: "var(--tooltip-color, #111827)", border: "1px solid #e5e7eb", borderRadius: "8px" }}
                 cursor={{ fill: "rgba(99,102,241,0.08)" }}
               />
               <Legend />
