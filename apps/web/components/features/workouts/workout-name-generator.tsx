@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Wand2, RotateCcw, Check, Loader2, AlertTriangle } from "lucide-react";
+import { Copy, Check, AlertTriangle } from "lucide-react";
 
 type Props = {
   description?: string;
@@ -11,45 +11,99 @@ type Props = {
   onSelect: (name: string) => void;
 };
 
+function buildPrompt(data: {
+  description?: string;
+  scoreType?: string;
+  barbellLift?: string;
+  existingTitle?: string;
+}): string {
+  const workoutDetails: string[] = [];
+
+  if (data.existingTitle) {
+    workoutDetails.push(`Current working title: ${data.existingTitle}`);
+  }
+  if (data.scoreType) {
+    workoutDetails.push(`Score type: ${data.scoreType}`);
+  }
+  if (data.barbellLift) {
+    workoutDetails.push(`Barbell lift: ${data.barbellLift}`);
+  }
+  if (data.description) {
+    workoutDetails.push(`Workout description:\n${data.description}`);
+  }
+
+  const workoutSection =
+    workoutDetails.length > 0
+      ? workoutDetails.join("\n")
+      : "Generic CrossFit-style metcon (no additional details provided)";
+
+  return `You are a CrossFit WOD naming expert. I need you to generate 6 creative, memorable names for my custom CrossFit-style workout.
+
+## Workout Details
+${workoutSection}
+
+## Naming Style Guidelines
+CrossFit workouts traditionally follow a few naming conventions — apply whichever fits best:
+
+- **Person names (Girl/Hero WOD style):** Short, punchy first names like "Fran", "Cindy", "Helen", "Grace", or last names for hero WODs like "Murph", "DT", "JT". Prefer 1–2 syllables.
+- **Thematic names:** Evoke the intensity, feeling, or character of the workout — nature, mythology, military terms, physical concepts. Examples: "Inferno", "Avalanche", "Ironclad", "Thunder", "Tempest".
+- **Callsigns / operation names:** Military-style, aggressive-sounding short words or phrases.
+
+## Constraints
+- Exactly 6 unique name suggestions
+- Each name must be 1–3 words maximum
+- Do NOT use generic descriptions of the workout (e.g., avoid "Heavy Deadlift Day" or "Long Run Workout")
+- Names should feel like they belong in the official CrossFit benchmark library
+- Draw on the workout's movement patterns, scoring style, and overall intensity
+
+## Output Format
+Return a numbered list of 6 names. After each name, include one concise sentence explaining why it fits this workout's character.`;
+}
+
+async function copyToClipboard(text: string): Promise<void> {
+  // Modern async clipboard API (works on desktop and iOS 13.4+)
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  // Fallback for older browsers / restricted contexts
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.top = "0";
+  textarea.style.left = "0";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const success = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  if (!success) {
+    throw new Error("Copy command failed");
+  }
+}
+
 export function WorkoutNameGenerator({
   description,
   scoreType,
   barbellLift,
   existingTitle,
-  onSelect,
+  onSelect: _onSelect,
 }: Props) {
-  const [names, setNames] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
 
-  async function generate() {
-    setLoading(true);
+  async function handleCopy() {
     setError("");
-    setSelected(null);
+    const prompt = buildPrompt({ description, scoreType, barbellLift, existingTitle });
     try {
-      const res = await fetch("/api/generate-name", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description, scoreType, barbellLift, existingTitle }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error ?? "Failed to generate names");
-        return;
-      }
-      const data = await res.json();
-      setNames(data.names ?? []);
+      await copyToClipboard(prompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
     } catch {
-      setError("Something went wrong");
-    } finally {
-      setLoading(false);
+      setError("Could not copy to clipboard — try long-pressing and copying the text manually.");
     }
-  }
-
-  function pick(name: string) {
-    setSelected(name);
-    onSelect(name);
   }
 
   return (
@@ -57,21 +111,23 @@ export function WorkoutNameGenerator({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={generate}
-          disabled={loading}
+          onClick={handleCopy}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white transition-colors"
         >
-          {loading ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : names.length > 0 ? (
-            <RotateCcw className="w-3.5 h-3.5" />
+          {copied ? (
+            <Check className="w-3.5 h-3.5" />
           ) : (
-            <Wand2 className="w-3.5 h-3.5" />
+            <Copy className="w-3.5 h-3.5" />
           )}
-          {loading ? "Generating…" : names.length > 0 ? "Regenerate" : "Generate name"}
+          {copied ? "Prompt copied!" : "Copy naming prompt"}
         </button>
-        {names.length === 0 && !loading && (
-          <span className="text-xs text-muted-foreground">AI-powered CrossFit-style names</span>
+        {!copied && (
+          <span className="text-xs text-muted-foreground">Paste into Claude.ai to get name ideas</span>
+        )}
+        {copied && (
+          <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">
+            Paste into claude.ai/new to generate names
+          </span>
         )}
       </div>
 
@@ -79,26 +135,6 @@ export function WorkoutNameGenerator({
         <div className="flex items-start gap-2 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-700 dark:text-red-400">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{error}</span>
-        </div>
-      )}
-
-      {names.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {names.map((name) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => pick(name)}
-              className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border transition-all ${
-                selected === name
-                  ? "border-violet-500 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 font-semibold"
-                  : "border-border bg-card hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-950/20 text-foreground"
-              }`}
-            >
-              {selected === name && <Check className="w-3 h-3" />}
-              {name}
-            </button>
-          ))}
         </div>
       )}
     </div>
