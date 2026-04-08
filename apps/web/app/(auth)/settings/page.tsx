@@ -186,25 +186,18 @@ export default function SettingsPage() {
           Export your data
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Download all your workout logs and body metrics as CSV or JSON.
+          Download all your workout logs as CSV or JSON.
         </p>
         <div className="flex flex-wrap gap-3">
           <a
-            href="/api/export?format=csv&type=workouts"
+            href="/api/export?format=csv"
             download="workouts.csv"
             className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             Workouts CSV
           </a>
           <a
-            href="/api/export?format=csv&type=metrics"
-            download="body-metrics.csv"
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            Metrics CSV
-          </a>
-          <a
-            href="/api/export?format=json&type=all"
+            href="/api/export?format=json"
             download="gym-journal-export.json"
             className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
           >

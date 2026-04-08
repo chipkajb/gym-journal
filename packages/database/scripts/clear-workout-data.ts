@@ -1,6 +1,6 @@
 /**
  * Clears all workout-related data (sessions and templates).
- * Preserves users, accounts, sessions, profiles, exercises, body_metrics, device_*.
+ * Preserves users, accounts, sessions, profiles, exercises, device_*.
  * Run this before re-importing workout data or when resetting to the new schema.
  *
  * Usage: from repo root, ensure DATABASE_URL is set, then:
