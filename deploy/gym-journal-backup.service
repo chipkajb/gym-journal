@@ -1,0 +1,10 @@
+[Unit]
+Description=Gym Journal Database Backup
+Requires=gym-journal.service
+After=gym-journal.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gym-journal/deploy/backup.sh
+StandardOutput=journal
+StandardError=journal

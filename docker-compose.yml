@@ -22,11 +22,11 @@ services:
   app:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
     container_name: gymjournal-app
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '${TAILSCALE_IP:-127.0.0.1}:3000:3000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,10 +35,13 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NODE_ENV: ${NODE_ENV:-production}
-    volumes:
-      - ./apps/web:/app
-      - /app/node_modules
-      - /app/.next
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   postgres_data:

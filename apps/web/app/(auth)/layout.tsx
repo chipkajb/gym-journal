@@ -3,7 +3,8 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { LayoutDashboard, BookOpen, PenLine, Calendar, Scale, BarChart3, Settings } from "lucide-react";
+import { NavLinks } from "@/components/nav-links";
+import { Settings } from "lucide-react";
 
 function displayName(session: { user?: { name?: string | null; email?: string | null } | null }) {
   const name = session.user?.name?.trim();
@@ -25,14 +26,14 @@ export default async function AuthLayout({
   const fullEmail = session.user?.email ?? "";
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      <header className="sticky top-0 z-10 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col bg-background">
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 font-semibold text-lg text-gray-900 dark:text-white"
+            className="flex items-center gap-2 font-bold text-lg shrink-0"
           >
-            <span className="relative flex h-7 w-7 shrink-0 overflow-hidden rounded-full">
+            <span className="relative flex h-7 w-7 shrink-0 overflow-hidden rounded-full ring-2 ring-primary/20">
               <Image
                 src="/logo.png"
                 alt=""
@@ -40,62 +41,21 @@ export default async function AuthLayout({
                 className="object-cover"
               />
             </span>
-            <span>Gym Journal</span>
+            <span className="hidden sm:inline text-foreground">Gym Journal</span>
           </Link>
-          <nav className="flex items-center gap-1">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Link>
-            <Link
-              href="/library"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-            >
-              <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">Library</span>
-            </Link>
-            <Link
-              href="/workouts"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
-            >
-              <PenLine className="w-4 h-4" />
-              <span className="hidden sm:inline">Log</span>
-            </Link>
-            <Link
-              href="/history"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">History</span>
-            </Link>
-            <Link
-              href="/metrics"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-            >
-              <Scale className="w-4 h-4" />
-              <span className="hidden sm:inline">Metrics</span>
-            </Link>
-            <Link
-              href="/analytics"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Analytics</span>
-            </Link>
-          </nav>
-          <div className="flex items-center gap-1">
+
+          <NavLinks />
+
+          <div className="flex items-center gap-1 shrink-0">
             <span
-              className="text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[140px] sm:max-w-[180px] truncate"
+              className="text-sm font-medium text-muted-foreground max-w-[100px] truncate hidden sm:block"
               title={fullEmail}
             >
               {label}
             </span>
             <Link
               href="/settings"
-              className="flex items-center gap-2 px-2 py-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200"
+              className="flex items-center p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent"
               aria-label="Settings"
             >
               <Settings className="w-4 h-4" />
@@ -104,7 +64,7 @@ export default async function AuthLayout({
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">{children}</main>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">{children}</main>
     </div>
   );
 }

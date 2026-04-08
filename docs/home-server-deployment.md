@@ -2,6 +2,35 @@
 
 A complete, beginner-friendly walkthrough for running your personal Gym Journal app on an old Ubuntu laptop — accessible from anywhere, for free, and secured against common attacks.
 
+## Quick Start (automated setup)
+
+Once you have Docker and Tailscale installed (Steps 4 and 7-Starlink below), the `deploy/` directory contains scripts that automate the rest:
+
+```bash
+# Clone the repo
+git clone https://github.com/chipkajb/gym-journal /opt/gym-journal
+cd /opt/gym-journal
+
+# Run one-time setup (auto-generates secrets, builds image, installs systemd service)
+sudo bash deploy/setup.sh
+```
+
+`deploy/setup.sh` will:
+- Detect your Tailscale IP automatically
+- Auto-generate `NEXTAUTH_SECRET` and `POSTGRES_PASSWORD` (or let you set your own)
+- Write a `.env` file with `chmod 600`
+- Build the Docker image
+- Install and enable the `gym-journal` systemd service (starts on boot)
+- Enable a daily database backup timer (`/var/backups/gym-journal/`)
+
+To rebuild and restart after a code update:
+
+```bash
+sudo bash deploy/redeploy.sh
+```
+
+If you prefer to follow the manual steps, continue with the full guide below.
+
 ---
 
 ## Table of Contents

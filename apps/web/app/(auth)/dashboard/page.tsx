@@ -2,141 +2,178 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { BookOpen, PenLine, Calendar, Scale, BarChart3, Dumbbell } from "lucide-react";
+import { BookOpen, PenLine, Calendar, Scale, BarChart3, Dumbbell, Shuffle, Trophy, Flame, Target, Zap, TrendingUp } from "lucide-react";
+
+// Calculate current streak from sorted dates (descending)
+function calcStreak(dates: Date[]): number {
+  if (dates.length === 0) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const sorted = [...dates].sort((a, b) => b.getTime() - a.getTime());
+  const uniqueDays = [...new Set(sorted.map(d => {
+    const day = new Date(d);
+    day.setHours(0, 0, 0, 0);
+    return day.toISOString();
+  }))].map(s => new Date(s)).sort((a, b) => b.getTime() - a.getTime());
+
+  // Check if first date is today or yesterday
+  if (uniqueDays[0].getTime() !== today.getTime() && uniqueDays[0].getTime() !== yesterday.getTime()) {
+    return 0;
+  }
+
+  let streak = 1;
+  for (let i = 1; i < uniqueDays.length; i++) {
+    const diff = (uniqueDays[i-1].getTime() - uniqueDays[i].getTime()) / (1000 * 60 * 60 * 24);
+    if (diff === 1) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
 
-  const [recentSessions, templateCount] = await Promise.all([
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const [recentSessions, templateCount, allDates, prCount, weekCount] = await Promise.all([
     prisma.workoutSession.findMany({
       where: { userId: session.user.id },
       orderBy: { workoutDate: "desc" },
       take: 5,
     }),
     prisma.workoutTemplate.count({ where: { userId: session.user.id } }),
+    prisma.workoutSession.findMany({
+      where: { userId: session.user.id },
+      select: { workoutDate: true },
+      orderBy: { workoutDate: "desc" },
+    }),
+    prisma.workoutSession.count({ where: { userId: session.user.id, isPr: true } }),
+    prisma.workoutSession.count({
+      where: {
+        userId: session.user.id,
+        workoutDate: { gte: startOfWeek },
+      },
+    }),
   ]);
 
   const firstName = session.user.name?.trim()
     ? session.user.name.trim().split(/\s+/)[0]
     : session.user.email?.split("@")[0] ?? "there";
 
+  const currentStreak = calcStreak(allDates.map(r => r.workoutDate));
+  const totalWorkouts = allDates.length;
+
+  const stats = [
+    { label: "Day Streak", value: currentStreak, icon: Flame, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-950/30" },
+    { label: "This Week", value: weekCount, icon: Zap, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30" },
+    { label: "Total PRs", value: prCount, icon: Target, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/30" },
+    { label: "All Time", value: totalWorkouts, icon: TrendingUp, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-950/30" },
+  ];
+
+  const quickActions = [
+    { href: "/workouts/new", label: "Log Workout", desc: "Record today's session", icon: PenLine, accent: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/30", border: "hover:border-emerald-400 dark:hover:border-emerald-500" },
+    { href: "/wod", label: "Pick a WOD", desc: "Random workout selector", icon: Shuffle, accent: "text-orange-600 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950/30", border: "hover:border-orange-400 dark:hover:border-orange-500" },
+    { href: "/library", label: "Workout Library", desc: `${templateCount} template${templateCount !== 1 ? "s" : ""}`, icon: BookOpen, accent: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30", border: "hover:border-blue-400 dark:hover:border-blue-500" },
+    { href: "/leaderboards", label: "Leaderboard", desc: "Track achievements", icon: Trophy, accent: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/30", border: "hover:border-amber-400 dark:hover:border-amber-500" },
+    { href: "/history", label: "History", desc: "Calendar & past workouts", icon: Calendar, accent: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-950/30", border: "hover:border-sky-400 dark:hover:border-sky-500" },
+    { href: "/analytics", label: "Analytics", desc: "Progress & PRs", icon: BarChart3, accent: "text-violet-600 dark:text-violet-400", bg: "bg-violet-50 dark:bg-violet-950/30", border: "hover:border-violet-400 dark:hover:border-violet-500" },
+    { href: "/metrics", label: "Body Metrics", desc: "Weight & composition", icon: Scale, accent: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-950/30", border: "hover:border-rose-400 dark:hover:border-rose-500" },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Welcome back, {firstName}
+        <h1 className="text-2xl font-bold text-foreground">
+          Welcome back, {firstName} 👊
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Track your workouts and progress
+        <p className="text-muted-foreground mt-1">
+          {currentStreak > 0
+            ? `You're on a ${currentStreak}-day streak. Keep it up!`
+            : "Ready to crush today's workout?"}
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Link
-          href="/library"
-          className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
-        >
-          <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-            <BookOpen className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {stats.map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className="p-4 rounded-xl bg-card border border-border">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${bg}`}>
+                <Icon className={`w-5 h-5 ${color}`} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{value}</p>
+                <p className="text-xs text-muted-foreground">{label}</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white">
-              Workout Library
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {templateCount} template{templateCount !== 1 ? "s" : ""}
-            </p>
-          </div>
-        </Link>
-        <Link
-          href="/workouts/new"
-          className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
-        >
-          <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
-            <PenLine className="w-6 h-6 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white">
-              Log Workout
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Log a workout from template or freeform
-            </p>
-          </div>
-        </Link>
-        <Link
-          href="/history"
-          className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
-        >
-          <div className="p-3 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-            <Calendar className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white">
-              History
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Calendar view
-            </p>
-          </div>
-        </Link>
-        <Link
-          href="/metrics"
-          className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
-        >
-          <div className="p-3 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-            <Scale className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white">
-              Body metrics
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Weight, body fat, trends
-            </p>
-          </div>
-        </Link>
-        <Link
-          href="/analytics"
-          className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
-        >
-          <div className="p-3 rounded-lg bg-violet-100 dark:bg-violet-900/30">
-            <BarChart3 className="w-6 h-6 text-violet-600 dark:text-violet-400" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white">
-              Analytics
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              PRs and progress
-            </p>
-          </div>
-        </Link>
+        ))}
       </div>
 
+      {/* Quick Actions */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {quickActions.map(({ href, label, desc, icon: Icon, accent, bg, border }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-3 p-4 rounded-xl bg-card border border-border ${border} transition-all hover:shadow-sm`}
+            >
+              <div className={`p-2.5 rounded-lg ${bg} shrink-0`}>
+                <Icon className={`w-5 h-5 ${accent}`} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-foreground text-sm">{label}</h3>
+                <p className="text-xs text-muted-foreground truncate">{desc}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Workouts */}
       {recentSessions.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-            Recent workouts
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Recent Workouts
+            </h2>
+            <Link href="/history" className="text-xs text-primary hover:text-primary/80 font-medium">
+              View all →
+            </Link>
+          </div>
           <ul className="space-y-2">
             {recentSessions.map((s) => (
               <li key={s.id}>
                 <Link
                   href={`/workouts/${s.id}`}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/40 transition-all hover:shadow-sm"
                 >
-                  <Dumbbell className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  <div className="p-2 rounded-lg bg-muted shrink-0">
+                    <Dumbbell className="w-4 h-4 text-muted-foreground" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 dark:text-white truncate">
-                      {s.title}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(s.workoutDate).toLocaleDateString()}
+                    <p className="font-medium text-foreground truncate text-sm">{s.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(s.workoutDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       {s.bestResultDisplay && ` · ${s.bestResultDisplay}`}
+                      {s.rxOrScaled && ` · ${s.rxOrScaled}`}
                     </p>
                   </div>
+                  {s.isPr && (
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full shrink-0">PR</span>
+                  )}
                 </Link>
               </li>
             ))}

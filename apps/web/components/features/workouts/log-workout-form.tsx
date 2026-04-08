@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { WorkoutTimer, type TimerResult } from "./workout-timer";
+import { WorkoutNameGenerator } from "./workout-name-generator";
+import { Clock, ChevronDown, ChevronUp } from "lucide-react";
 
 type TemplateOption = {
   id: string;
@@ -27,9 +30,7 @@ export function LogWorkoutForm({ templates }: Props) {
   const [templateId, setTemplateId] = useState(templateIdFromUrl ?? templates[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [workoutDate, setWorkoutDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [workoutDate, setWorkoutDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [bestResultDisplay, setBestResultDisplay] = useState("");
   const [bestResultRaw, setBestResultRaw] = useState<string>("");
   const [scoreType, setScoreType] = useState("");
@@ -37,10 +38,16 @@ export function LogWorkoutForm({ templates }: Props) {
   const [notes, setNotes] = useState("");
   const [rxOrScaled, setRxOrScaled] = useState("");
   const [isPr, setIsPr] = useState(false);
+  const [calories, setCalories] = useState("");
+  const [maxHeartRate, setMaxHeartRate] = useState("");
+  const [avgHeartRate, setAvgHeartRate] = useState("");
+  const [totalDurationInput, setTotalDurationInput] = useState("");
+  const [showHealthMetrics, setShowHealthMetrics] = useState(false);
+  const [showTimer, setShowTimer] = useState(false);
+  const [timedResult, setTimedResult] = useState<TimerResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // when template changes or templateId from URL, prefill from template
   useEffect(() => {
     if (useTemplate && templateId) {
       const t = templates.find((x) => x.id === templateId);
@@ -53,13 +60,33 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }, [useTemplate, templateId, templates]);
 
-  // sync URL templateId into state when navigating with ?templateId=
   useEffect(() => {
     if (templateIdFromUrl && templates.some((t) => t.id === templateIdFromUrl)) {
       setTemplateId(templateIdFromUrl);
       setUseTemplate(true);
     }
   }, [templateIdFromUrl, templates]);
+
+  function parseDurationInput(val: string): number | null {
+    if (!val.trim()) return null;
+    if (val.includes(":")) {
+      const parts = val.split(":").map(Number);
+      if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
+      if (parts.length === 3) return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+    }
+    const n = Number(val);
+    return isNaN(n) ? null : n * 60;
+  }
+
+  function handleTimerFinish(result: TimerResult) {
+    setTimedResult(result);
+    setShowTimer(false);
+    if (scoreType === "Time" || !scoreType) {
+      setBestResultDisplay(result.label);
+      setBestResultRaw(String(result.durationSeconds));
+      if (!scoreType) setScoreType("Time");
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -84,6 +111,11 @@ export function LogWorkoutForm({ templates }: Props) {
         rxOrScaled: rxOrScaled || null,
         isPr,
         templateId: useTemplate && templateId ? templateId : null,
+        calories: calories === "" ? null : parseInt(calories, 10),
+        maxHeartRate: maxHeartRate === "" ? null : parseInt(maxHeartRate, 10),
+        avgHeartRate: avgHeartRate === "" ? null : parseInt(avgHeartRate, 10),
+        totalDurationSeconds: parseDurationInput(totalDurationInput),
+        timedDurationSeconds: timedResult ? timedResult.durationSeconds : null,
       };
       const res = await fetch("/api/sessions", {
         method: "POST",
@@ -105,235 +137,254 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }
 
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-4 max-w-lg"
-    >
-      {error && (
-        <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded">
-          {error}
-        </p>
-      )}
+  const currentTemplate = useTemplate ? templates.find((t) => t.id === templateId) : null;
 
-      <div className="flex gap-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="mode"
-            checked={useTemplate}
-            onChange={() => setUseTemplate(true)}
-            className="rounded-full"
-          />
-          <span className="text-gray-700 dark:text-gray-300">
-            From template
+  return (
+    <div className="space-y-4 max-w-lg">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowTimer((v) => !v)}
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-border hover:bg-accent text-foreground transition-colors"
+        >
+          <Clock className="w-4 h-4" />
+          {showTimer ? "Hide timer" : "Open timer"}
+        </button>
+        {timedResult && !showTimer && (
+          <span className="text-sm text-green-600 dark:text-green-400 font-medium">
+            ✓ Timed: {timedResult.label}
           </span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="mode"
-            checked={!useTemplate}
-            onChange={() => setUseTemplate(false)}
-            className="rounded-full"
-          />
-          <span className="text-gray-700 dark:text-gray-300">
-            Free workout
-          </span>
-        </label>
+        )}
       </div>
 
-      {useTemplate && templates.length > 0 && (
-        <div>
-          <label
-            htmlFor="template"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            Template
+      {showTimer && (
+        <WorkoutTimer
+          onFinish={handleTimerFinish}
+          onDiscard={() => setShowTimer(false)}
+        />
+      )}
+
+      <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-6 space-y-4">
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded">
+            {error}
+          </p>
+        )}
+
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="mode" checked={useTemplate} onChange={() => setUseTemplate(true)} />
+            <span className="text-sm text-foreground">From template</span>
           </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="mode" checked={!useTemplate} onChange={() => setUseTemplate(false)} />
+            <span className="text-sm text-foreground">Free workout</span>
+          </label>
+        </div>
+
+        {useTemplate && templates.length > 0 && (
+          <div>
+            <label htmlFor="template" className="block text-sm font-medium text-foreground mb-1">Template</label>
+            <select
+              id="template"
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+            >
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.title}{t.scoreType ? ` (${t.scoreType})` : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="title" className="block text-sm font-medium text-foreground mb-1">Workout title</label>
+          <input
+            id="title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground mb-2"
+            placeholder="e.g. DT, Linda, Fran"
+          />
+          <WorkoutNameGenerator
+            description={description || currentTemplate?.description || undefined}
+            scoreType={scoreType || currentTemplate?.scoreType || undefined}
+            barbellLift={barbellLift || currentTemplate?.barbellLift || undefined}
+            existingTitle={title || undefined}
+            onSelect={(name) => setTitle(name)}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="workoutDate" className="block text-sm font-medium text-foreground mb-1">Date</label>
+          <input
+            id="workoutDate"
+            type="date"
+            value={workoutDate}
+            onChange={(e) => setWorkoutDate(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="scoreType" className="block text-sm font-medium text-foreground mb-1">Score type</label>
           <select
-            id="template"
-            value={templateId}
-            onChange={(e) => setTemplateId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            id="scoreType"
+            value={scoreType}
+            onChange={(e) => setScoreType(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
           >
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title}
-                {t.scoreType ? ` (${t.scoreType})` : ""}
-              </option>
+            {SCORE_TYPES.map((s) => (
+              <option key={s || "none"} value={s}>{s || "—"}</option>
             ))}
           </select>
         </div>
-      )}
 
-      <div>
-        <label
-          htmlFor="title"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >
-          Workout title
+        <div>
+          <label htmlFor="bestResultDisplay" className="block text-sm font-medium text-foreground mb-1">Result</label>
+          <input
+            id="bestResultDisplay"
+            type="text"
+            value={bestResultDisplay}
+            onChange={(e) => setBestResultDisplay(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+            placeholder={timedResult ? timedResult.label : "e.g. 10:44, 5+2, 225"}
+          />
+          {timedResult && (
+            <button
+              type="button"
+              onClick={() => { setBestResultDisplay(timedResult.label); setBestResultRaw(String(timedResult.durationSeconds)); }}
+              className="mt-1 text-xs text-primary hover:underline"
+            >
+              ← Use timed result: {timedResult.label}
+            </button>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="bestResultRaw" className="block text-sm font-medium text-foreground mb-1">Result (raw, for sorting)</label>
+          <input
+            id="bestResultRaw"
+            type="text"
+            inputMode="decimal"
+            value={bestResultRaw}
+            onChange={(e) => setBestResultRaw(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+            placeholder="e.g. 644 (seconds), 5.02 (rounds+reps), 225 (load)"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="barbellLift" className="block text-sm font-medium text-foreground mb-1">Barbell lift (optional)</label>
+          <input
+            id="barbellLift"
+            type="text"
+            value={barbellLift}
+            onChange={(e) => setBarbellLift(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+            placeholder="e.g. Back Squat"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="rxOrScaled" className="block text-sm font-medium text-foreground mb-1">RX or Scaled</label>
+          <select
+            id="rxOrScaled"
+            value={rxOrScaled}
+            onChange={(e) => setRxOrScaled(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+          >
+            {RX_OPTIONS.map((o) => (
+              <option key={o || "none"} value={o}>{o || "—"}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="notes" className="block text-sm font-medium text-foreground mb-1">Notes</label>
+          <textarea
+            id="notes"
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+            placeholder="How did it feel? Modifications? Strategy?"
+          />
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={isPr} onChange={(e) => setIsPr(e.target.checked)} className="rounded" />
+          <span className="text-sm text-foreground">Personal record (PR)</span>
         </label>
-        <input
-          id="title"
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          placeholder="e.g. DT, Linda"
-        />
-      </div>
 
-      <div>
-        <label
-          htmlFor="workoutDate"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+        <div className="border-t border-border pt-3">
+          <button
+            type="button"
+            onClick={() => setShowHealthMetrics((v) => !v)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showHealthMetrics ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            Health & performance data
+            <span className="text-xs font-normal">(optional — from your smartwatch)</span>
+          </button>
+
+          {showHealthMetrics && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="calories" className="block text-xs font-medium text-muted-foreground mb-1">Calories burned</label>
+                <input
+                  id="calories" type="number" inputMode="numeric" value={calories}
+                  onChange={(e) => setCalories(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
+                  placeholder="e.g. 420" min={0}
+                />
+              </div>
+              <div>
+                <label htmlFor="maxHeartRate" className="block text-xs font-medium text-muted-foreground mb-1">Max HR (bpm)</label>
+                <input
+                  id="maxHeartRate" type="number" inputMode="numeric" value={maxHeartRate}
+                  onChange={(e) => setMaxHeartRate(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
+                  placeholder="e.g. 182" min={0} max={250}
+                />
+              </div>
+              <div>
+                <label htmlFor="avgHeartRate" className="block text-xs font-medium text-muted-foreground mb-1">Avg HR (bpm)</label>
+                <input
+                  id="avgHeartRate" type="number" inputMode="numeric" value={avgHeartRate}
+                  onChange={(e) => setAvgHeartRate(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
+                  placeholder="e.g. 155" min={0} max={250}
+                />
+              </div>
+              <div>
+                <label htmlFor="totalDuration" className="block text-xs font-medium text-muted-foreground mb-1">Total time (mm:ss)</label>
+                <input
+                  id="totalDuration" type="text" value={totalDurationInput}
+                  onChange={(e) => setTotalDurationInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
+                  placeholder="e.g. 45:00"
+                />
+                <p className="text-xs text-muted-foreground mt-0.5">Incl. warm-up & cool-down</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {useTemplate && templates.length === 0 && (
+          <p className="text-sm text-muted-foreground">No templates yet. Use a free workout or add templates from the Library.</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full px-4 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-semibold rounded-lg transition-colors"
         >
-          Date
-        </label>
-        <input
-          id="workoutDate"
-          type="date"
-          value={workoutDate}
-          onChange={(e) => setWorkoutDate(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="scoreType"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >
-          Score type
-        </label>
-        <select
-          id="scoreType"
-          value={scoreType}
-          onChange={(e) => setScoreType(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-        >
-          {SCORE_TYPES.map((s) => (
-            <option key={s || "none"} value={s}>
-              {s || "—"}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label
-          htmlFor="bestResultDisplay"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >
-          Result (display)
-        </label>
-        <input
-          id="bestResultDisplay"
-          type="text"
-          value={bestResultDisplay}
-          onChange={(e) => setBestResultDisplay(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          placeholder="e.g. 10:44, 5+2, 225"
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="bestResultRaw"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >
-          Result (raw, for sorting)
-        </label>
-        <input
-          id="bestResultRaw"
-          type="text"
-          inputMode="decimal"
-          value={bestResultRaw}
-          onChange={(e) => setBestResultRaw(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          placeholder="e.g. 644 (seconds), 5.02 (rounds+reps), 225 (load)"
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="barbellLift"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >
-          Barbell lift (optional)
-        </label>
-        <input
-          id="barbellLift"
-          type="text"
-          value={barbellLift}
-          onChange={(e) => setBarbellLift(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          placeholder="e.g. Back Squat"
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="rxOrScaled"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >
-          RX or scaled
-        </label>
-        <select
-          id="rxOrScaled"
-          value={rxOrScaled}
-          onChange={(e) => setRxOrScaled(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-        >
-          {RX_OPTIONS.map((o) => (
-            <option key={o || "none"} value={o}>
-              {o || "—"}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label
-          htmlFor="notes"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >
-          Notes
-        </label>
-        <textarea
-          id="notes"
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          placeholder="Workout notes"
-        />
-      </div>
-
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={isPr}
-          onChange={(e) => setIsPr(e.target.checked)}
-          className="rounded"
-        />
-        <span className="text-gray-700 dark:text-gray-300">Personal record (PR)</span>
-      </label>
-
-      {useTemplate && templates.length === 0 && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          No templates yet. Use a free workout or add templates from the Library.
-        </p>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-lg"
-      >
-        {loading ? "Saving…" : "Log workout"}
-      </button>
-    </form>
+          {loading ? "Saving…" : "Log workout"}
+        </button>
+      </form>
+    </div>
   );
 }

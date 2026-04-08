@@ -17,6 +17,12 @@ const createSessionSchema = z.object({
   rxOrScaled: z.string().optional().nullable(),
   isPr: z.boolean().optional().default(false),
   templateId: z.string().optional().nullable(),
+  // Health metrics
+  calories: z.number().int().optional().nullable(),
+  maxHeartRate: z.number().int().optional().nullable(),
+  avgHeartRate: z.number().int().optional().nullable(),
+  totalDurationSeconds: z.number().int().optional().nullable(),
+  timedDurationSeconds: z.number().int().optional().nullable(),
 });
 
 export async function GET(request: Request) {
@@ -87,6 +93,11 @@ export async function POST(request: Request) {
         notes: data.notes ?? null,
         rxOrScaled: data.rxOrScaled ?? null,
         isPr: data.isPr ?? false,
+        calories: data.calories ?? null,
+        maxHeartRate: data.maxHeartRate ?? null,
+        avgHeartRate: data.avgHeartRate ?? null,
+        totalDurationSeconds: data.totalDurationSeconds ?? null,
+        timedDurationSeconds: data.timedDurationSeconds ?? null,
       },
     });
     return NextResponse.json(workoutSession);
