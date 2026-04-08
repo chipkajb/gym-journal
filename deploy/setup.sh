@@ -99,18 +99,21 @@ cd "$PROJECT_DIR"
 docker compose build
 echo ""
 
-# Install to /opt/gym-journal if not already there
-INSTALL_DIR="/opt/gym-journal"
-if [[ "$PROJECT_DIR" != "$INSTALL_DIR" ]]; then
-  echo "Note: for systemd service, deploy to $INSTALL_DIR or update WorkingDirectory in the service file."
-fi
+# systemd units default to /opt/gym-journal; rewrite to this repo so compose finds .env and docker-compose.yml
+install_unit() {
+  local src="$1"
+  local dest="$2"
+  sed "s#/opt/gym-journal#${PROJECT_DIR}#g" "$src" > "$dest"
+  chmod 644 "$dest"
+}
 
 # Copy and enable systemd service
 SYSTEMD_DIR="/etc/systemd/system"
-echo "Installing systemd service..."
-cp "$SCRIPT_DIR/gym-journal.service" "$SYSTEMD_DIR/gym-journal.service"
-cp "$SCRIPT_DIR/gym-journal-backup.service" "$SYSTEMD_DIR/gym-journal-backup.service"
+echo "Installing systemd service (WorkingDirectory=$PROJECT_DIR)..."
+install_unit "$SCRIPT_DIR/gym-journal.service" "$SYSTEMD_DIR/gym-journal.service"
+install_unit "$SCRIPT_DIR/gym-journal-backup.service" "$SYSTEMD_DIR/gym-journal-backup.service"
 cp "$SCRIPT_DIR/gym-journal-backup.timer" "$SYSTEMD_DIR/gym-journal-backup.timer"
+chmod 644 "$SYSTEMD_DIR/gym-journal-backup.timer"
 
 systemctl daemon-reload
 systemctl enable gym-journal.service
