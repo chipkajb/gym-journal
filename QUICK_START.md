@@ -38,7 +38,7 @@ Create **`apps/web/.env.local`** with the required variables:
 ```env
 DATABASE_URL="postgresql://gymjournal:changeme@localhost:5432/gymjournal"
 NEXTAUTH_SECRET="your-generated-secret-here"
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="http://localhost:3001"
 NODE_ENV="development"
 
 # AI workout name generator — get your key at https://console.anthropic.com/
@@ -77,7 +77,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3001](http://localhost:3001).
 
 ## What you'll see
 
@@ -114,10 +114,10 @@ Open [http://localhost:3000](http://localhost:3000).
 - Reset (dev only): `npm run db:reset`
 - Check `DATABASE_URL` in `.env.local` and that the Postgres container is running.
 
-**Port 3000 in use**
+**Port 3001 in use**
 
 ```bash
-PORT=3001 npm run dev
+PORT=3002 npm run dev
 ```
 
 **Module not found**

@@ -74,7 +74,7 @@ By the end of this guide:
 **If you have Starlink:**
 
 - **No port forwarding or public IP** — Starlink uses CGNAT and doesn't offer traditional port forwarding
-- Remote access via **Tailscale** (private mesh VPN): only your devices can reach the app at `http://100.x.x.x:3000`. No public URL, no HTTPS setup needed
+- Remote access via **Tailscale** (private mesh VPN): only your devices can reach the app at `http://100.x.x.x:3001`. No public URL, no HTTPS setup needed
 - PWA "install to home screen" works on HTTP over Tailscale on most devices
 
 **For everyone:**
@@ -140,7 +140,7 @@ Docker is a tool that runs apps inside isolated containers. Instead of installin
 This app uses two containers: one for the Next.js web app, one for the PostgreSQL database.
 
 ### What is a Reverse Proxy?
-**Non-Starlink:** When someone connects from the internet, they hit your public IP on port 443 (HTTPS). A **reverse proxy** (we use Caddy) receives that request, handles HTTPS, and forwards it to Gym Journal running locally on port 3000. You don't expose the app directly; Caddy sits in front of it.
+**Non-Starlink:** When someone connects from the internet, they hit your public IP on port 443 (HTTPS). A **reverse proxy** (we use Caddy) receives that request, handles HTTPS, and forwards it to Gym Journal running locally on port 3001. You don't expose the app directly; Caddy sits in front of it.
 
 **Starlink:** You won't run Caddy (no public IP). Tailscale gives your devices secure access to the app without a reverse proxy.
 
@@ -458,7 +458,7 @@ sudo systemctl restart sshd
 UFW blocks all inbound traffic by default. We'll only open what's needed.
 
 **Non-Starlink:** Open SSH and HTTP/HTTPS (for Caddy).
-**Starlink:** Open SSH; open port 3000 so Tailscale clients can reach the app.
+**Starlink:** Open SSH; open port 3001 so Tailscale clients can reach the app.
 
 ```bash
 sudo apt install ufw -y
@@ -476,7 +476,7 @@ sudo ufw allow 443/tcp
 
 # Starlink (Tailscale only): allow Gym Journal so Tailscale clients can reach it
 # Uncomment the next line if you're on Starlink and using Tailscale:
-# sudo ufw allow 3000/tcp
+# sudo ufw allow 3001/tcp
 
 # Enable the firewall
 sudo ufw enable
@@ -713,7 +713,7 @@ Follow the link printed by `tailscale up` to log in. Note your server's Tailscal
 - **Phone:** Install the Tailscale app from the App Store or Play Store, log in with the same account.
 - **Computer:** Install from [tailscale.com/download](https://tailscale.com/download) and log in.
 
-**Access Gym Journal:** In a browser, use `http://100.x.x.x:3000` (replace with your server's Tailscale IP). Tailscale encrypts traffic between devices so HTTP is acceptable here.
+**Access Gym Journal:** In a browser, use `http://100.x.x.x:3001` (replace with your server's Tailscale IP). Tailscale encrypts traffic between devices so HTTP is acceptable here.
 
 **After this step,** continue to **Step 9 — Clone the Repo and Configure Environment**. Starlink users **skip Step 8** (Caddy).
 
@@ -758,7 +758,7 @@ Replace ALL existing content with (substituting your DuckDNS domain):
 ```
 mygymjournal.duckdns.org {
     # Reverse proxy all traffic to Gym Journal running in Docker
-    reverse_proxy localhost:3000
+    reverse_proxy localhost:3001
 
     # Log access (used by Fail2ban)
     log {
@@ -866,8 +866,8 @@ POSTGRES_PASSWORD=your_generated_db_password_here
 # NextAuth secret (generated above — must be 32+ characters)
 NEXTAUTH_SECRET=your_generated_nextauth_secret_here
 
-# Use your server's Tailscale IP and port 3000
-NEXTAUTH_URL=http://100.101.102.103:3000
+# Use your server's Tailscale IP and port 3001
+NEXTAUTH_URL=http://100.101.102.103:3001
 
 # Production mode
 NODE_ENV=production
@@ -899,11 +899,11 @@ services:
 
     ports:
       # Non-Starlink: only bind to localhost (Caddy proxies from outside)
-      # Starlink: change to "3000:3000" so Tailscale clients can reach it
-      - "127.0.0.1:3000:3000"
+      # Starlink: change to "3001:3001" so Tailscale clients can reach it
+      - "127.0.0.1:3001:3001"
 ```
 
-> **Starlink users:** Change `"127.0.0.1:3000:3000"` to `"3000:3000"` so that Tailscale clients on your other devices can reach the app. Only devices enrolled in your Tailscale network can connect, so this is safe.
+> **Starlink users:** Change `"127.0.0.1:3001:3001"` to `"3001:3001"` so that Tailscale clients on your other devices can reach the app. Only devices enrolled in your Tailscale network can connect, so this is safe.
 
 ### 10.2 Build and Start the App
 
@@ -925,7 +925,7 @@ docker compose logs -f
 You should see:
 - PostgreSQL reporting it's ready to accept connections
 - Prisma migrations running successfully
-- Next.js reporting `Ready on http://0.0.0.0:3000`
+- Next.js reporting `Ready on http://0.0.0.0:3001`
 
 Press `Ctrl+C` to stop watching logs.
 
@@ -948,9 +948,9 @@ Navigate to your app URL in a browser:
 | Path | URL |
 |------|-----|
 | **Non-Starlink** | `https://mygymjournal.duckdns.org` |
-| **Starlink (Tailscale)** | `http://YOUR_TAILSCALE_IP:3000` (e.g. `http://100.101.102.103:3000`) |
+| **Starlink (Tailscale)** | `http://YOUR_TAILSCALE_IP:3001` (e.g. `http://100.101.102.103:3001`) |
 
-> **Note (non-Starlink):** If the certificate isn't ready yet (1–2 minutes after first access), try again. You can also test locally first at `http://192.168.1.105:3000` (dedicated server) or `http://localhost:3000` (same computer).
+> **Note (non-Starlink):** If the certificate isn't ready yet (1–2 minutes after first access), try again. You can also test locally first at `http://192.168.1.105:3001` (dedicated server) or `http://localhost:3001` (same computer).
 
 ### 11.2 Create Your Account
 
@@ -964,7 +964,7 @@ Navigate to your app URL in a browser:
 
 **Non-Starlink:** On your phone, **switch to mobile data** (not home WiFi), then open `https://mygymjournal.duckdns.org`. If you see the Gym Journal login page, everything is working end-to-end.
 
-**Starlink (Tailscale):** On your phone, ensure the Tailscale app is connected and logged in with the same account as the server. Then open `http://YOUR_TAILSCALE_IP:3000` in a browser — you should reach the login page.
+**Starlink (Tailscale):** On your phone, ensure the Tailscale app is connected and logged in with the same account as the server. Then open `http://YOUR_TAILSCALE_IP:3001` in a browser — you should reach the login page.
 
 ### 11.4 Confirm Database Persistence
 
@@ -1014,7 +1014,7 @@ The app now appears on your home screen.
 - In Chrome or Edge, visit your DuckDNS URL and look for the install icon (monitor with down arrow) in the address bar. Click it → **Install**.
 - In Firefox, PWA install support is limited — use the browser tab directly.
 
-**Starlink:** In Chrome or Edge, visit `http://YOUR_TAILSCALE_IP:3000` and use the install icon in the address bar if it appears. Otherwise, just use the browser tab and bookmark it.
+**Starlink:** In Chrome or Edge, visit `http://YOUR_TAILSCALE_IP:3001` and use the install icon in the address bar if it appears. Otherwise, just use the browser tab and bookmark it.
 
 ### On Your Home Network (Local Access)
 
@@ -1026,7 +1026,7 @@ The app now appears on your home screen.
 
 Replace `192.168.1.105` with your server's actual static IP.
 
-**Starlink:** When home, use the same Tailscale URL (`http://YOUR_TAILSCALE_IP:3000`); traffic stays on Tailscale. You can also use the server's local IP directly: `http://192.168.1.105:3000` if you're on the same WiFi.
+**Starlink:** When home, use the same Tailscale URL (`http://YOUR_TAILSCALE_IP:3001`); traffic stays on Tailscale. You can also use the server's local IP directly: `http://192.168.1.105:3001` if you're on the same WiFi.
 
 ---
 
@@ -1255,13 +1255,13 @@ Before considering your setup "done", verify the following. Items marked *(non-S
 - [ ] `NEXTAUTH_URL` is set to `https://yourdomain.duckdns.org` (with `https://`)
 - [ ] Your router admin password is changed from the default
 - [ ] DuckDNS auto-update is running (check `~/duckdns/duck.log` shows `OK`)
-- [ ] App container binds to `127.0.0.1:3000` only (Caddy proxies from outside)
+- [ ] App container binds to `127.0.0.1:3001` only (Caddy proxies from outside)
 
 **Starlink only:**
 
 - [ ] Tailscale is installed on the server and on each device you use for Gym Journal
-- [ ] You can reach Gym Journal at `http://YOUR_TAILSCALE_IP:3000` from a device on Tailscale
-- [ ] `NEXTAUTH_URL` is set to `http://YOUR_TAILSCALE_IP:3000`
+- [ ] You can reach Gym Journal at `http://YOUR_TAILSCALE_IP:3001` from a device on Tailscale
+- [ ] `NEXTAUTH_URL` is set to `http://YOUR_TAILSCALE_IP:3001`
 
 ---
 
