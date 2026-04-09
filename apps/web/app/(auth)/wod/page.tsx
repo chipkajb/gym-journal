@@ -22,6 +22,7 @@ export default async function WodPage() {
           rxOrScaled: true,
           isPr: true,
           scoreType: true,
+          notes: true,
         },
       },
     },
@@ -42,6 +43,7 @@ export default async function WodPage() {
       rxOrScaled: s.rxOrScaled,
       isPr: s.isPr,
       scoreType: s.scoreType,
+      notes: s.notes,
     })),
   }));
 
