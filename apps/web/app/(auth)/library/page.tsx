@@ -2,7 +2,8 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Plus, BookOpen, List, LayoutGrid, PenLine } from "lucide-react";
+import { Plus, BookOpen, List, LayoutGrid } from "lucide-react";
+import { LibraryTemplateCard } from "@/components/features/library/library-template-card";
 
 export default async function LibraryPage() {
   const session = await getServerSession(authOptions);
@@ -10,6 +11,22 @@ export default async function LibraryPage() {
 
   const templates = await prisma.workoutTemplate.findMany({
     where: { userId: session.user.id },
+    include: {
+      workoutSessions: {
+        where: { userId: session.user.id },
+        orderBy: { workoutDate: "desc" },
+        select: {
+          id: true,
+          workoutDate: true,
+          bestResultDisplay: true,
+          bestResultRaw: true,
+          rxOrScaled: true,
+          isPr: true,
+          scoreType: true,
+          notes: true,
+        },
+      },
+    },
     orderBy: { title: "asc" },
   });
 
@@ -60,32 +77,22 @@ export default async function LibraryPage() {
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {templates.map((t) => (
               <li key={t.id}>
-                <div className="flex flex-col h-full p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                  <div className="flex-1">
-                    <h2 className="font-semibold text-gray-900 dark:text-white">
-                      {t.title}
-                    </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      {t.scoreType || "—"}
-                      {t.barbellLift && ` · ${t.barbellLift}`}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    <Link
-                      href={`/library/templates/${t.id}/edit`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
-                    >
-                      <PenLine className="w-3.5 h-3.5" />
-                      Edit
-                    </Link>
-                    <Link
-                      href={`/workouts/new?templateId=${t.id}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm"
-                    >
-                      Log workout
-                    </Link>
-                  </div>
-                </div>
+                <LibraryTemplateCard
+                  id={t.id}
+                  title={t.title}
+                  scoreType={t.scoreType}
+                  barbellLift={t.barbellLift}
+                  sessions={t.workoutSessions.map((s) => ({
+                    id: s.id,
+                    workoutDate: s.workoutDate.toISOString(),
+                    bestResultDisplay: s.bestResultDisplay,
+                    bestResultRaw: s.bestResultRaw,
+                    rxOrScaled: s.rxOrScaled,
+                    isPr: s.isPr,
+                    scoreType: s.scoreType,
+                    notes: s.notes,
+                  }))}
+                />
               </li>
             ))}
           </ul>

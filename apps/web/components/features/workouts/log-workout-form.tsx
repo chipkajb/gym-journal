@@ -1,10 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { WorkoutTimer, type TimerResult } from "./workout-timer";
 import { WorkoutNameGenerator } from "./workout-name-generator";
-import { Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { WorkoutHistoryPanel, type HistorySession } from "./workout-history-panel";
+import {
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  History,
+} from "lucide-react";
+import {
+  displayToRaw,
+  validateDisplayResult,
+  getResultPlaceholder,
+  epleyOneRepMax,
+  roundOneRepMax,
+  buildLoadDisplay,
+} from "@/lib/workout-utils";
 
 type TemplateOption = {
   id: string;
@@ -21,18 +36,131 @@ type Props = {
 const SCORE_TYPES = ["", "Time", "Reps", "Load", "Rounds + Reps", "Rounds"];
 const RX_OPTIONS = ["", "RX", "SCALED"];
 
+// ---------------------------------------------------------------------------
+// Searchable template combobox
+// ---------------------------------------------------------------------------
+function TemplateCombobox({
+  templates,
+  value,
+  onChange,
+}: {
+  templates: TemplateOption[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selected = templates.find((t) => t.id === value);
+
+  const filtered = query.trim()
+    ? templates.filter((t) =>
+        t.title.toLowerCase().includes(query.toLowerCase())
+      )
+    : templates;
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function select(id: string) {
+    onChange(id);
+    setOpen(false);
+    setQuery("");
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-left flex items-center justify-between gap-2 text-sm"
+      >
+        <span className="truncate">
+          {selected
+            ? `${selected.title}${selected.scoreType ? ` (${selected.scoreType})` : ""}`
+            : "Select template…"}
+        </span>
+        <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <input
+                autoFocus
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search workouts…"
+                className="w-full pl-7 pr-3 py-1.5 text-sm bg-background border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+          <ul className="max-h-56 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>
+            ) : (
+              filtered.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => select(t.id)}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
+                      t.id === value ? "bg-primary/10 text-primary font-medium" : "text-foreground"
+                    }`}
+                  >
+                    <span className="block font-medium">{t.title}</span>
+                    {t.scoreType && (
+                      <span className="text-xs text-muted-foreground">
+                        {t.scoreType}
+                        {t.barbellLift ? ` · ${t.barbellLift}` : ""}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main form
+// ---------------------------------------------------------------------------
 export function LogWorkoutForm({ templates }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const templateIdFromUrl = searchParams.get("templateId");
 
   const [useTemplate, setUseTemplate] = useState(!!templateIdFromUrl);
-  const [templateId, setTemplateId] = useState(templateIdFromUrl ?? templates[0]?.id ?? "");
+  const [templateId, setTemplateId] = useState(
+    templateIdFromUrl ?? templates[0]?.id ?? ""
+  );
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [workoutDate, setWorkoutDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [workoutDate, setWorkoutDate] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  );
+  // Display result (what the user types)
   const [bestResultDisplay, setBestResultDisplay] = useState("");
-  const [bestResultRaw, setBestResultRaw] = useState<string>("");
+  // Load-specific sub-fields (weight + reps)
+  const [loadWeight, setLoadWeight] = useState("");
+  const [loadReps, setLoadReps] = useState("1");
+
   const [scoreType, setScoreType] = useState("");
   const [barbellLift, setBarbellLift] = useState("");
   const [notes, setNotes] = useState("");
@@ -44,9 +172,16 @@ export function LogWorkoutForm({ templates }: Props) {
   const [showHealthMetrics, setShowHealthMetrics] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [timedResult, setTimedResult] = useState<TimerResult | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<HistorySession[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [displayError, setDisplayError] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const isLoadType = scoreType === "Load";
+
+  // Auto-fill title/description/scoreType when template changes
   useEffect(() => {
     if (useTemplate && templateId) {
       const t = templates.find((x) => x.id === templateId);
@@ -59,6 +194,7 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }, [useTemplate, templateId, templates]);
 
+  // Pre-select template from URL param
   useEffect(() => {
     if (templateIdFromUrl && templates.some((t) => t.id === templateIdFromUrl)) {
       setTemplateId(templateIdFromUrl);
@@ -66,12 +202,55 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }, [templateIdFromUrl, templates]);
 
+  // Fetch history when template is selected
+  const fetchHistory = useCallback(async (tid: string) => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/sessions?templateId=${tid}&limit=20`);
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data as HistorySession[]);
+      }
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (useTemplate && templateId) {
+      fetchHistory(templateId);
+    } else {
+      setHistory([]);
+    }
+  }, [useTemplate, templateId, fetchHistory]);
+
+  // Validate display result whenever it or scoreType changes
+  useEffect(() => {
+    if (scoreType && bestResultDisplay) {
+      setDisplayError(validateDisplayResult(bestResultDisplay, scoreType));
+    } else {
+      setDisplayError(null);
+    }
+  }, [bestResultDisplay, scoreType]);
+
+  // Auto-build Load display string from weight+reps
+  useEffect(() => {
+    if (isLoadType && loadWeight) {
+      const w = parseFloat(loadWeight);
+      const r = parseInt(loadReps, 10) || 1;
+      if (!isNaN(w) && w > 0) {
+        setBestResultDisplay(buildLoadDisplay(w, r));
+      }
+    }
+  }, [isLoadType, loadWeight, loadReps]);
+
   function parseDurationInput(val: string): number | null {
     if (!val.trim()) return null;
     if (val.includes(":")) {
       const parts = val.split(":").map(Number);
       if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
-      if (parts.length === 3) return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+      if (parts.length === 3)
+        return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
     }
     const n = Number(val);
     return isNaN(n) ? null : n * 60;
@@ -82,28 +261,50 @@ export function LogWorkoutForm({ templates }: Props) {
     setShowTimer(false);
     if (scoreType === "Time" || !scoreType) {
       setBestResultDisplay(result.label);
-      setBestResultRaw(String(result.durationSeconds));
       if (!scoreType) setScoreType("Time");
     }
+  }
+
+  /** Derive bestResultRaw from the display and score type */
+  function deriveRaw(): number | null {
+    if (isLoadType && loadWeight) {
+      const w = parseFloat(loadWeight);
+      const r = parseInt(loadReps, 10) || 1;
+      if (!isNaN(w) && w > 0) {
+        return roundOneRepMax(epleyOneRepMax(w, r));
+      }
+    }
+    if (bestResultDisplay && scoreType) {
+      return displayToRaw(bestResultDisplay, scoreType);
+    }
+    return null;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setLoading(true);
-    try {
-      const titleToUse = title.trim();
-      if (!titleToUse) {
-        setError("Enter a workout title or choose a template.");
-        setLoading(false);
+    const titleToUse = title.trim();
+    if (!titleToUse) {
+      setError("Enter a workout title or choose a template.");
+      return;
+    }
+    // Validate display result before submitting
+    if (bestResultDisplay && scoreType) {
+      const err = validateDisplayResult(bestResultDisplay, scoreType);
+      if (err) {
+        setError(`Result: ${err}`);
         return;
       }
+    }
+    setLoading(true);
+    try {
+      const bestResultRaw = deriveRaw();
       const payload = {
         title: titleToUse,
         description: description.trim() || null,
         workoutDate: new Date(workoutDate).toISOString(),
         bestResultDisplay: bestResultDisplay.trim() || null,
-        bestResultRaw: bestResultRaw === "" ? null : parseFloat(bestResultRaw),
+        bestResultRaw,
         scoreType: scoreType || null,
         barbellLift: barbellLift.trim() || null,
         notes: notes.trim() || null,
@@ -137,6 +338,16 @@ export function LogWorkoutForm({ templates }: Props) {
 
   const currentTemplate = useTemplate ? templates.find((t) => t.id === templateId) : null;
 
+  // Estimated 1RM for Load type
+  const estimated1RM =
+    isLoadType && loadWeight
+      ? (() => {
+          const w = parseFloat(loadWeight);
+          const r = parseInt(loadReps, 10) || 1;
+          return !isNaN(w) && w > 0 ? roundOneRepMax(epleyOneRepMax(w, r)) : null;
+        })()
+      : null;
+
   return (
     <div className="space-y-4 max-w-lg">
       <div className="flex items-center gap-3">
@@ -162,42 +373,96 @@ export function LogWorkoutForm({ templates }: Props) {
         />
       )}
 
-      <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-6 space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className="rounded-xl border border-border bg-card p-6 space-y-4"
+      >
         {error && (
           <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded">
             {error}
           </p>
         )}
 
+        {/* Mode toggle */}
         <div className="flex gap-4">
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="mode" checked={useTemplate} onChange={() => setUseTemplate(true)} />
+            <input
+              type="radio"
+              name="mode"
+              checked={useTemplate}
+              onChange={() => setUseTemplate(true)}
+            />
             <span className="text-sm text-foreground">From template</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="mode" checked={!useTemplate} onChange={() => setUseTemplate(false)} />
+            <input
+              type="radio"
+              name="mode"
+              checked={!useTemplate}
+              onChange={() => setUseTemplate(false)}
+            />
             <span className="text-sm text-foreground">Free workout</span>
           </label>
         </div>
 
+        {/* Searchable template selector */}
         {useTemplate && templates.length > 0 && (
           <div>
-            <label htmlFor="template" className="block text-sm font-medium text-foreground mb-1">Template</label>
-            <select
-              id="template"
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Template
+            </label>
+            <TemplateCombobox
+              templates={templates}
               value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-            >
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.title}{t.scoreType ? ` (${t.scoreType})` : ""}</option>
-              ))}
-            </select>
+              onChange={setTemplateId}
+            />
+
+            {/* Inline history toggle */}
+            {templateId && (
+              <button
+                type="button"
+                onClick={() => setShowHistory((v) => !v)}
+                className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <History className="w-3.5 h-3.5" />
+                {showHistory ? "Hide history" : "View history"}
+                {history.length > 0 && (
+                  <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                    {history.length}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {showHistory && (
+              <div className="mt-2 p-3 rounded-lg bg-muted/40 border border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Your history
+                </p>
+                {historyLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading…</p>
+                ) : (
+                  <WorkoutHistoryPanel sessions={history} initialLimit={5} />
+                )}
+              </div>
+            )}
           </div>
         )}
 
+        {useTemplate && templates.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            No templates yet. Use a free workout or add templates from the Library.
+          </p>
+        )}
+
+        {/* Workout title */}
         <div>
-          <label htmlFor="title" className="block text-sm font-medium text-foreground mb-1">Workout title</label>
+          <label
+            htmlFor="title"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            Workout title
+          </label>
           <input
             id="title"
             type="text"
@@ -215,8 +480,14 @@ export function LogWorkoutForm({ templates }: Props) {
           />
         </div>
 
+        {/* Date */}
         <div>
-          <label htmlFor="workoutDate" className="block text-sm font-medium text-foreground mb-1">Date</label>
+          <label
+            htmlFor="workoutDate"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            Date
+          </label>
           <input
             id="workoutDate"
             type="date"
@@ -226,56 +497,142 @@ export function LogWorkoutForm({ templates }: Props) {
           />
         </div>
 
+        {/* Score type */}
         <div>
-          <label htmlFor="scoreType" className="block text-sm font-medium text-foreground mb-1">Score type</label>
+          <label
+            htmlFor="scoreType"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            Score type
+          </label>
           <select
             id="scoreType"
             value={scoreType}
-            onChange={(e) => setScoreType(e.target.value)}
+            onChange={(e) => {
+              setScoreType(e.target.value);
+              setBestResultDisplay("");
+              setLoadWeight("");
+              setLoadReps("1");
+            }}
             className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
           >
             {SCORE_TYPES.map((s) => (
-              <option key={s || "none"} value={s}>{s || "—"}</option>
+              <option key={s || "none"} value={s}>
+                {s || "—"}
+              </option>
             ))}
           </select>
         </div>
 
-        <div>
-          <label htmlFor="bestResultDisplay" className="block text-sm font-medium text-foreground mb-1">Result</label>
-          <input
-            id="bestResultDisplay"
-            type="text"
-            value={bestResultDisplay}
-            onChange={(e) => setBestResultDisplay(e.target.value)}
-            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-            placeholder={timedResult ? timedResult.label : "e.g. 10:44, 5+2, 225"}
-          />
-          {timedResult && (
-            <button
-              type="button"
-              onClick={() => { setBestResultDisplay(timedResult.label); setBestResultRaw(String(timedResult.durationSeconds)); }}
-              className="mt-1 text-xs text-primary hover:underline"
+        {/* Result — Load special case */}
+        {isLoadType ? (
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Result
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">
+                  Weight (lbs/kg)
+                </label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={loadWeight}
+                  onChange={(e) => setLoadWeight(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                  placeholder="225"
+                  min={0}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">
+                  Reps
+                </label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={loadReps}
+                  onChange={(e) => setLoadReps(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                  placeholder="1"
+                  min={1}
+                />
+              </div>
+            </div>
+            {estimated1RM != null && (
+              <div className="mt-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
+                <p className="text-xs text-muted-foreground">
+                  Estimated 1RM (Epley):{" "}
+                  <span className="font-semibold text-foreground">
+                    ~{estimated1RM} lbs/kg
+                  </span>
+                  <span className="ml-1 text-muted-foreground">
+                    (used for ranking &amp; PR detection)
+                  </span>
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Non-load result */
+          <div>
+            <label
+              htmlFor="bestResultDisplay"
+              className="block text-sm font-medium text-foreground mb-1"
             >
-              ← Use timed result: {timedResult.label}
-            </button>
-          )}
-        </div>
+              Result
+              {scoreType && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {scoreType === "Time" && "— mm:ss or hh:mm:ss"}
+                  {scoreType === "Rounds + Reps" && "— rounds+reps (e.g. 5+2)"}
+                </span>
+              )}
+            </label>
+            <input
+              id="bestResultDisplay"
+              type="text"
+              value={bestResultDisplay}
+              onChange={(e) => setBestResultDisplay(e.target.value)}
+              className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${
+                displayError ? "border-red-400 dark:border-red-500" : "border-border"
+              }`}
+              placeholder={
+                timedResult
+                  ? timedResult.label
+                  : scoreType
+                  ? getResultPlaceholder(scoreType)
+                  : "e.g. 10:44, 5+2, 225"
+              }
+            />
+            {displayError && (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                {displayError}
+              </p>
+            )}
+            {timedResult && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBestResultDisplay(timedResult.label);
+                }}
+                className="mt-1 text-xs text-primary hover:underline"
+              >
+                ← Use timed result: {timedResult.label}
+              </button>
+            )}
+          </div>
+        )}
 
+        {/* Barbell lift */}
         <div>
-          <label htmlFor="bestResultRaw" className="block text-sm font-medium text-foreground mb-1">Result (raw, for sorting)</label>
-          <input
-            id="bestResultRaw"
-            type="text"
-            inputMode="decimal"
-            value={bestResultRaw}
-            onChange={(e) => setBestResultRaw(e.target.value)}
-            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-            placeholder="e.g. 644 (seconds), 5.02 (rounds+reps), 225 (load)"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="barbellLift" className="block text-sm font-medium text-foreground mb-1">Barbell lift (optional)</label>
+          <label
+            htmlFor="barbellLift"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            Barbell lift{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
+          </label>
           <input
             id="barbellLift"
             type="text"
@@ -286,8 +643,14 @@ export function LogWorkoutForm({ templates }: Props) {
           />
         </div>
 
+        {/* RX / Scaled */}
         <div>
-          <label htmlFor="rxOrScaled" className="block text-sm font-medium text-foreground mb-1">RX or Scaled</label>
+          <label
+            htmlFor="rxOrScaled"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            RX or Scaled
+          </label>
           <select
             id="rxOrScaled"
             value={rxOrScaled}
@@ -295,13 +658,21 @@ export function LogWorkoutForm({ templates }: Props) {
             className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
           >
             {RX_OPTIONS.map((o) => (
-              <option key={o || "none"} value={o}>{o || "—"}</option>
+              <option key={o || "none"} value={o}>
+                {o || "—"}
+              </option>
             ))}
           </select>
         </div>
 
+        {/* Notes */}
         <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-foreground mb-1">Notes</label>
+          <label
+            htmlFor="notes"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            Notes
+          </label>
           <textarea
             id="notes"
             rows={2}
@@ -312,63 +683,104 @@ export function LogWorkoutForm({ templates }: Props) {
           />
         </div>
 
+        {/* Health metrics */}
         <div className="border-t border-border pt-3">
           <button
             type="button"
             onClick={() => setShowHealthMetrics((v) => !v)}
             className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            {showHealthMetrics ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            Health & performance data
-            <span className="text-xs font-normal">(optional — from your smartwatch)</span>
+            {showHealthMetrics ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+            Health &amp; performance data
+            <span className="text-xs font-normal">
+              (optional — from your smartwatch)
+            </span>
           </button>
 
           {showHealthMetrics && (
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="calories" className="block text-xs font-medium text-muted-foreground mb-1">Calories burned</label>
+                <label
+                  htmlFor="calories"
+                  className="block text-xs font-medium text-muted-foreground mb-1"
+                >
+                  Calories burned
+                </label>
                 <input
-                  id="calories" type="number" inputMode="numeric" value={calories}
+                  id="calories"
+                  type="number"
+                  inputMode="numeric"
+                  value={calories}
                   onChange={(e) => setCalories(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                  placeholder="e.g. 420" min={0}
+                  placeholder="e.g. 420"
+                  min={0}
                 />
               </div>
               <div>
-                <label htmlFor="maxHeartRate" className="block text-xs font-medium text-muted-foreground mb-1">Max HR (bpm)</label>
+                <label
+                  htmlFor="maxHeartRate"
+                  className="block text-xs font-medium text-muted-foreground mb-1"
+                >
+                  Max HR (bpm)
+                </label>
                 <input
-                  id="maxHeartRate" type="number" inputMode="numeric" value={maxHeartRate}
+                  id="maxHeartRate"
+                  type="number"
+                  inputMode="numeric"
+                  value={maxHeartRate}
                   onChange={(e) => setMaxHeartRate(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                  placeholder="e.g. 182" min={0} max={250}
+                  placeholder="e.g. 182"
+                  min={0}
+                  max={250}
                 />
               </div>
               <div>
-                <label htmlFor="avgHeartRate" className="block text-xs font-medium text-muted-foreground mb-1">Avg HR (bpm)</label>
+                <label
+                  htmlFor="avgHeartRate"
+                  className="block text-xs font-medium text-muted-foreground mb-1"
+                >
+                  Avg HR (bpm)
+                </label>
                 <input
-                  id="avgHeartRate" type="number" inputMode="numeric" value={avgHeartRate}
+                  id="avgHeartRate"
+                  type="number"
+                  inputMode="numeric"
+                  value={avgHeartRate}
                   onChange={(e) => setAvgHeartRate(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                  placeholder="e.g. 155" min={0} max={250}
+                  placeholder="e.g. 155"
+                  min={0}
+                  max={250}
                 />
               </div>
               <div>
-                <label htmlFor="totalDuration" className="block text-xs font-medium text-muted-foreground mb-1">Total time (mm:ss)</label>
+                <label
+                  htmlFor="totalDuration"
+                  className="block text-xs font-medium text-muted-foreground mb-1"
+                >
+                  Total time (mm:ss)
+                </label>
                 <input
-                  id="totalDuration" type="text" value={totalDurationInput}
+                  id="totalDuration"
+                  type="text"
+                  value={totalDurationInput}
                   onChange={(e) => setTotalDurationInput(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
                   placeholder="e.g. 45:00"
                 />
-                <p className="text-xs text-muted-foreground mt-0.5">Incl. warm-up & cool-down</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Incl. warm-up &amp; cool-down
+                </p>
               </div>
             </div>
           )}
         </div>
-
-        {useTemplate && templates.length === 0 && (
-          <p className="text-sm text-muted-foreground">No templates yet. Use a free workout or add templates from the Library.</p>
-        )}
 
         <button
           type="submit"

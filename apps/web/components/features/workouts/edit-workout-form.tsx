@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { WorkoutNameGenerator } from "./workout-name-generator";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import {
+  displayToRaw,
+  validateDisplayResult,
+  getResultPlaceholder,
+  epleyOneRepMax,
+  roundOneRepMax,
+  buildLoadDisplay,
+} from "@/lib/workout-utils";
 
 type Props = {
   sessionId: string;
@@ -41,10 +49,20 @@ function parseDurationInput(val: string): number | null {
   if (val.includes(":")) {
     const parts = val.split(":").map(Number);
     if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
-    if (parts.length === 3) return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+    if (parts.length === 3)
+      return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
   }
   const n = Number(val);
   return isNaN(n) ? null : n * 60;
+}
+
+/** Parse existing "225 x 5" or "225" display into weight/reps for the Load type */
+function parseLoadDisplay(display: string): { weight: string; reps: string } {
+  const match = display.match(/^(\d+(?:\.\d+)?)\s*x\s*(\d+)$/);
+  if (match) return { weight: match[1]!, reps: match[2]! };
+  const single = display.match(/^(\d+(?:\.\d+)?)$/);
+  if (single) return { weight: single[1]!, reps: "1" };
+  return { weight: display, reps: "1" };
 }
 
 export function EditWorkoutForm({ sessionId, initial }: Props) {
@@ -52,13 +70,11 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
   const [title, setTitle] = useState(initial.title);
   const [description, setDescription] = useState(initial.description);
   const [workoutDate, setWorkoutDate] = useState(initial.workoutDate);
-  const [bestResultDisplay, setBestResultDisplay] = useState(initial.bestResultDisplay);
-  const [bestResultRaw, setBestResultRaw] = useState(initial.bestResultRaw);
   const [scoreType, setScoreType] = useState(initial.scoreType);
+  const [bestResultDisplay, setBestResultDisplay] = useState(initial.bestResultDisplay);
   const [barbellLift, setBarbellLift] = useState(initial.barbellLift);
   const [notes, setNotes] = useState(initial.notes);
   const [rxOrScaled, setRxOrScaled] = useState(initial.rxOrScaled);
-  // Health metrics
   const [calories, setCalories] = useState(initial.calories);
   const [maxHeartRate, setMaxHeartRate] = useState(initial.maxHeartRate);
   const [avgHeartRate, setAvgHeartRate] = useState(initial.avgHeartRate);
@@ -71,14 +87,75 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
   const [showHealthMetrics, setShowHealthMetrics] = useState(
     !!(initial.calories || initial.maxHeartRate || initial.avgHeartRate || initial.totalDurationSeconds)
   );
+
+  // Load-specific sub-fields
+  const initLoad = initial.scoreType === "Load" ? parseLoadDisplay(initial.bestResultDisplay) : null;
+  const [loadWeight, setLoadWeight] = useState(initLoad?.weight ?? "");
+  const [loadReps, setLoadReps] = useState(initLoad?.reps ?? "1");
+
+  const [displayError, setDisplayError] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const isLoadType = scoreType === "Load";
+
+  // Validate display whenever it or scoreType changes
+  useEffect(() => {
+    if (scoreType && bestResultDisplay && !isLoadType) {
+      setDisplayError(validateDisplayResult(bestResultDisplay, scoreType));
+    } else {
+      setDisplayError(null);
+    }
+  }, [bestResultDisplay, scoreType, isLoadType]);
+
+  // Auto-build Load display string from weight+reps
+  useEffect(() => {
+    if (isLoadType && loadWeight) {
+      const w = parseFloat(loadWeight);
+      const r = parseInt(loadReps, 10) || 1;
+      if (!isNaN(w) && w > 0) {
+        setBestResultDisplay(buildLoadDisplay(w, r));
+      }
+    }
+  }, [isLoadType, loadWeight, loadReps]);
+
+  /** Derive bestResultRaw */
+  function deriveRaw(): number | null {
+    if (isLoadType && loadWeight) {
+      const w = parseFloat(loadWeight);
+      const r = parseInt(loadReps, 10) || 1;
+      if (!isNaN(w) && w > 0) {
+        return roundOneRepMax(epleyOneRepMax(w, r));
+      }
+    }
+    if (bestResultDisplay && scoreType) {
+      return displayToRaw(bestResultDisplay, scoreType);
+    }
+    return null;
+  }
+
+  const estimated1RM =
+    isLoadType && loadWeight
+      ? (() => {
+          const w = parseFloat(loadWeight);
+          const r = parseInt(loadReps, 10) || 1;
+          return !isNaN(w) && w > 0 ? roundOneRepMax(epleyOneRepMax(w, r)) : null;
+        })()
+      : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (bestResultDisplay && scoreType && !isLoadType) {
+      const err = validateDisplayResult(bestResultDisplay, scoreType);
+      if (err) {
+        setError(`Result: ${err}`);
+        return;
+      }
+    }
     setLoading(true);
     try {
+      const bestResultRaw = deriveRaw();
       const res = await fetch(`/api/sessions/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -87,7 +164,7 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           description: description.trim() || null,
           workoutDate: new Date(workoutDate).toISOString(),
           bestResultDisplay: bestResultDisplay.trim() || null,
-          bestResultRaw: bestResultRaw === "" ? null : parseFloat(bestResultRaw),
+          bestResultRaw,
           scoreType: scoreType || null,
           barbellLift: barbellLift.trim() || null,
           notes: notes.trim() || null,
@@ -114,7 +191,10 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-6 space-y-4 max-w-lg">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-xl border border-border bg-card p-6 space-y-4 max-w-lg"
+    >
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded">
           {error}
@@ -122,9 +202,17 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
       )}
 
       <div>
-        <label htmlFor="title" className="block text-sm font-medium text-foreground mb-1">Workout title</label>
+        <label
+          htmlFor="title"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          Workout title
+        </label>
         <input
-          id="title" type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+          id="title"
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground mb-2"
           required
         />
@@ -138,67 +226,180 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
       </div>
 
       <div>
-        <label htmlFor="workoutDate" className="block text-sm font-medium text-foreground mb-1">Date</label>
+        <label
+          htmlFor="workoutDate"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          Date
+        </label>
         <input
-          id="workoutDate" type="date" value={workoutDate} onChange={(e) => setWorkoutDate(e.target.value)}
+          id="workoutDate"
+          type="date"
+          value={workoutDate}
+          onChange={(e) => setWorkoutDate(e.target.value)}
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
         />
       </div>
 
       <div>
-        <label htmlFor="scoreType" className="block text-sm font-medium text-foreground mb-1">Score type</label>
+        <label
+          htmlFor="scoreType"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          Score type
+        </label>
         <select
-          id="scoreType" value={scoreType} onChange={(e) => setScoreType(e.target.value)}
+          id="scoreType"
+          value={scoreType}
+          onChange={(e) => {
+            setScoreType(e.target.value);
+            if (e.target.value !== "Load") {
+              setBestResultDisplay("");
+              setLoadWeight("");
+              setLoadReps("1");
+            }
+          }}
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
         >
           {SCORE_TYPES.map((s) => (
-            <option key={s || "none"} value={s}>{s || "—"}</option>
+            <option key={s || "none"} value={s}>
+              {s || "—"}
+            </option>
           ))}
         </select>
       </div>
 
+      {/* Result — Load special case */}
+      {isLoadType ? (
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Result
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">
+                Weight (lbs/kg)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={loadWeight}
+                onChange={(e) => setLoadWeight(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                placeholder="225"
+                min={0}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">
+                Reps
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={loadReps}
+                onChange={(e) => setLoadReps(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                placeholder="1"
+                min={1}
+              />
+            </div>
+          </div>
+          {estimated1RM != null && (
+            <div className="mt-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
+              <p className="text-xs text-muted-foreground">
+                Estimated 1RM (Epley):{" "}
+                <span className="font-semibold text-foreground">
+                  ~{estimated1RM} lbs/kg
+                </span>
+                <span className="ml-1 text-muted-foreground">
+                  (used for ranking &amp; PR detection)
+                </span>
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <label
+            htmlFor="bestResultDisplay"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            Result
+            {scoreType && (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {scoreType === "Time" && "— mm:ss or hh:mm:ss"}
+                {scoreType === "Rounds + Reps" && "— rounds+reps (e.g. 5+2)"}
+              </span>
+            )}
+          </label>
+          <input
+            id="bestResultDisplay"
+            type="text"
+            value={bestResultDisplay}
+            onChange={(e) => setBestResultDisplay(e.target.value)}
+            className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${
+              displayError ? "border-red-400 dark:border-red-500" : "border-border"
+            }`}
+            placeholder={scoreType ? getResultPlaceholder(scoreType) : "e.g. 10:44, 5+2, 225"}
+          />
+          {displayError && (
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {displayError}
+            </p>
+          )}
+        </div>
+      )}
+
       <div>
-        <label htmlFor="bestResultDisplay" className="block text-sm font-medium text-foreground mb-1">Result (display)</label>
+        <label
+          htmlFor="barbellLift"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          Barbell lift
+        </label>
         <input
-          id="bestResultDisplay" type="text" value={bestResultDisplay}
-          onChange={(e) => setBestResultDisplay(e.target.value)}
+          id="barbellLift"
+          type="text"
+          value={barbellLift}
+          onChange={(e) => setBarbellLift(e.target.value)}
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
         />
       </div>
 
       <div>
-        <label htmlFor="bestResultRaw" className="block text-sm font-medium text-foreground mb-1">Result (raw)</label>
-        <input
-          id="bestResultRaw" type="text" inputMode="decimal" value={bestResultRaw}
-          onChange={(e) => setBestResultRaw(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="barbellLift" className="block text-sm font-medium text-foreground mb-1">Barbell lift</label>
-        <input
-          id="barbellLift" type="text" value={barbellLift} onChange={(e) => setBarbellLift(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="rxOrScaled" className="block text-sm font-medium text-foreground mb-1">RX or Scaled</label>
+        <label
+          htmlFor="rxOrScaled"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          RX or Scaled
+        </label>
         <select
-          id="rxOrScaled" value={rxOrScaled} onChange={(e) => setRxOrScaled(e.target.value)}
+          id="rxOrScaled"
+          value={rxOrScaled}
+          onChange={(e) => setRxOrScaled(e.target.value)}
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
         >
           {RX_OPTIONS.map((o) => (
-            <option key={o || "none"} value={o}>{o || "—"}</option>
+            <option key={o || "none"} value={o}>
+              {o || "—"}
+            </option>
           ))}
         </select>
       </div>
 
       <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-foreground mb-1">Notes</label>
+        <label
+          htmlFor="notes"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          Notes
+        </label>
         <textarea
-          id="notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+          id="notes"
+          rows={2}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
         />
       </div>
@@ -209,59 +410,110 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           onClick={() => setShowHealthMetrics((v) => !v)}
           className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
-          {showHealthMetrics ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          Health & performance data
+          {showHealthMetrics ? (
+            <ChevronUp className="w-4 h-4" />
+          ) : (
+            <ChevronDown className="w-4 h-4" />
+          )}
+          Health &amp; performance data
           <span className="text-xs font-normal">(from your smartwatch)</span>
         </button>
 
         {showHealthMetrics && (
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="calories" className="block text-xs font-medium text-muted-foreground mb-1">Calories burned</label>
+              <label
+                htmlFor="calories"
+                className="block text-xs font-medium text-muted-foreground mb-1"
+              >
+                Calories burned
+              </label>
               <input
-                id="calories" type="number" inputMode="numeric" value={calories}
+                id="calories"
+                type="number"
+                inputMode="numeric"
+                value={calories}
                 onChange={(e) => setCalories(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                placeholder="e.g. 420" min={0}
+                placeholder="e.g. 420"
+                min={0}
               />
             </div>
             <div>
-              <label htmlFor="maxHeartRate" className="block text-xs font-medium text-muted-foreground mb-1">Max HR (bpm)</label>
+              <label
+                htmlFor="maxHeartRate"
+                className="block text-xs font-medium text-muted-foreground mb-1"
+              >
+                Max HR (bpm)
+              </label>
               <input
-                id="maxHeartRate" type="number" inputMode="numeric" value={maxHeartRate}
+                id="maxHeartRate"
+                type="number"
+                inputMode="numeric"
+                value={maxHeartRate}
                 onChange={(e) => setMaxHeartRate(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                placeholder="e.g. 182" min={0} max={250}
+                placeholder="e.g. 182"
+                min={0}
+                max={250}
               />
             </div>
             <div>
-              <label htmlFor="avgHeartRate" className="block text-xs font-medium text-muted-foreground mb-1">Avg HR (bpm)</label>
+              <label
+                htmlFor="avgHeartRate"
+                className="block text-xs font-medium text-muted-foreground mb-1"
+              >
+                Avg HR (bpm)
+              </label>
               <input
-                id="avgHeartRate" type="number" inputMode="numeric" value={avgHeartRate}
+                id="avgHeartRate"
+                type="number"
+                inputMode="numeric"
+                value={avgHeartRate}
                 onChange={(e) => setAvgHeartRate(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                placeholder="e.g. 155" min={0} max={250}
+                placeholder="e.g. 155"
+                min={0}
+                max={250}
               />
             </div>
             <div>
-              <label htmlFor="totalDuration" className="block text-xs font-medium text-muted-foreground mb-1">Total time (mm:ss)</label>
+              <label
+                htmlFor="totalDuration"
+                className="block text-xs font-medium text-muted-foreground mb-1"
+              >
+                Total time (mm:ss)
+              </label>
               <input
-                id="totalDuration" type="text" value={totalDurationInput}
+                id="totalDuration"
+                type="text"
+                value={totalDurationInput}
                 onChange={(e) => setTotalDurationInput(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
                 placeholder="e.g. 45:00"
               />
-              <p className="text-xs text-muted-foreground mt-0.5">Incl. warm-up & cool-down</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Incl. warm-up &amp; cool-down
+              </p>
             </div>
             <div>
-              <label htmlFor="timedDuration" className="block text-xs font-medium text-muted-foreground mb-1">Timer result (mm:ss)</label>
+              <label
+                htmlFor="timedDuration"
+                className="block text-xs font-medium text-muted-foreground mb-1"
+              >
+                Timer result (mm:ss)
+              </label>
               <input
-                id="timedDuration" type="text" value={timedDurationInput}
+                id="timedDuration"
+                type="text"
+                value={timedDurationInput}
                 onChange={(e) => setTimedDurationInput(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
                 placeholder="e.g. 10:44"
               />
-              <p className="text-xs text-muted-foreground mt-0.5">In-app timer result</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                In-app timer result
+              </p>
             </div>
           </div>
         )}

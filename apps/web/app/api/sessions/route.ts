@@ -59,10 +59,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+  const templateId = searchParams.get("templateId");
+  const limitParam = searchParams.get("limit");
   try {
     const where: {
       userId: string;
       workoutDate?: { gte?: Date; lte?: Date };
+      workoutTemplateId?: string;
     } = { userId: session.user.id };
     if (from && to) {
       where.workoutDate = {
@@ -70,10 +73,14 @@ export async function GET(request: Request) {
         lte: new Date(to),
       };
     }
+    if (templateId) {
+      where.workoutTemplateId = templateId;
+    }
+    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
     const sessions = await prisma.workoutSession.findMany({
       where,
       orderBy: { workoutDate: "desc" },
-      ...(from && to ? {} : { take: 50 }),
+      ...(from && to ? {} : { take: limit ?? 50 }),
       include: { workoutTemplate: true },
     });
     return NextResponse.json(sessions);
