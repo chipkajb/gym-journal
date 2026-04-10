@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { HistoryCalendar } from "@/components/features/history/history-calendar";
-import { List } from "lucide-react";
+import { List, Pencil } from "lucide-react";
 
 export default async function HistoryPage() {
   const session = await getServerSession(authOptions);
@@ -19,13 +19,22 @@ export default async function HistoryPage() {
             Calendar view of your logged workouts. Click a day to see sessions.
           </p>
         </div>
-        <Link
-          href="/history/table"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-        >
-          <List className="w-4 h-4" />
-          Table view
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/history/edit"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+          >
+            <Pencil className="w-4 h-4" />
+            Edit entries
+          </Link>
+          <Link
+            href="/history/table"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+          >
+            <List className="w-4 h-4" />
+            Table view
+          </Link>
+        </div>
       </div>
       <HistoryCalendar userId={session.user.id} />
     </div>

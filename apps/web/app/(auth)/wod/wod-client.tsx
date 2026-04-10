@@ -455,7 +455,7 @@ export function WodClient({ templates }: { templates: Template[] }) {
                       <p className="font-semibold text-foreground text-sm">
                         {new Date(lastSession.workoutDate).toLocaleDateString(
                           "en-US",
-                          { month: "short", day: "numeric" }
+                          { month: "short", day: "numeric", year: "numeric" }
                         )}
                       </p>
                     </div>
@@ -474,7 +474,7 @@ export function WodClient({ templates }: { templates: Template[] }) {
                       {bestSession.scoreType === "Load" &&
                         bestSession.bestResultRaw != null && (
                           <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
-                            est. 1RM: ~
+                            Est. 1RM:{" "}
                             {roundOneRepMax(bestSession.bestResultRaw)}
                           </p>
                         )}

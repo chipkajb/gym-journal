@@ -10,7 +10,8 @@
     "db:seed": "tsx seed.ts",
     "db:reset": "prisma migrate reset --schema=./prisma/schema.prisma",
     "db:clear-workouts": "tsx scripts/clear-workout-data.ts",
-    "db:import-workouts": "tsx scripts/import-workouts.ts"
+    "db:import-workouts": "tsx scripts/import-workouts.ts",
+    "db:seed-templates": "tsx scripts/seed-templates.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1"

@@ -45,6 +45,21 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    // Check for duplicate title (case-insensitive)
+    const existing = await prisma.workoutTemplate.findFirst({
+      where: {
+        userId: session.user.id,
+        title: { equals: parsed.data.title, mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: `A workout named "${parsed.data.title}" already exists.` },
+        { status: 409 }
+      );
+    }
+
     const template = await prisma.workoutTemplate.create({
       data: {
         userId: session.user.id,

@@ -29,7 +29,7 @@ function OneRepMaxBadge({ session }: { session: HistorySession }) {
   if (session.scoreType !== "Load" || session.bestResultRaw == null) return null;
   return (
     <span className="text-xs text-muted-foreground">
-      1RM: ~{roundOneRepMax(session.bestResultRaw)} lbs
+      Est. 1RM: {roundOneRepMax(session.bestResultRaw)} lbs
     </span>
   );
 }
@@ -73,7 +73,7 @@ function SessionRow({
             {session.bestResultDisplay}
             {session.scoreType === "Load" && session.bestResultRaw != null && (
               <span className="ml-2 font-normal text-muted-foreground text-xs">
-                (est. 1RM: ~{roundOneRepMax(session.bestResultRaw)})
+                (Est. 1RM: {roundOneRepMax(session.bestResultRaw)})
               </span>
             )}
           </p>
