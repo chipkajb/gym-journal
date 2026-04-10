@@ -26,7 +26,7 @@ export default async function LibraryTablePage() {
         </Link>
         <div className="flex-1 flex items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Workout Library — Table view
+            Workout Library
           </h1>
           <Link
             href="/library"

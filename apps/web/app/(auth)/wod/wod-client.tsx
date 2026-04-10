@@ -536,7 +536,7 @@ export function WodClient({ templates }: { templates: Template[] }) {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-foreground font-medium text-sm hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <RotateCcw className="w-4 h-4" />
-              Try Another ({spinCount} picked so far)
+              Try Another
             </button>
           </div>
         )}
