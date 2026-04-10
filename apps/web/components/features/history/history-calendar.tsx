@@ -79,7 +79,7 @@ export function HistoryCalendar({ userId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => setCurrent(subMonths(current, 1))}
@@ -87,9 +87,21 @@ export function HistoryCalendar({ userId }: Props) {
         >
           Previous
         </button>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {format(current, "MMMM yyyy")}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {format(current, "MMMM yyyy")}
+          </h2>
+          <button
+            type="button"
+            onClick={() => {
+              setCurrent(new Date());
+              setSelectedDate(null);
+            }}
+            className="px-2 py-1 text-xs rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            Reset
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => setCurrent(addMonths(current, 1))}

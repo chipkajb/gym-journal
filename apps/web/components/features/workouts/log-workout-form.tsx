@@ -324,7 +324,7 @@ export function LogWorkoutForm({ templates }: Props) {
         maxHeartRate: maxHeartRate === "" ? null : parseInt(maxHeartRate, 10),
         avgHeartRate: avgHeartRate === "" ? null : parseInt(avgHeartRate, 10),
         totalDurationSeconds: parseDurationInput(totalDurationInput),
-        timedDurationSeconds: timedResult ? timedResult.durationSeconds : null,
+        timedDurationSeconds: null,
       };
       const res = await fetch("/api/sessions", {
         method: "POST",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { format, parseISO, subMonths, subYears } from "date-fns";
 import {
@@ -11,6 +11,7 @@ import {
   TrendingUp,
   List,
   Search,
+  ChevronDown,
 } from "lucide-react";
 import { FrequencyChart } from "./frequency-chart";
 import {
@@ -80,6 +81,96 @@ type Props = {
   summary: Summary;
   preferredUnit?: string;
 };
+
+function WorkoutCombobox({
+  titles,
+  value,
+  onChange,
+}: {
+  titles: string[];
+  value: string;
+  onChange: (title: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = query.trim()
+    ? titles.filter((t) => t.toLowerCase().includes(query.toLowerCase()))
+    : titles;
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function select(title: string) {
+    onChange(title);
+    setOpen(false);
+    setQuery("");
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm max-w-[260px] min-w-[160px]"
+      >
+        <span className="truncate flex-1 text-left">
+          {value || "Select a workout"}
+        </span>
+        <ChevronDown className="w-4 h-4 shrink-0 text-gray-400" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+              <input
+                autoFocus
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search workouts…"
+                className="w-full pl-7 pr-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <ul className="max-h-64 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                No matches
+              </li>
+            ) : (
+              filtered.map((t) => (
+                <li key={t}>
+                  <button
+                    type="button"
+                    onClick={() => select(t)}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                      t === value
+                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium"
+                        : "text-gray-900 dark:text-white"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AnalyticsPageClient({
   initialPrs,
@@ -244,18 +335,11 @@ export function AnalyticsPageClient({
               <TrendingUp className="w-5 h-5" />
               Progress over time
             </h2>
-            <select
+            <WorkoutCombobox
+              titles={workoutTitles}
               value={workoutFilter}
-              onChange={(e) => setWorkoutFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-            >
-              <option value="">Select a workout</option>
-              {workoutTitles.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              onChange={setWorkoutFilter}
+            />
             <select
               value={timeRange}
               onChange={(e) =>

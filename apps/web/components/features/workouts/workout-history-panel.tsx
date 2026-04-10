@@ -2,9 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Trophy, ChevronDown, ChevronUp } from "lucide-react";
 import { roundOneRepMax } from "@/lib/workout-utils";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export type HistorySession = {
   id: string;
@@ -25,12 +34,115 @@ type Props = {
   initialLimit?: number;
 };
 
-function OneRepMaxBadge({ session }: { session: HistorySession }) {
-  if (session.scoreType !== "Load" || session.bestResultRaw == null) return null;
+function formatYAxisTick(value: number, scoreType: string | null): string {
+  if (scoreType === "Time") {
+    const m = Math.floor(value / 60);
+    const s = Math.round(value % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+  return String(value);
+}
+
+function HistoryChart({ sessions }: { sessions: HistorySession[] }) {
+  const chartData = [...sessions]
+    .filter((s) => s.bestResultRaw != null)
+    .reverse() // oldest → newest left to right
+    .map((s) => ({
+      date: format(parseISO(s.workoutDate), "MMM d"),
+      fullDate: s.workoutDate,
+      result: s.bestResultRaw as number,
+      display: s.bestResultDisplay ?? String(s.bestResultRaw),
+      isPr: s.isPr,
+    }));
+
+  if (chartData.length < 2) return null;
+
+  const scoreType = sessions.find((s) => s.scoreType)?.scoreType ?? null;
+  const isTime = scoreType === "Time";
+
   return (
-    <span className="text-xs text-muted-foreground">
-      Est. 1RM: {roundOneRepMax(session.bestResultRaw)} lbs
-    </span>
+    <div className="mb-4">
+      <div className="h-40">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 4, right: 8, left: 0, bottom: 4 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 10 }}
+              className="text-muted-foreground"
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              tick={{ fontSize: 10 }}
+              className="text-muted-foreground"
+              width={42}
+              tickFormatter={(v: number) => formatYAxisTick(v, scoreType)}
+              reversed={isTime}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "var(--card)",
+                color: "var(--foreground)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                fontSize: "12px",
+              }}
+              formatter={(
+                _value: number,
+                _name: string,
+                props: { payload?: { display?: string; isPr?: boolean } }
+              ) => [
+                props.payload?.isPr
+                  ? `${props.payload.display} ★ PR`
+                  : (props.payload?.display ?? String(_value)),
+                "Result",
+              ]}
+              labelFormatter={(_, payload) =>
+                payload?.[0]?.payload?.fullDate
+                  ? format(parseISO(payload[0].payload.fullDate as string), "PPP")
+                  : ""
+              }
+            />
+            <Line
+              type="monotone"
+              dataKey="result"
+              stroke="rgb(59,130,246)"
+              strokeWidth={2}
+              dot={(props: {
+                cx?: number;
+                cy?: number;
+                payload?: { isPr?: boolean };
+              }) => {
+                const { cx = 0, cy = 0, payload } = props;
+                return payload?.isPr ? (
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={5}
+                    fill="rgb(245,158,11)"
+                    stroke="white"
+                    strokeWidth={2}
+                  />
+                ) : (
+                  <circle cx={cx} cy={cy} r={3} fill="rgb(59,130,246)" />
+                );
+              }}
+              activeDot={{ r: 5 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-3">
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white ring-1 ring-amber-400" />
+          PR
+        </span>
+        {isTime && <span>Lower is better</span>}
+      </p>
+    </div>
   );
 }
 
@@ -93,7 +205,11 @@ function SessionRow({
           className="shrink-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 mt-0.5"
         >
           Notes
-          {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          {expanded ? (
+            <ChevronUp className="w-3 h-3" />
+          ) : (
+            <ChevronDown className="w-3 h-3" />
+          )}
         </button>
       )}
     </div>
@@ -102,7 +218,10 @@ function SessionRow({
   return (
     <li className="border-b border-border last:border-0 py-2">
       {linkable ? (
-        <Link href={`/workouts/${session.id}`} className="block hover:bg-accent/50 rounded px-1 -mx-1 transition-colors">
+        <Link
+          href={`/workouts/${session.id}`}
+          className="block hover:bg-accent/50 rounded px-1 -mx-1 transition-colors"
+        >
           {content}
         </Link>
       ) : (
@@ -126,7 +245,9 @@ export function WorkoutHistoryPanel({
 
   if (sessions.length === 0) {
     return (
-      <p className="text-xs text-muted-foreground italic">No logged sessions yet.</p>
+      <p className="text-xs text-muted-foreground italic">
+        No logged sessions yet.
+      </p>
     );
   }
 
@@ -135,6 +256,7 @@ export function WorkoutHistoryPanel({
 
   return (
     <div>
+      <HistoryChart sessions={sessions} />
       <ul className="divide-y divide-border">
         {visible.map((s) => (
           <SessionRow key={s.id} session={s} linkable={linkable} />

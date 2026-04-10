@@ -67,6 +67,16 @@ function getAvgDuration(sessions: Session[]): number | null {
   return avg;
 }
 
+/**
+ * Like getAvgDuration but doesn't require sessions to have scoreType="Time".
+ * Used in the duration bucket filter when we already know the template is Time-scored.
+ */
+function getAvgDurationForTimedTemplate(sessions: Session[]): number | null {
+  const valid = sessions.filter((s) => s.bestResultRaw != null);
+  if (valid.length === 0) return null;
+  return valid.reduce((sum, s) => sum + (s.bestResultRaw ?? 0), 0) / valid.length;
+}
+
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
@@ -110,13 +120,13 @@ export function WodClient({ templates }: { templates: Template[] }) {
         return false;
       if (
         filters.rxFilter === "scaled" &&
-        !t.sessions.some((s) => s.rxOrScaled === "Scaled")
+        !t.sessions.some((s) => s.rxOrScaled === "SCALED")
       )
         return false;
       // Duration filter (only applies to Time-scored workouts with history)
       if (filters.durationBucket !== "any") {
         if (t.scoreType !== "Time") return false;
-        const avg = getAvgDuration(t.sessions);
+        const avg = getAvgDurationForTimedTemplate(t.sessions);
         if (avg === null) return true; // Never done - include if looking by duration
         const bucket = DURATION_BUCKETS[filters.durationBucket];
         if (avg < bucket.min || avg >= bucket.max) return false;
