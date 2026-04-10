@@ -51,6 +51,13 @@ export default async function EditWorkoutPage({
           avgHeartRate: workoutSession.avgHeartRate?.toString() ?? "",
           totalDurationSeconds: workoutSession.totalDurationSeconds?.toString() ?? "",
           timedDurationSeconds: workoutSession.timedDurationSeconds?.toString() ?? "",
+          setDetails:
+            workoutSession.scoreType === "Load" &&
+            workoutSession.setDetails != null &&
+            typeof workoutSession.setDetails === "object" &&
+            "weight" in (workoutSession.setDetails as object)
+              ? (workoutSession.setDetails as { weight: number; reps: number })
+              : null,
         }}
       />
     </div>

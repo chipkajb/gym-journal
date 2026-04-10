@@ -18,7 +18,6 @@ import {
   getResultPlaceholder,
   epleyOneRepMax,
   roundOneRepMax,
-  buildLoadDisplay,
 } from "@/lib/workout-utils";
 
 type TemplateOption = {
@@ -233,13 +232,14 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }, [bestResultDisplay, scoreType]);
 
-  // Auto-build Load display string from weight+reps
+  // For Load workouts, bestResultDisplay is the estimated 1RM
   useEffect(() => {
     if (isLoadType && loadWeight) {
       const w = parseFloat(loadWeight);
       const r = parseInt(loadReps, 10) || 1;
       if (!isNaN(w) && w > 0) {
-        setBestResultDisplay(buildLoadDisplay(w, r));
+        const orm = roundOneRepMax(epleyOneRepMax(w, r));
+        setBestResultDisplay(String(orm));
       }
     }
   }, [isLoadType, loadWeight, loadReps]);
@@ -265,7 +265,7 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }
 
-  /** Derive bestResultRaw from the display and score type */
+  /** Derive bestResultRaw. For Load, this is the estimated 1RM (same as bestResultDisplay). */
   function deriveRaw(): number | null {
     if (isLoadType && loadWeight) {
       const w = parseFloat(loadWeight);
@@ -299,6 +299,15 @@ export function LogWorkoutForm({ templates }: Props) {
     setLoading(true);
     try {
       const bestResultRaw = deriveRaw();
+      // For Load workouts, store original weight × reps in setDetails for context
+      const setDetails =
+        isLoadType && loadWeight
+          ? {
+              weight: parseFloat(loadWeight),
+              reps: parseInt(loadReps, 10) || 1,
+            }
+          : null;
+
       const payload = {
         title: titleToUse,
         description: description.trim() || null,
@@ -307,6 +316,7 @@ export function LogWorkoutForm({ templates }: Props) {
         bestResultRaw,
         scoreType: scoreType || null,
         barbellLift: barbellLift.trim() || null,
+        setDetails,
         notes: notes.trim() || null,
         rxOrScaled: rxOrScaled || null,
         templateId: useTemplate && templateId ? templateId : null,
@@ -563,12 +573,12 @@ export function LogWorkoutForm({ templates }: Props) {
             {estimated1RM != null && (
               <div className="mt-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="text-xs text-muted-foreground">
-                  Estimated 1RM (Epley):{" "}
+                  Est. 1RM (Epley&apos;s formula):{" "}
                   <span className="font-semibold text-foreground">
-                    ~{estimated1RM} lbs/kg
+                    {estimated1RM} lbs/kg
                   </span>
                   <span className="ml-1 text-muted-foreground">
-                    (used for ranking &amp; PR detection)
+                    — saved as your score
                   </span>
                 </p>
               </div>

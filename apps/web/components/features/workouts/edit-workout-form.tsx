@@ -10,7 +10,6 @@ import {
   getResultPlaceholder,
   epleyOneRepMax,
   roundOneRepMax,
-  buildLoadDisplay,
 } from "@/lib/workout-utils";
 
 type Props = {
@@ -30,6 +29,8 @@ type Props = {
     avgHeartRate: string;
     totalDurationSeconds: string;
     timedDurationSeconds: string;
+    /** Stored weight × reps for Load workouts (preferred over parsing bestResultDisplay) */
+    setDetails: { weight: number; reps: number } | null;
   };
 };
 
@@ -56,10 +57,14 @@ function parseDurationInput(val: string): number | null {
   return isNaN(n) ? null : n * 60;
 }
 
-/** Parse existing "225 x 5" or "225" display into weight/reps for the Load type */
+/**
+ * Parse "225 x 5" display format (old records) into weight/reps.
+ * New records store this in setDetails instead.
+ */
 function parseLoadDisplay(display: string): { weight: string; reps: string } {
   const match = display.match(/^(\d+(?:\.\d+)?)\s*x\s*(\d+)$/);
   if (match) return { weight: match[1]!, reps: match[2]! };
+  // Single number could be a 1-rep lift (old) or a 1RM value (new) — default reps=1
   const single = display.match(/^(\d+(?:\.\d+)?)$/);
   if (single) return { weight: single[1]!, reps: "1" };
   return { weight: display, reps: "1" };
@@ -88,8 +93,13 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
     !!(initial.calories || initial.maxHeartRate || initial.avgHeartRate || initial.totalDurationSeconds)
   );
 
-  // Load-specific sub-fields
-  const initLoad = initial.scoreType === "Load" ? parseLoadDisplay(initial.bestResultDisplay) : null;
+  // Load-specific sub-fields: prefer setDetails (new records), fall back to parsing display (old records)
+  const initLoad =
+    initial.scoreType === "Load"
+      ? initial.setDetails
+        ? { weight: String(initial.setDetails.weight), reps: String(initial.setDetails.reps) }
+        : parseLoadDisplay(initial.bestResultDisplay)
+      : null;
   const [loadWeight, setLoadWeight] = useState(initLoad?.weight ?? "");
   const [loadReps, setLoadReps] = useState(initLoad?.reps ?? "1");
 
@@ -108,13 +118,14 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
     }
   }, [bestResultDisplay, scoreType, isLoadType]);
 
-  // Auto-build Load display string from weight+reps
+  // For Load workouts, bestResultDisplay is the estimated 1RM
   useEffect(() => {
     if (isLoadType && loadWeight) {
       const w = parseFloat(loadWeight);
       const r = parseInt(loadReps, 10) || 1;
       if (!isNaN(w) && w > 0) {
-        setBestResultDisplay(buildLoadDisplay(w, r));
+        const orm = roundOneRepMax(epleyOneRepMax(w, r));
+        setBestResultDisplay(String(orm));
       }
     }
   }, [isLoadType, loadWeight, loadReps]);
@@ -156,6 +167,11 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
     setLoading(true);
     try {
       const bestResultRaw = deriveRaw();
+      // For Load workouts, store weight × reps in setDetails
+      const setDetails =
+        isLoadType && loadWeight
+          ? { weight: parseFloat(loadWeight), reps: parseInt(loadReps, 10) || 1 }
+          : null;
       const res = await fetch(`/api/sessions/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -167,6 +183,7 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           bestResultRaw,
           scoreType: scoreType || null,
           barbellLift: barbellLift.trim() || null,
+          setDetails,
           notes: notes.trim() || null,
           rxOrScaled: rxOrScaled || null,
           calories: calories === "" ? null : parseInt(calories, 10),
@@ -308,12 +325,12 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           {estimated1RM != null && (
             <div className="mt-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
               <p className="text-xs text-muted-foreground">
-                Estimated 1RM (Epley):{" "}
+                Est. 1RM (Epley&apos;s formula):{" "}
                 <span className="font-semibold text-foreground">
-                  ~{estimated1RM} lbs/kg
+                  {estimated1RM} lbs/kg
                 </span>
                 <span className="ml-1 text-muted-foreground">
-                  (used for ranking &amp; PR detection)
+                  — saved as your score
                 </span>
               </p>
             </div>
