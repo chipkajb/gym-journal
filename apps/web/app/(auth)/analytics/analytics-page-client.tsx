@@ -10,6 +10,7 @@ import {
   Calendar,
   TrendingUp,
   List,
+  Search,
 } from "lucide-react";
 import { FrequencyChart } from "./frequency-chart";
 import {
@@ -93,6 +94,10 @@ export function AnalyticsPageClient({
   );
   const [loadingResults, setLoadingResults] = useState(false);
 
+  const [prSearch, setPrSearch] = useState("");
+  const [prPage, setPrPage] = useState(1);
+  const PR_PAGE_SIZE = 12;
+
   const fetchResultsForWorkout = useCallback(async (title: string) => {
     if (!title.trim()) {
       setWorkoutResults(null);
@@ -173,6 +178,19 @@ export function AnalyticsPageClient({
 
   const displayTitle = workoutFilter || "Select a workout";
 
+  const filteredPrs = useMemo(() => {
+    if (!prSearch.trim()) return initialPrs;
+    const q = prSearch.toLowerCase();
+    return initialPrs.filter((pr) => pr.title.toLowerCase().includes(q));
+  }, [initialPrs, prSearch]);
+
+  const paginatedPrs = useMemo(
+    () => filteredPrs.slice(0, prPage * PR_PAGE_SIZE),
+    [filteredPrs, prPage, PR_PAGE_SIZE]
+  );
+
+  const hasMorePrs = paginatedPrs.length < filteredPrs.length;
+
   function focusWorkout(title: string) {
     setWorkoutFilter(title);
   }
@@ -182,7 +200,7 @@ export function AnalyticsPageClient({
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <BarChart3 className="w-7 h-7" />
-          Progress & analytics
+          Progress & Analytics
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
           Personal records, progress over time, and workout trends.
@@ -438,79 +456,122 @@ export function AnalyticsPageClient({
       <FrequencyChart />
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-amber-500" />
-          Personal records
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-500" />
+            Personal records
+          </h2>
+          {initialPrs.length > 0 && (
+            <div className="relative sm:ml-auto">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search PRs…"
+                value={prSearch}
+                onChange={(e) => {
+                  setPrSearch(e.target.value);
+                  setPrPage(1);
+                }}
+                className="pl-9 pr-4 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-56"
+              />
+            </div>
+          )}
+        </div>
+
         {initialPrs.length === 0 ? (
           <p className="text-gray-500 dark:text-gray-400">
             No PRs yet. Log workouts to see your personal records here.
           </p>
+        ) : filteredPrs.length === 0 ? (
+          <p className="text-gray-500 dark:text-gray-400 py-4">
+            No PRs match &quot;{prSearch}&quot;.
+          </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {initialPrs.map((pr) => (
-              <div
-                key={pr.id}
-                className="flex flex-col p-4 rounded-xl bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 hover:border-amber-400 dark:hover:border-amber-600 transition-colors shadow-sm"
-              >
-                {/* Score type badge */}
-                <div className="flex items-center justify-between mb-2">
-                  {pr.scoreType ? (
-                    <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">
-                      {pr.scoreType}
-                    </span>
-                  ) : (
-                    <span />
-                  )}
-                  {pr.rxOrScaled && (
-                    <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        pr.rxOrScaled === "RX"
-                          ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-                          : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
-                      }`}
-                    >
-                      {pr.rxOrScaled}
-                    </span>
-                  )}
-                </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {paginatedPrs.map((pr) => (
+                <div
+                  key={pr.id}
+                  className="flex flex-col p-4 rounded-xl bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 hover:border-amber-400 dark:hover:border-amber-600 transition-colors shadow-sm"
+                >
+                  {/* Score type badge */}
+                  <div className="flex items-center justify-between mb-2">
+                    {pr.scoreType ? (
+                      <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">
+                        {pr.scoreType}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    {pr.rxOrScaled && (
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          pr.rxOrScaled === "RX"
+                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                            : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
+                        }`}
+                      >
+                        {pr.rxOrScaled}
+                      </span>
+                    )}
+                  </div>
 
-                {/* Workout name */}
-                <p className="font-semibold text-gray-900 dark:text-white leading-tight mb-1 line-clamp-2">
-                  {pr.title}
-                </p>
-
-                {/* Result */}
-                {pr.bestResultDisplay && (
-                  <p className="text-xl font-bold text-amber-600 dark:text-amber-400 mb-1">
-                    {pr.bestResultDisplay}
+                  {/* Workout name */}
+                  <p className="font-semibold text-gray-900 dark:text-white leading-tight mb-1 line-clamp-2">
+                    {pr.title}
                   </p>
-                )}
 
-                {/* Date */}
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                  {format(parseISO(pr.workoutDate), "MMM d, yyyy")}
-                </p>
+                  {/* Result */}
+                  {pr.bestResultDisplay && (
+                    <p className="text-xl font-bold text-amber-600 dark:text-amber-400 mb-1">
+                      {pr.bestResultDisplay}
+                    </p>
+                  )}
 
-                {/* Actions */}
-                <div className="flex gap-2 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700">
-                  <Link
-                    href={`/workouts/${pr.id}`}
-                    className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                  >
-                    View session
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => focusWorkout(pr.title)}
-                    className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  >
-                    All results
-                  </button>
+                  {/* Date */}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    {format(parseISO(pr.workoutDate), "MMM d, yyyy")}
+                  </p>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <Link
+                      href={`/workouts/${pr.id}`}
+                      className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    >
+                      View session
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => focusWorkout(pr.title)}
+                      className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      All results
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Showing {paginatedPrs.length} of {filteredPrs.length} PR
+                {filteredPrs.length !== 1 ? "s" : ""}
+                {prSearch && initialPrs.length !== filteredPrs.length
+                  ? ` (filtered from ${initialPrs.length})`
+                  : ""}
+              </p>
+              {hasMorePrs && (
+                <button
+                  type="button"
+                  onClick={() => setPrPage((p) => p + 1)}
+                  className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                >
+                  Show more
+                </button>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

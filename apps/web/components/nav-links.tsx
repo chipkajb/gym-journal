@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   BookOpen,
   PenLine,
-  Calendar,
   BarChart3,
   Shuffle,
   Trophy,
@@ -20,8 +19,7 @@ import {
 const primaryNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/wod", label: "WOD", icon: Shuffle },
-  { href: "/workouts", label: "Log", icon: PenLine },
-  { href: "/history", label: "History", icon: Calendar },
+  { href: "/workouts", label: "Workouts", icon: PenLine },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
