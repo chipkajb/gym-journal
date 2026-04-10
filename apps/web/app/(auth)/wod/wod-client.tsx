@@ -455,7 +455,7 @@ export function WodClient({ templates }: { templates: Template[] }) {
                       <p className="font-semibold text-foreground text-sm">
                         {new Date(lastSession.workoutDate).toLocaleDateString(
                           "en-US",
-                          { month: "short", day: "numeric" }
+                          { month: "short", day: "numeric", year: "numeric" }
                         )}
                       </p>
                     </div>
@@ -470,11 +470,16 @@ export function WodClient({ templates }: { templates: Template[] }) {
                       </div>
                       <p className="font-semibold text-emerald-700 dark:text-emerald-300 text-sm">
                         {bestSession.bestResultDisplay}
+                        {bestSession.scoreType === "Load" && !bestSession.bestResultDisplay.includes("x") && (
+                          <span className="text-xs font-normal ml-1 opacity-70">lbs/kg</span>
+                        )}
                       </p>
+                      {/* Old format "225 x 5" — show computed 1RM; new format already IS the 1RM */}
                       {bestSession.scoreType === "Load" &&
-                        bestSession.bestResultRaw != null && (
+                        bestSession.bestResultRaw != null &&
+                        /^\d+(?:\.\d+)?\s*x\s*\d+$/.test(bestSession.bestResultDisplay) && (
                           <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
-                            est. 1RM: ~
+                            Est. 1RM:{" "}
                             {roundOneRepMax(bestSession.bestResultRaw)}
                           </p>
                         )}

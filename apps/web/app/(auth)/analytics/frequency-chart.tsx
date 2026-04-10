@@ -80,7 +80,7 @@ export function FrequencyChart() {
 
       {loading ? (
         <p className="text-gray-500 dark:text-gray-400 py-8 text-center text-sm">Loading…</p>
-      ) : data.length === 0 ? (
+      ) : data.length === 0 || data.every((d) => d.total === 0) ? (
         <p className="text-gray-500 dark:text-gray-400 py-8 text-center text-sm">
           No workout data in this range. Start logging to see your frequency trends.
         </p>

@@ -444,43 +444,73 @@ export function AnalyticsPageClient({
         </h2>
         {initialPrs.length === 0 ? (
           <p className="text-gray-500 dark:text-gray-400">
-            No PRs yet. Mark a workout as PR when logging to see it here.
+            No PRs yet. Log workouts to see your personal records here.
           </p>
         ) : (
-          <ul className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {initialPrs.map((pr) => (
-              <li key={pr.id}>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-amber-500 dark:hover:border-amber-500 transition-colors">
-                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                    <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 dark:text-white truncate">
-                      {pr.title}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {format(parseISO(pr.workoutDate), "MMM d, yyyy")}
-                      {pr.bestResultDisplay && ` · ${pr.bestResultDisplay}`}
-                      {pr.rxOrScaled && ` · ${pr.rxOrScaled}`}
-                    </p>
-                  </div>
+              <div
+                key={pr.id}
+                className="flex flex-col p-4 rounded-xl bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 hover:border-amber-400 dark:hover:border-amber-600 transition-colors shadow-sm"
+              >
+                {/* Score type badge */}
+                <div className="flex items-center justify-between mb-2">
+                  {pr.scoreType ? (
+                    <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">
+                      {pr.scoreType}
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+                  {pr.rxOrScaled && (
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        pr.rxOrScaled === "RX"
+                          ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                          : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
+                      }`}
+                    >
+                      {pr.rxOrScaled}
+                    </span>
+                  )}
+                </div>
+
+                {/* Workout name */}
+                <p className="font-semibold text-gray-900 dark:text-white leading-tight mb-1 line-clamp-2">
+                  {pr.title}
+                </p>
+
+                {/* Result */}
+                {pr.bestResultDisplay && (
+                  <p className="text-xl font-bold text-amber-600 dark:text-amber-400 mb-1">
+                    {pr.bestResultDisplay}
+                  </p>
+                )}
+
+                {/* Date */}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  {format(parseISO(pr.workoutDate), "MMM d, yyyy")}
+                </p>
+
+                {/* Actions */}
+                <div className="flex gap-2 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700">
                   <Link
                     href={`/workouts/${pr.id}`}
-                    className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+                    className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                   >
                     View session
                   </Link>
                   <button
                     type="button"
                     onClick={() => focusWorkout(pr.title)}
-                    className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                    className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
-                    View all results
+                    All results
                   </button>
                 </div>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </div>

@@ -45,7 +45,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         });
         if (!res.ok) {
           const data = await res.json();
-          setError(data.error?.title?.[0] ?? "Failed to update");
+          setError(typeof data.error === "string" ? data.error : (data.error?.title?.[0] ?? "Failed to update"));
           setLoading(false);
           return;
         }
@@ -64,7 +64,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         });
         if (!res.ok) {
           const data = await res.json();
-          setError(data.error?.title?.[0] ?? "Failed to create");
+          setError(typeof data.error === "string" ? data.error : (data.error?.title?.[0] ?? "Failed to create"));
           setLoading(false);
           return;
         }

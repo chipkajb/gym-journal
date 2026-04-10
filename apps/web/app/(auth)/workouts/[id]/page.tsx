@@ -64,9 +64,23 @@ export default async function WorkoutSessionPage({
     workoutSession.timedDurationSeconds != null;
 
   const isLoadType = workoutSession.scoreType === "Load";
+  // Old records stored "225 x 5" as display; new records store the 1RM directly.
+  // Detect old format to show an Est. 1RM line beneath it.
+  const isOldLoadFormat =
+    isLoadType &&
+    workoutSession.bestResultDisplay != null &&
+    /^\d+(?:\.\d+)?\s*x\s*\d+$/.test(workoutSession.bestResultDisplay);
   const estimated1RM =
-    isLoadType && workoutSession.bestResultRaw != null
+    isOldLoadFormat && workoutSession.bestResultRaw != null
       ? roundOneRepMax(workoutSession.bestResultRaw)
+      : null;
+  // Set details (weight × reps) stored for new records
+  const setDetailsLoad =
+    isLoadType &&
+    workoutSession.setDetails != null &&
+    typeof workoutSession.setDetails === "object" &&
+    "weight" in (workoutSession.setDetails as object)
+      ? (workoutSession.setDetails as { weight: number; reps: number })
       : null;
 
   return (
@@ -98,17 +112,30 @@ export default async function WorkoutSessionPage({
         {workoutSession.bestResultDisplay && (
           <div>
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Result
+              {isLoadType && !isOldLoadFormat ? "Est. 1RM" : "Result"}
             </span>
             <p className="text-2xl font-bold text-foreground mt-0.5">
               {workoutSession.bestResultDisplay}
+              {isLoadType && !isOldLoadFormat && (
+                <span className="text-base font-normal text-muted-foreground ml-1">
+                  lbs/kg
+                </span>
+              )}
             </p>
+            {/* Old records: show computed 1RM below the "225 x 5" display */}
             {estimated1RM != null && (
               <p className="text-sm text-muted-foreground mt-0.5">
-                Estimated 1RM (Epley):{" "}
+                Est. 1RM:{" "}
                 <span className="font-semibold text-foreground">
-                  ~{estimated1RM} lbs/kg
+                  {estimated1RM} lbs/kg
                 </span>
+              </p>
+            )}
+            {/* New records: show original weight × reps as context */}
+            {setDetailsLoad && (
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Lift: {setDetailsLoad.weight} lbs/kg × {setDetailsLoad.reps}{" "}
+                {setDetailsLoad.reps === 1 ? "rep" : "reps"}
               </p>
             )}
           </div>

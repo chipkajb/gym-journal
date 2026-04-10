@@ -62,6 +62,25 @@ export async function PATCH(
       );
     }
     const data = parsed.data;
+
+    // Check for duplicate title when renaming (case-insensitive, excluding self)
+    if (data.title && data.title.toLowerCase() !== existing.title.toLowerCase()) {
+      const duplicate = await prisma.workoutTemplate.findFirst({
+        where: {
+          userId: session.user.id,
+          title: { equals: data.title, mode: "insensitive" },
+          NOT: { id },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        return NextResponse.json(
+          { error: `A workout named "${data.title}" already exists.` },
+          { status: 409 }
+        );
+      }
+    }
+
     const template = await prisma.workoutTemplate.update({
       where: { id },
       data: {

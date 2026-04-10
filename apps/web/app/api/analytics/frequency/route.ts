@@ -2,7 +2,16 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { format, subMonths, subYears, startOfWeek, startOfMonth } from "date-fns";
+import {
+  format,
+  subMonths,
+  subYears,
+  startOfWeek,
+  startOfMonth,
+  addWeeks,
+  addMonths,
+  startOfDay,
+} from "date-fns";
 
 // GET /api/analytics/frequency?groupBy=week|month&range=1m|3m|6m|1y|all
 export async function GET(request: Request) {
@@ -35,7 +44,7 @@ export async function GET(request: Request) {
       orderBy: { workoutDate: "asc" },
     });
 
-    // Group by week or month
+    // Group actual sessions by period key
     const buckets = new Map<string, { total: number; rx: number; scaled: number }>();
 
     for (const s of sessions) {
@@ -53,14 +62,43 @@ export async function GET(request: Request) {
       else if (s.rxOrScaled === "Scaled") b.scaled++;
     }
 
-    const data = Array.from(buckets.entries()).map(([period, counts]) => ({
-      period,
-      label:
-        groupBy === "week"
-          ? `Week of ${format(new Date(period), "MMM d")}`
-          : format(new Date(period + "-01"), "MMM yyyy"),
-      ...counts,
-    }));
+    // Generate all expected periods in the range so zeros appear for empty periods
+    const allKeys: string[] = [];
+    if (from) {
+      if (groupBy === "week") {
+        let cursor = startOfWeek(from, { weekStartsOn: 1 });
+        const end = startOfWeek(startOfDay(now), { weekStartsOn: 1 });
+        while (cursor <= end) {
+          allKeys.push(format(cursor, "yyyy-MM-dd"));
+          cursor = addWeeks(cursor, 1);
+        }
+      } else {
+        let cursor = startOfMonth(from);
+        const end = startOfMonth(now);
+        while (cursor <= end) {
+          allKeys.push(format(cursor, "yyyy-MM"));
+          cursor = addMonths(cursor, 1);
+        }
+      }
+    } else {
+      // "all time" — only include periods that have data (no zero-fill needed)
+      for (const key of buckets.keys()) {
+        allKeys.push(key);
+      }
+      allKeys.sort();
+    }
+
+    const data = allKeys.map((period) => {
+      const counts = buckets.get(period) ?? { total: 0, rx: 0, scaled: 0 };
+      return {
+        period,
+        label:
+          groupBy === "week"
+            ? `Week of ${format(new Date(period), "MMM d")}`
+            : format(new Date(period + "-01"), "MMM yyyy"),
+        ...counts,
+      };
+    });
 
     return NextResponse.json({ groupBy, range, data });
   } catch (e) {
