@@ -167,6 +167,7 @@ export function LogWorkoutForm({ templates }: Props) {
   const [calories, setCalories] = useState("");
   const [maxHeartRate, setMaxHeartRate] = useState("");
   const [avgHeartRate, setAvgHeartRate] = useState("");
+  const [totalDurationInput, setTotalDurationInput] = useState("");
   const [showHealthMetrics, setShowHealthMetrics] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [timedResult, setTimedResult] = useState<TimerResult | null>(null);
@@ -243,6 +244,18 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }, [isLoadType, loadWeight, loadReps]);
 
+  function parseDurationInput(val: string): number | null {
+    if (!val.trim()) return null;
+    if (val.includes(":")) {
+      const parts = val.split(":").map(Number);
+      if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
+      if (parts.length === 3)
+        return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+    }
+    const n = Number(val);
+    return isNaN(n) ? null : n * 60;
+  }
+
   function handleTimerFinish(result: TimerResult) {
     setTimedResult(result);
     setShowTimer(false);
@@ -310,8 +323,8 @@ export function LogWorkoutForm({ templates }: Props) {
         calories: calories === "" ? null : parseInt(calories, 10),
         maxHeartRate: maxHeartRate === "" ? null : parseInt(maxHeartRate, 10),
         avgHeartRate: avgHeartRate === "" ? null : parseInt(avgHeartRate, 10),
-        totalDurationSeconds: null,
-        timedDurationSeconds: timedResult ? timedResult.durationSeconds : null,
+        totalDurationSeconds: parseDurationInput(totalDurationInput),
+        timedDurationSeconds: null,
       };
       const res = await fetch("/api/sessions", {
         method: "POST",
@@ -755,6 +768,25 @@ export function LogWorkoutForm({ templates }: Props) {
                   min={0}
                   max={250}
                 />
+              </div>
+              <div>
+                <label
+                  htmlFor="totalDuration"
+                  className="block text-xs font-medium text-muted-foreground mb-1"
+                >
+                  Total time (mm:ss)
+                </label>
+                <input
+                  id="totalDuration"
+                  type="text"
+                  value={totalDurationInput}
+                  onChange={(e) => setTotalDurationInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
+                  placeholder="e.g. 45:00"
+                />
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Incl. warm-up &amp; cool-down
+                </p>
               </div>
             </div>
           )}
