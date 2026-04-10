@@ -32,36 +32,55 @@ type CsvRow = {
   pr: string;
 };
 
-// Simple CSV parse: split by comma but respect double-quoted fields
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
+// Parse full CSV content, correctly handling quoted fields that contain commas and newlines.
+function parseCsv(content: string): CsvRow[] {
+  // Tokenize the entire file character-by-character so quoted newlines are preserved.
+  const records: string[][] = [];
+  let currentRecord: string[] = [];
+  let currentField = "";
   let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
+
+  for (let i = 0; i < content.length; i++) {
+    const c = content[i];
+    const next = content[i + 1];
+
     if (c === '"') {
-      inQuotes = !inQuotes;
+      if (inQuotes && next === '"') {
+        // Escaped double-quote inside a quoted field
+        currentField += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
     } else if (c === "," && !inQuotes) {
-      result.push(current.trim());
-      current = "";
+      currentRecord.push(currentField);
+      currentField = "";
+    } else if ((c === "\n" || (c === "\r" && next === "\n")) && !inQuotes) {
+      if (c === "\r") i++; // skip the \n of \r\n
+      currentRecord.push(currentField);
+      currentField = "";
+      if (currentRecord.some((f) => f.length > 0)) {
+        records.push(currentRecord);
+      }
+      currentRecord = [];
     } else {
-      current += c;
+      currentField += c;
     }
   }
-  result.push(current.trim());
-  return result;
-}
+  // Flush last record
+  currentRecord.push(currentField);
+  if (currentRecord.some((f) => f.length > 0)) {
+    records.push(currentRecord);
+  }
 
-function parseCsv(content: string): CsvRow[] {
-  const lines = content.split(/\r?\n/).filter((l) => l.length > 0);
-  if (lines.length < 2) return [];
-  const header = parseCsvLine(lines[0]);
+  if (records.length < 2) return [];
+  const header = records[0];
   const rows: CsvRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCsvLine(lines[i]);
+  for (let i = 1; i < records.length; i++) {
+    const values = records[i];
     const row: Record<string, string> = {};
     header.forEach((h, j) => {
-      row[h] = values[j] ?? "";
+      row[h.trim()] = (values[j] ?? "").trim();
     });
     rows.push(row as unknown as CsvRow);
   }
