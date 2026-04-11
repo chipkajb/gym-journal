@@ -263,6 +263,11 @@ export function LogWorkoutForm({ templates }: Props) {
       setBestResultDisplay(result.label);
       if (!scoreType) setScoreType("Time");
     }
+    if (result.roundsNote) {
+      setNotes((prev) =>
+        prev.trim() ? `${prev.trim()}\n\n${result.roundsNote}` : result.roundsNote!
+      );
+    }
   }
 
   /** Derive bestResultRaw. For Load, this is the estimated 1RM (same as bestResultDisplay). */
