@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recomputePrsForWorkout } from "@/lib/pr-utils";
 import { z } from "zod";
 
 const createSessionSchema = z.object({
@@ -23,33 +24,6 @@ const createSessionSchema = z.object({
   totalDurationSeconds: z.number().int().optional().nullable(),
   timedDurationSeconds: z.number().int().optional().nullable(),
 });
-
-async function detectIsPr(params: {
-  userId: string;
-  newRaw: number;
-  scoreType: string | null;
-  workoutTemplateId: string | null;
-  title: string;
-  excludeId?: string;
-}): Promise<boolean> {
-  const { userId, newRaw, scoreType, workoutTemplateId, title, excludeId } = params;
-  const isTimeBased = scoreType === "Time";
-  const best = await prisma.workoutSession.findFirst({
-    where: {
-      userId,
-      bestResultRaw: { not: null },
-      scoreType: scoreType ?? null,
-      ...(workoutTemplateId
-        ? { workoutTemplateId }
-        : { title: { equals: title, mode: "insensitive" } }),
-      ...(excludeId ? { NOT: { id: excludeId } } : {}),
-    },
-    orderBy: { bestResultRaw: isTimeBased ? "asc" : "desc" },
-    select: { bestResultRaw: true },
-  });
-  if (!best) return true; // first time doing this workout
-  return isTimeBased ? newRaw < best.bestResultRaw! : newRaw > best.bestResultRaw!;
-}
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -114,17 +88,8 @@ export async function POST(request: Request) {
     const templateId = data.templateId ?? null;
     const scoreType = data.scoreType ?? null;
     const bestResultRaw = data.bestResultRaw ?? null;
-    const isPr =
-      bestResultRaw != null
-        ? await detectIsPr({
-            userId: session.user.id,
-            newRaw: bestResultRaw,
-            scoreType,
-            workoutTemplateId: templateId,
-            title: data.title,
-          })
-        : false;
 
+    // Create the session with isPr=false; recomputePrsForWorkout will correct it.
     const workoutSession = await prisma.workoutSession.create({
       data: {
         userId: session.user.id,
@@ -139,7 +104,7 @@ export async function POST(request: Request) {
         setDetails: (data.setDetails as object) ?? null,
         notes: data.notes ?? null,
         rxOrScaled: data.rxOrScaled ?? null,
-        isPr,
+        isPr: false,
         calories: data.calories ?? null,
         maxHeartRate: data.maxHeartRate ?? null,
         avgHeartRate: data.avgHeartRate ?? null,
@@ -147,7 +112,21 @@ export async function POST(request: Request) {
         timedDurationSeconds: data.timedDurationSeconds ?? null,
       },
     });
-    return NextResponse.json(workoutSession);
+
+    // Recompute isPr for all sessions in this workout group, including the new one.
+    await recomputePrsForWorkout({
+      userId: session.user.id,
+      workoutTemplateId: templateId,
+      title: data.title,
+      scoreType,
+    });
+
+    // Refetch to return the session with the correct isPr value.
+    const updated = await prisma.workoutSession.findUnique({
+      where: { id: workoutSession.id },
+    });
+
+    return NextResponse.json(updated ?? workoutSession);
   } catch (e) {
     console.error("Session create error:", e);
     return NextResponse.json(

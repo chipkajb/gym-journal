@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recomputePrsForWorkout } from "@/lib/pr-utils";
 import { z } from "zod";
 
 const updateSessionSchema = z.object({
@@ -23,33 +24,6 @@ const updateSessionSchema = z.object({
   totalDurationSeconds: z.number().int().optional().nullable(),
   timedDurationSeconds: z.number().int().optional().nullable(),
 });
-
-async function detectIsPr(params: {
-  userId: string;
-  newRaw: number;
-  scoreType: string | null;
-  workoutTemplateId: string | null;
-  title: string;
-  excludeId: string;
-}): Promise<boolean> {
-  const { userId, newRaw, scoreType, workoutTemplateId, title, excludeId } = params;
-  const isTimeBased = scoreType === "Time";
-  const best = await prisma.workoutSession.findFirst({
-    where: {
-      userId,
-      bestResultRaw: { not: null },
-      scoreType: scoreType ?? null,
-      NOT: { id: excludeId },
-      ...(workoutTemplateId
-        ? { workoutTemplateId }
-        : { title: { equals: title, mode: "insensitive" } }),
-    },
-    orderBy: { bestResultRaw: isTimeBased ? "asc" : "desc" },
-    select: { bestResultRaw: true },
-  });
-  if (!best) return true; // first time doing this workout
-  return isTimeBased ? newRaw < best.bestResultRaw! : newRaw > best.bestResultRaw!;
-}
 
 export async function GET(
   _request: Request,
@@ -105,22 +79,18 @@ export async function PATCH(
     }
     const data = parsed.data;
 
-    const effectiveRaw = data.bestResultRaw !== undefined ? data.bestResultRaw : existing.bestResultRaw;
-    const effectiveScoreType = data.scoreType !== undefined ? (data.scoreType ?? null) : existing.scoreType;
-    const effectiveTitle = data.title ?? existing.title;
-    const effectiveTemplateId = existing.workoutTemplateId;
-    const isPr =
-      effectiveRaw != null
-        ? await detectIsPr({
-            userId: session.user.id,
-            newRaw: effectiveRaw,
-            scoreType: effectiveScoreType,
-            workoutTemplateId: effectiveTemplateId,
-            title: effectiveTitle,
-            excludeId: id,
-          })
-        : false;
+    // Determine the new effective group identity so we can recompute both the
+    // old group (if it changed) and the new group.
+    const newTitle = data.title ?? existing.title;
+    const newScoreType = data.scoreType !== undefined ? (data.scoreType ?? null) : existing.scoreType;
+    // workoutTemplateId is immutable after creation
+    const templateId = existing.workoutTemplateId;
 
+    const oldGroupChanged =
+      newTitle.toLowerCase() !== existing.title.toLowerCase() ||
+      newScoreType !== existing.scoreType;
+
+    // Update the session (isPr will be corrected by the recompute below).
     const updated = await prisma.workoutSession.update({
       where: { id },
       data: {
@@ -143,7 +113,6 @@ export async function PATCH(
         }),
         ...(data.notes !== undefined && { notes: data.notes }),
         ...(data.rxOrScaled !== undefined && { rxOrScaled: data.rxOrScaled }),
-        isPr,
         ...(data.calories !== undefined && { calories: data.calories }),
         ...(data.maxHeartRate !== undefined && { maxHeartRate: data.maxHeartRate }),
         ...(data.avgHeartRate !== undefined && { avgHeartRate: data.avgHeartRate }),
@@ -152,7 +121,33 @@ export async function PATCH(
       },
       include: { workoutTemplate: true },
     });
-    return NextResponse.json(updated);
+
+    // If the session moved to a different group (title or scoreType changed),
+    // recompute the old group first so it isn't left with a stale isPr.
+    if (oldGroupChanged && !templateId) {
+      await recomputePrsForWorkout({
+        userId: session.user.id,
+        workoutTemplateId: null,
+        title: existing.title,
+        scoreType: existing.scoreType,
+      });
+    }
+
+    // Recompute the new (current) group — this also corrects the updated session.
+    await recomputePrsForWorkout({
+      userId: session.user.id,
+      workoutTemplateId: templateId,
+      title: newTitle,
+      scoreType: newScoreType,
+    });
+
+    // Refetch to return the session with the corrected isPr value.
+    const final = await prisma.workoutSession.findUnique({
+      where: { id },
+      include: { workoutTemplate: true },
+    });
+
+    return NextResponse.json(final ?? updated);
   } catch (e) {
     console.error("Session update error:", e);
     return NextResponse.json(
@@ -178,7 +173,15 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    // Capture group identity before deletion.
+    const { userId, workoutTemplateId, title, scoreType } = existing;
+
     await prisma.workoutSession.delete({ where: { id } });
+
+    // Recompute PRs for the group now that this session is gone.
+    await recomputePrsForWorkout({ userId, workoutTemplateId, title, scoreType });
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("Session delete error:", e);
