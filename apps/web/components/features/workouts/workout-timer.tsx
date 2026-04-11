@@ -94,6 +94,36 @@ export function WorkoutTimer({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   const elapsedAtPauseRef = useRef<number>(0);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  // Prevent the screen from sleeping while the timer is running
+  useEffect(() => {
+    if (!running || !("wakeLock" in navigator)) return;
+
+    const requestWakeLock = async () => {
+      try {
+        wakeLockRef.current = await navigator.wakeLock.request("screen");
+      } catch {
+        // Wake lock unavailable (battery saver, unsupported browser, etc.)
+      }
+    };
+
+    // Re-acquire after returning from background (iOS releases lock on hide)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        requestWakeLock();
+      }
+    };
+
+    requestWakeLock();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      wakeLockRef.current?.release();
+      wakeLockRef.current = null;
+    };
+  }, [running]);
 
   const stop = useCallback(
     (reason: "finish" | "cap") => {
