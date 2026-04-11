@@ -25,6 +25,42 @@ import {
   Legend,
 } from "recharts";
 
+/** Linear regression: returns trend y-values for each x index, or null if < 2 points. */
+function computeTrend(values: number[]): number[] | null {
+  const n = values.length;
+  if (n < 2) return null;
+  const sumX = (n * (n - 1)) / 2;
+  const sumY = values.reduce((a, v) => a + v, 0);
+  const sumXY = values.reduce((a, v, i) => a + i * v, 0);
+  const sumXX = (n * (n - 1) * (2 * n - 1)) / 6;
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+  return values.map((_, i) => slope * i + intercept);
+}
+
+type AnalyticsDotPayload = { isPr?: boolean };
+
+function AnalyticsPrDot(props: {
+  cx?: number;
+  cy?: number;
+  payload?: AnalyticsDotPayload;
+}) {
+  const { cx = 0, cy = 0, payload } = props;
+  if (payload?.isPr) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="rgb(245, 158, 11)"
+        stroke="white"
+        strokeWidth={2}
+      />
+    );
+  }
+  return <circle cx={cx} cy={cy} r={3} fill="rgb(59, 130, 246)" />;
+}
+
 type PrEntry = {
   id: string;
   title: string;
@@ -256,15 +292,21 @@ export function AnalyticsPageClient({
   }, [workoutResults, cutoff]);
 
   const chartData = useMemo(() => {
-    return filteredResults
+    const base = filteredResults
       .filter((p) => p.bestResultRaw != null)
       .map((p) => ({
         date: format(parseISO(p.workoutDate), "MMM d"),
         fullDate: p.workoutDate,
-        result: p.bestResultRaw,
+        result: p.bestResultRaw as number,
         display: p.bestResultDisplay ?? String(p.bestResultRaw),
         isPr: p.isPr,
       }));
+
+    const trendValues = computeTrend(base.map((d) => d.result));
+    return base.map((d, i) => ({
+      ...d,
+      trend: trendValues ? trendValues[i] : undefined,
+    }));
   }, [filteredResults]);
 
   const displayTitle = workoutFilter || "Select a workout";
@@ -388,14 +430,15 @@ export function AnalyticsPageClient({
                       }}
                       formatter={(
                         value: number,
-                        _name: string,
-                        props: { payload?: { display?: string } }
-                      ) =>
-                        [
-                          props.payload?.display ?? String(value),
-                          "Result",
-                        ]
-                      }
+                        name: string,
+                        props: { payload?: { display?: string; isPr?: boolean } }
+                      ) => {
+                        if (name === "Trend") return [null, null];
+                        const label = props.payload?.isPr
+                          ? `${props.payload.display ?? String(value)} ★ PR`
+                          : (props.payload?.display ?? String(value));
+                        return [label, "Result"];
+                      }}
                       labelFormatter={(_, payload) =>
                         payload?.[0]?.payload?.fullDate
                           ? format(
@@ -412,33 +455,32 @@ export function AnalyticsPageClient({
                       name={displayTitle}
                       stroke="rgb(59, 130, 246)"
                       strokeWidth={2}
-                      dot={(props) => {
-                        const { cx, cy, payload } = props;
-                        return payload.isPr ? (
-                          <circle
-                            cx={cx}
-                            cy={cy}
-                            r={5}
-                            fill="rgb(245, 158, 11)"
-                            stroke="white"
-                            strokeWidth={2}
-                          />
-                        ) : (
-                          <circle
-                            cx={cx}
-                            cy={cy}
-                            r={3}
-                            fill="rgb(59, 130, 246)"
-                          />
-                        );
-                      }}
+                      dot={<AnalyticsPrDot />}
+                    />
+                    <Line
+                      type="linear"
+                      dataKey="trend"
+                      name="Trend"
+                      stroke="rgba(156,163,175,0.8)"
+                      strokeWidth={1.5}
+                      strokeDasharray="5 5"
+                      dot={false}
+                      activeDot={false}
+                      legendType="line"
                     />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Gold dots = PR. Lower is better for time; higher is better for
-                reps/load.
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-3 flex-wrap">
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white ring-1 ring-amber-400" />
+                  PR
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-block w-5 border-t-2 border-dashed border-gray-400" />
+                  Trend
+                </span>
+                Lower is better for time; higher is better for reps/load.
               </p>
             </>
           ) : workoutResults && workoutResults.length > 0 ? (
