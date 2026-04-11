@@ -43,6 +43,25 @@ function formatYAxisTick(value: number, scoreType: string | null): string {
   return String(value);
 }
 
+type DotPayload = { isPr?: boolean };
+
+function PrDot(props: { cx?: number; cy?: number; payload?: DotPayload }) {
+  const { cx = 0, cy = 0, payload } = props;
+  if (payload?.isPr) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="rgb(245,158,11)"
+        stroke="white"
+        strokeWidth={2}
+      />
+    );
+  }
+  return <circle cx={cx} cy={cy} r={3} fill="rgb(59,130,246)" />;
+}
+
 function HistoryChart({ sessions }: { sessions: HistorySession[] }) {
   const chartData = [...sessions]
     .filter((s) => s.bestResultRaw != null)
@@ -111,25 +130,7 @@ function HistoryChart({ sessions }: { sessions: HistorySession[] }) {
               dataKey="result"
               stroke="rgb(59,130,246)"
               strokeWidth={2}
-              dot={(props: {
-                cx?: number;
-                cy?: number;
-                payload?: { isPr?: boolean };
-              }) => {
-                const { cx = 0, cy = 0, payload } = props;
-                return payload?.isPr ? (
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r={5}
-                    fill="rgb(245,158,11)"
-                    stroke="white"
-                    strokeWidth={2}
-                  />
-                ) : (
-                  <circle cx={cx} cy={cy} r={3} fill="rgb(59,130,246)" />
-                );
-              }}
+              dot={<PrDot />}
               activeDot={{ r: 5 }}
             />
           </LineChart>
@@ -216,7 +217,7 @@ function SessionRow({
   );
 
   return (
-    <li className="border-b border-border last:border-0 py-2">
+    <li className={`border-b border-border last:border-0 py-2 ${session.isPr ? "bg-amber-50/60 dark:bg-amber-900/10 rounded-lg" : ""}`}>
       {linkable ? (
         <Link
           href={`/workouts/${session.id}`}
