@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Pause, RotateCcw, StopCircle, Settings2, Check, X } from "lucide-react";
+import { Play, Pause, RotateCcw, StopCircle, Settings2, Check, X, Plus } from "lucide-react";
 
 export type TimerMode = "free" | "fortime" | "amrap" | "tabata" | "emom";
 
@@ -9,6 +9,12 @@ export type TimerResult = {
   mode: TimerMode;
   durationSeconds: number; // actual elapsed time
   label: string; // human-readable result (e.g. "10:44", "8 rounds", etc.)
+};
+
+type Round = {
+  round: number;
+  elapsed: number; // total timer elapsed at the moment of the round
+  split: number;   // time since the previous round (or start)
 };
 
 type TimerConfig = {
@@ -90,6 +96,7 @@ export function WorkoutTimer({
   const [emomCurrentRound, setEmomCurrentRound] = useState(1);
   const [emomRoundElapsed, setEmomRoundElapsed] = useState(0);
   const [result, setResult] = useState<TimerResult | null>(null);
+  const [rounds, setRounds] = useState<Round[]>([]);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -222,12 +229,23 @@ export function WorkoutTimer({
     setRunning(false);
   }
 
+  function recordRound() {
+    setRounds((prev) => {
+      const lastElapsed = prev.length > 0 ? prev[prev.length - 1].elapsed : 0;
+      return [
+        ...prev,
+        { round: prev.length + 1, elapsed, split: elapsed - lastElapsed },
+      ];
+    });
+  }
+
   function reset() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setRunning(false);
     setFinished(false);
     setElapsed(0);
     setResult(null);
+    setRounds([]);
     elapsedAtPauseRef.current = 0;
     setTabataPhase("work");
     setTabataCurrentRound(1);
@@ -239,6 +257,8 @@ export function WorkoutTimer({
   function handleFinish() {
     if (result && onFinish) onFinish(result);
   }
+
+  const supportsRounds = mode === "free" || mode === "fortime" || mode === "amrap";
 
   // Compute countdown for countup/countdown modes
   const secs = Math.floor(elapsed);
@@ -458,6 +478,19 @@ export function WorkoutTimer({
                 <Play className="w-6 h-6 ml-0.5" />
               </button>
             )}
+            {running && supportsRounds && (
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={recordRound}
+                  className="p-3 rounded-full border border-border hover:bg-accent text-muted-foreground transition-colors"
+                  aria-label="Round Counter"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+                <span className="text-xs text-muted-foreground">Round Counter</span>
+              </div>
+            )}
             {(running || elapsed > 0) && (
               <button
                 type="button"
@@ -526,6 +559,35 @@ export function WorkoutTimer({
           {mode === "emom" && ` · ${formatTime(emomInterval)} × ${emomRounds}`}
         </span>
       </div>
+
+      {/* Round list */}
+      {rounds.length > 0 && (
+        <div className="border-t border-border pt-3">
+          <div className="flex justify-between text-xs text-muted-foreground uppercase tracking-wide mb-2 px-1">
+            <span>Round</span>
+            <span>{mode === "amrap" ? "Split · Remaining" : "Split · Total"}</span>
+          </div>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {[...rounds].reverse().map((r) => (
+              <div key={r.round} className="flex items-center justify-between text-sm px-1 py-0.5">
+                <span className="text-muted-foreground font-medium w-16">
+                  Round {r.round}
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="font-mono font-semibold">
+                    {formatTime(Math.round(r.split))}
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground w-14 text-right">
+                    {mode === "amrap"
+                      ? formatTime(Math.max(0, amrapDuration - Math.round(r.elapsed)))
+                      : formatTime(Math.round(r.elapsed))}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
