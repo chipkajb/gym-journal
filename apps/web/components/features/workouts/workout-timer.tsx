@@ -9,6 +9,7 @@ export type TimerResult = {
   mode: TimerMode;
   durationSeconds: number; // actual elapsed time
   label: string; // human-readable result (e.g. "10:44", "8 rounds", etc.)
+  roundsNote?: string; // pre-formatted round splits, if any were recorded
 };
 
 type Round = {
@@ -140,10 +141,17 @@ export function WorkoutTimer({
       const totalSeconds = Math.round(elapsed);
       let label = formatTime(totalSeconds);
       if (reason === "cap") label += " (time cap)";
-      const r: TimerResult = { mode, durationSeconds: totalSeconds, label };
+      const roundsNote =
+        rounds.length > 0
+          ? "Round splits:\n" +
+            rounds
+              .map((r) => `Round ${r.round}: ${formatTime(Math.round(r.split))}`)
+              .join("\n")
+          : undefined;
+      const r: TimerResult = { mode, durationSeconds: totalSeconds, label, roundsNote };
       setResult(r);
     },
-    [elapsed, mode]
+    [elapsed, mode, rounds]
   );
 
   // Timer tick
