@@ -2,9 +2,16 @@
 ALTER TABLE "workout_templates" DROP COLUMN IF EXISTS "barbellLift";
 ALTER TABLE "workout_sessions" DROP COLUMN IF EXISTS "barbellLift";
 
--- Only four score types: merge legacy "Rounds" (round count) into Reps
-UPDATE "workout_templates" SET "scoreType" = 'Reps' WHERE "scoreType" = 'Rounds';
-UPDATE "workout_sessions" SET "scoreType" = 'Reps' WHERE "scoreType" = 'Rounds';
+-- Legacy "Rounds" (round count only) → Rounds + Reps with 0 extra reps (log as N+0)
+UPDATE "workout_templates" SET "scoreType" = 'Rounds + Reps' WHERE "scoreType" = 'Rounds';
+UPDATE "workout_sessions" SET "scoreType" = 'Rounds + Reps' WHERE "scoreType" = 'Rounds';
+
+UPDATE "workout_sessions"
+SET "bestResultDisplay" = trim("bestResultDisplay") || '+0'
+WHERE lower(trim("title")) = 'chelsea'
+  AND "scoreType" = 'Rounds + Reps'
+  AND "bestResultDisplay" IS NOT NULL
+  AND trim("bestResultDisplay") ~ '^[0-9]+$';
 
 -- Normalize invalid / empty score types
 UPDATE "workout_templates"

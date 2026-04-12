@@ -39,7 +39,7 @@ const GIRL_WODS: TemplateInput[] = [
     title: "Chelsea",
     description:
       "Each minute on the minute for 30 minutes:\n5 Pull-ups\n10 Push-ups\n15 Squats\n\nIf you cannot complete the work within the minute, stop and record how many complete rounds you finished.",
-    scoreType: "Reps",
+    scoreType: "Rounds + Reps",
   },
   {
     title: "Cindy",

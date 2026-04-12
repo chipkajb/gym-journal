@@ -114,6 +114,8 @@ function cutoffDate(key: TimeRangeKey): Date | null {
 type Props = {
   initialPrs: PrEntry[];
   workoutTitles: string[];
+  /** Initial chart selection: workout with the most sessions (tie-break A–Z). */
+  defaultProgressTitle: string;
   summary: Summary;
   preferredUnit?: string;
 };
@@ -211,6 +213,7 @@ function WorkoutCombobox({
 export function AnalyticsPageClient({
   initialPrs,
   workoutTitles,
+  defaultProgressTitle,
   summary,
   preferredUnit = "metric",
 }: Props) {
@@ -269,9 +272,13 @@ export function AnalyticsPageClient({
 
   useEffect(() => {
     if (workoutTitles.length > 0 && !workoutFilter) {
-      setWorkoutFilter(workoutTitles[0]);
+      const pick =
+        defaultProgressTitle && workoutTitles.includes(defaultProgressTitle)
+          ? defaultProgressTitle
+          : workoutTitles[0];
+      setWorkoutFilter(pick);
     }
-  }, [workoutTitles, workoutFilter]);
+  }, [workoutTitles, workoutFilter, defaultProgressTitle]);
 
   useEffect(() => {
     if (workoutFilter) {

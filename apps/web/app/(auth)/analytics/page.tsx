@@ -35,7 +35,6 @@ export default async function AnalyticsPage() {
       by: ["title"],
       where: { userId: session.user.id },
       _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
     }),
     prisma.profile.findUnique({
       where: { userId: session.user.id },
@@ -52,12 +51,25 @@ export default async function AnalyticsPage() {
     rxOrScaled: p.rxOrScaled,
   }));
 
-  const workoutTitles = titleRows.map((r) => r.title).filter(Boolean);
+  const workoutTitles = [...new Set(titleRows.map((r) => r.title).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" })
+  );
+
+  const maxSessionCount =
+    titleRows.length > 0 ? Math.max(...titleRows.map((r) => r._count.id)) : 0;
+  const defaultProgressTitle =
+    titleRows.length === 0
+      ? ""
+      : [...titleRows]
+          .filter((r) => r.title && r._count.id === maxSessionCount)
+          .map((r) => r.title as string)
+          .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))[0] ?? "";
 
   return (
     <AnalyticsPageClient
       initialPrs={prsForClient}
       workoutTitles={workoutTitles}
+      defaultProgressTitle={defaultProgressTitle}
       summary={summary}
       preferredUnit={profile?.preferredUnit ?? "metric"}
     />

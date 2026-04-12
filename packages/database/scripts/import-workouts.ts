@@ -13,7 +13,6 @@
  */
 
 import { PrismaClient } from "@prisma/client";
-import { recalculateAllPrs } from "./recalculate-prs";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -197,10 +196,8 @@ async function main() {
     created++;
   }
 
-  console.log(`Created ${created} workout sessions.`);
-  console.log("Recalculating PRs (including Load 1RM repair)…");
-  await recalculateAllPrs(prisma);
-  console.log("Import done.");
+  console.log(`Created ${created} workout sessions. Import done.`);
+  console.log("Run: npm run db:recalculate-prs — to repair Load rows and recompute isPr.");
 }
 
 main()

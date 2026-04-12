@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Play, Pause, RotateCcw, StopCircle, Settings2, Check, X, Plus } from "lucide-react";
+import { Play, Pause, RotateCcw, StopCircle, Check, X, Plus } from "lucide-react";
 
 export type TimerMode = "free" | "fortime" | "amrap" | "tabata" | "emom";
 
@@ -112,7 +112,6 @@ export function WorkoutTimer({
   compact = false,
 }: Props) {
   const [mode, setMode] = useState<TimerMode>(initialMode);
-  const [showConfig, setShowConfig] = useState(false);
 
   const [timeCap, setTimeCap] = useState(initialConfig.timeCap ?? 0);
   const [timeCapInput, setTimeCapInput] = useState(
@@ -147,11 +146,12 @@ export function WorkoutTimer({
   const elapsedAtPauseRef = useRef<number>(0);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const keepAliveStopRef = useRef<(() => void) | null>(null);
-  const tabataRestCountdownScheduledRef = useRef(false);
-  const emomBoundaryCountdownScheduledRef = useRef(false);
   const lastBeepCountdownRef = useRef<number | null>(null);
-  const pendingTabataAfterCountdownRef = useRef<null | { nextRound: number }>(null);
-  const pendingEmomRoundAfterCountdownRef = useRef<number | null>(null);
+  /** Beeps at 3,2,1 seconds remaining within the current timed segment (AMRAP, cap, Tabata phase, EMOM interval). */
+  const segmentBeepRef = useRef<{ phaseId: string; floored: number }>({
+    phaseId: "",
+    floored: -999,
+  });
 
   const mainClockActive = running && !inCountdown;
 
@@ -250,16 +250,13 @@ export function WorkoutTimer({
       if (phaseElapsed >= phaseDuration) {
         if (tabataPhase === "work") {
           setTabataPhase("rest");
-          tabataRestCountdownScheduledRef.current = false;
         } else {
           const nextRound = tabataCurrentRound + 1;
           if (nextRound > tabataRounds) {
             stop("finish");
-          } else if (!tabataRestCountdownScheduledRef.current && !inCountdown) {
-            tabataRestCountdownScheduledRef.current = true;
-            pendingTabataAfterCountdownRef.current = { nextRound };
-            setInCountdown(true);
-            setCountdownSec(COUNTDOWN_START);
+          } else {
+            setTabataCurrentRound(nextRound);
+            setTabataPhase("work");
           }
         }
       }
@@ -272,11 +269,8 @@ export function WorkoutTimer({
       if (currentRound !== emomCurrentRound) {
         if (currentRound > emomRounds) {
           stop("finish");
-        } else if (!emomBoundaryCountdownScheduledRef.current && secs > 0 && !inCountdown) {
-          emomBoundaryCountdownScheduledRef.current = true;
-          pendingEmomRoundAfterCountdownRef.current = currentRound;
-          setInCountdown(true);
-          setCountdownSec(COUNTDOWN_START);
+        } else {
+          setEmomCurrentRound(currentRound);
         }
       }
     }
@@ -292,8 +286,58 @@ export function WorkoutTimer({
     emomInterval,
     emomRounds,
     emomCurrentRound,
-    inCountdown,
     stop,
+  ]);
+
+  // Beeps during main clock: last 3 seconds of each timed segment (not the initial 10s get-ready).
+  useEffect(() => {
+    if (!mainClockActive || finished) return;
+
+    let phaseId = "";
+    let remainingSec = 0;
+
+    if (mode === "amrap") {
+      phaseId = `amrap-${amrapDuration}`;
+      remainingSec = Math.max(0, amrapDuration - elapsed);
+    } else if (mode === "fortime" && timeCap > 0) {
+      phaseId = `cap-${timeCap}`;
+      remainingSec = Math.max(0, timeCap - elapsed);
+    } else if (mode === "tabata") {
+      const phaseDuration = tabataPhase === "work" ? tabataWork : tabataRest;
+      const totalTabataElapsed =
+        (tabataCurrentRound - 1) * (tabataWork + tabataRest) + (tabataPhase === "rest" ? tabataWork : 0);
+      const s = Math.floor(elapsed);
+      remainingSec = Math.max(0, phaseDuration - (s - totalTabataElapsed));
+      phaseId = `tab-${tabataCurrentRound}-${tabataPhase}-${tabataWork}-${tabataRest}`;
+    } else if (mode === "emom") {
+      const s = Math.floor(elapsed);
+      const re = s % emomInterval;
+      phaseId = `emom-${Math.floor(s / emomInterval)}-${emomInterval}`;
+      remainingSec = Math.max(0, emomInterval - re);
+    } else {
+      return;
+    }
+
+    const floored = Math.floor(remainingSec + 1e-6);
+    if (phaseId !== segmentBeepRef.current.phaseId) {
+      segmentBeepRef.current = { phaseId, floored: -999 };
+    }
+    if (floored >= 1 && floored <= 3 && floored !== segmentBeepRef.current.floored) {
+      segmentBeepRef.current.floored = floored;
+      playShortBeep();
+    }
+  }, [
+    mainClockActive,
+    finished,
+    mode,
+    elapsed,
+    amrapDuration,
+    timeCap,
+    tabataPhase,
+    tabataCurrentRound,
+    tabataWork,
+    tabataRest,
+    emomInterval,
   ]);
 
   useEffect(() => {
@@ -326,19 +370,6 @@ export function WorkoutTimer({
     countdownZeroHandledRef.current = true;
 
     const frozenElapsed = elapsed;
-    if (pendingTabataAfterCountdownRef.current) {
-      const { nextRound } = pendingTabataAfterCountdownRef.current;
-      pendingTabataAfterCountdownRef.current = null;
-      tabataRestCountdownScheduledRef.current = false;
-      setTabataCurrentRound(nextRound);
-      setTabataPhase("work");
-    }
-    if (pendingEmomRoundAfterCountdownRef.current != null) {
-      const nr = pendingEmomRoundAfterCountdownRef.current;
-      pendingEmomRoundAfterCountdownRef.current = null;
-      emomBoundaryCountdownScheduledRef.current = false;
-      setEmomCurrentRound(nr);
-    }
     setInCountdown(false);
     setCountdownSec(COUNTDOWN_START);
     startTimeRef.current = Date.now();
@@ -374,10 +405,6 @@ export function WorkoutTimer({
     if (inCountdown) {
       setInCountdown(false);
       setCountdownSec(COUNTDOWN_START);
-      pendingTabataAfterCountdownRef.current = null;
-      pendingEmomRoundAfterCountdownRef.current = null;
-      tabataRestCountdownScheduledRef.current = false;
-      emomBoundaryCountdownScheduledRef.current = false;
       setRunning(false);
       return;
     }
@@ -419,10 +446,7 @@ export function WorkoutTimer({
     setTabataCurrentRound(1);
     setEmomCurrentRound(1);
     setEmomRoundElapsed(0);
-    tabataRestCountdownScheduledRef.current = false;
-    emomBoundaryCountdownScheduledRef.current = false;
-    pendingTabataAfterCountdownRef.current = null;
-    pendingEmomRoundAfterCountdownRef.current = null;
+    segmentBeepRef.current = { phaseId: "", floored: -999 };
   }
 
   function handleFinish() {
