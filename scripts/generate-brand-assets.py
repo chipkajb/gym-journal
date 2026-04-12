@@ -9,8 +9,9 @@ from pathlib import Path
 from PIL import Image
 
 REPO = Path(__file__).resolve().parents[1]
-SRC = REPO / "logo.png"
+SRC_PRIMARY = REPO / "logo.png"
 OUT_DIR = REPO / "apps" / "web" / "public"
+SRC_FALLBACK = OUT_DIR / "logo.png"
 
 # rgb below this (all channels) becomes transparent background
 BLACK_CUTOFF = 42
@@ -18,8 +19,8 @@ BLACK_CUTOFF = 42
 LOGO_SIZE = 512
 # maskable safe zone: content fits in this fraction of the canvas (centered)
 MASKABLE_INNER = 0.78
-THEME_DARK = (31, 41, 55)  # #1f2937 — matches manifest theme_color
-SPLASH_LIGHT = (249, 250, 251)  # #f9fafb — matches manifest background_color
+# opaque tiles (PWA / apple / favicon): dark so install + home screen match dark mode
+TILE_BG = (17, 24, 39)  # #111827 — matches root layout dark viewport theme_color
 
 
 def rgba_from_rgb(img: Image.Image) -> Image.Image:
@@ -67,35 +68,48 @@ def paste_scaled(canvas: Image.Image, src: Image.Image, scale: float) -> None:
         canvas.paste(thumb, (x, y))
 
 
-def main() -> int:
-    if not SRC.is_file():
-        print(f"missing source: {SRC}", file=sys.stderr)
-        return 1
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+def load_master_rgb() -> Image.Image:
+    path = SRC_PRIMARY if SRC_PRIMARY.is_file() else SRC_FALLBACK
+    if not path.is_file():
+        print(f"missing source: {SRC_PRIMARY} (or fallback {SRC_FALLBACK})", file=sys.stderr)
+        raise FileNotFoundError(str(path))
+    im = Image.open(path)
+    if im.mode == "RGBA":
+        rgb = Image.new("RGB", im.size, (0, 0, 0))
+        rgb.paste(im, mask=im.split()[3])
+        return rgb
+    return im.convert("RGB")
 
-    raw = Image.open(SRC).convert("RGB")
+
+def main() -> int:
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        raw = load_master_rgb()
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
     cut = crop_to_alpha(rgba_from_rgb(raw))
     square = pad_square(cut)
     logo = square.resize((LOGO_SIZE, LOGO_SIZE), Image.Resampling.LANCZOS)
     logo.save(OUT_DIR / "logo.png", optimize=True, compress_level=9)
 
     # pwa / favicon sources (square rgb for opaque tiles)
-    rgb_square = Image.new("RGB", square.size, SPLASH_LIGHT)
+    rgb_square = Image.new("RGB", square.size, TILE_BG)
     rgb_square.paste(square, mask=square.split()[3])
 
     rgb_square.resize((192, 192), Image.Resampling.LANCZOS).save(
         OUT_DIR / "pwa-icon-192.png", optimize=True
     )
 
-    any512 = Image.new("RGB", (512, 512), SPLASH_LIGHT)
+    any512 = Image.new("RGB", (512, 512), TILE_BG)
     paste_scaled(any512, square, 0.88)
     any512.save(OUT_DIR / "pwa-icon-512-any.png", optimize=True)
 
-    mask512 = Image.new("RGB", (512, 512), THEME_DARK)
+    mask512 = Image.new("RGB", (512, 512), TILE_BG)
     paste_scaled(mask512, square, MASKABLE_INNER)
     mask512.save(OUT_DIR / "pwa-icon-512-maskable.png", optimize=True)
 
-    apple = Image.new("RGB", (180, 180), SPLASH_LIGHT)
+    apple = Image.new("RGB", (180, 180), TILE_BG)
     paste_scaled(apple, square, 0.82)
     apple.save(OUT_DIR / "apple-touch-icon.png", optimize=True)
 
