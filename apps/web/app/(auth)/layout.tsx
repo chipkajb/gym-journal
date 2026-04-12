@@ -38,7 +38,7 @@ export default async function AuthLayout({
                 src="/logo.png"
                 alt=""
                 fill
-                className="object-cover"
+                className="object-contain p-0.5"
               />
             </span>
             <span className="hidden sm:inline text-foreground">Gym Journal</span>

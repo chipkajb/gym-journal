@@ -72,7 +72,7 @@ export default function RegisterPage() {
                 src="/logo.png"
                 alt="Gym Journal Logo"
                 fill
-                className="object-cover"
+                className="object-contain p-1"
                 priority
               />
             </div>
