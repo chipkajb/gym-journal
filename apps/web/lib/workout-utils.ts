@@ -30,8 +30,7 @@ export function displayToRaw(display: string, scoreType: string): number | null 
         return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
       return null;
     }
-    case "Reps":
-    case "Rounds": {
+    case "Reps": {
       const n = Number(trimmed);
       return isNaN(n) ? null : Math.round(n);
     }
@@ -67,7 +66,6 @@ export function validateDisplayResult(
         return 'Use mm:ss or hh:mm:ss — e.g. "10:44"';
       return null;
     case "Reps":
-    case "Rounds":
       if (!/^\d+(\.\d+)?$/.test(trimmed)) return "Enter a number — e.g. 42";
       return null;
     case "Rounds + Reps":
@@ -78,7 +76,7 @@ export function validateDisplayResult(
       if (isNaN(Number(trimmed))) return "Enter a number — e.g. 225";
       return null;
     default:
-      return null;
+      return "Pick a valid score type";
   }
 }
 
@@ -93,8 +91,6 @@ export function getResultPlaceholder(scoreType: string): string {
       return "e.g. 225";
     case "Rounds + Reps":
       return "e.g. 5+2";
-    case "Rounds":
-      return "e.g. 7";
     default:
       return "e.g. 10:44, 5+2, 225";
   }
@@ -104,4 +100,45 @@ export function getResultPlaceholder(scoreType: string): string {
 export function buildLoadDisplay(weight: number, reps: number): string {
   if (reps === 1) return String(weight);
   return `${weight} x ${reps}`;
+}
+
+/** Best estimated 1RM from setDetails: single { weight, reps } or { sets: [...] }. */
+export function bestOneRmFromLoadSetDetails(setDetails: unknown): number | null {
+  if (!setDetails || typeof setDetails !== "object") return null;
+  const o = setDetails as Record<string, unknown>;
+  if (Array.isArray(o.sets)) {
+    let best = 0;
+    for (const row of o.sets) {
+      if (row && typeof row === "object") {
+        const r = row as { weight?: unknown; reps?: unknown };
+        const w = Number(r.weight);
+        const rep = Number(r.reps) || 1;
+        if (!isNaN(w) && w > 0 && rep > 0) {
+          const rm = roundOneRepMax(epleyOneRepMax(w, rep));
+          if (rm > best) best = rm;
+        }
+      }
+    }
+    return best > 0 ? best : null;
+  }
+  if (typeof o.weight === "number" && typeof o.reps === "number") {
+    return roundOneRepMax(epleyOneRepMax(o.weight, o.reps));
+  }
+  return null;
+}
+
+/** Format load sets for notes (not including existing notes text). */
+export function formatLoadSetsForNotes(
+  sets: Array<{ weight: string; reps: string }>
+): string {
+  const lines: string[] = [];
+  let i = 1;
+  for (const s of sets) {
+    const w = parseFloat(s.weight);
+    const r = parseInt(s.reps, 10) || 1;
+    if (isNaN(w) || w <= 0) continue;
+    lines.push(`Set ${i}: ${w} × ${r}`);
+    i++;
+  }
+  return lines.length ? `Sets:\n${lines.join("\n")}` : "";
 }

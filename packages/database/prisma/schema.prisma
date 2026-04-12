@@ -127,8 +127,7 @@ model WorkoutTemplate {
   userId      String
   title       String   // Workout name (e.g. "DT", "Linda")
   description String?  @db.Text
-  scoreType   String?  // Time, Reps, Load, Rounds + Reps, etc.
-  barbellLift String?  // Barbell lift name if applicable
+  scoreType   String // Time, Reps, Load, Rounds + Reps (required)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -152,8 +151,7 @@ model WorkoutSession {
   workoutDate        DateTime // Date of the workout
   bestResultRaw      Float?   // Numeric value for sorting (seconds, reps, load, etc.)
   bestResultDisplay  String?  // Formatted display (e.g. "10:44", "5+2")
-  scoreType          String?  // Time, Reps, Load, Rounds + Reps, etc.
-  barbellLift        String?
+  scoreType          String // Time, Reps, Load, Rounds + Reps (required)
   setDetails         Json?    // Set-by-set details if applicable
   notes              String?  @db.Text
   rxOrScaled         String?  // RX or SCALED

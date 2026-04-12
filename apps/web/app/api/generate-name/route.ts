@@ -8,7 +8,6 @@ import { z } from "zod";
 const requestSchema = z.object({
   description: z.string().optional().nullable(),
   scoreType: z.string().optional().nullable(),
-  barbellLift: z.string().optional().nullable(),
   existingTitle: z.string().optional().nullable(),
 });
 
@@ -47,7 +46,6 @@ Return exactly this format (pure JSON array, nothing else):
 function buildUserMessage(data: {
   description?: string | null;
   scoreType?: string | null;
-  barbellLift?: string | null;
   existingTitle?: string | null;
 }): string {
   const parts: string[] = [];
@@ -57,9 +55,6 @@ function buildUserMessage(data: {
   }
   if (data.scoreType) {
     parts.push(`Score type: ${data.scoreType}`);
-  }
-  if (data.barbellLift) {
-    parts.push(`Barbell lift: ${data.barbellLift}`);
   }
   if (data.description) {
     parts.push(`Workout description:\n${data.description}`);

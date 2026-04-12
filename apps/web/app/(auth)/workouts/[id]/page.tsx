@@ -74,15 +74,6 @@ export default async function WorkoutSessionPage({
     isOldLoadFormat && workoutSession.bestResultRaw != null
       ? roundOneRepMax(workoutSession.bestResultRaw)
       : null;
-  // Set details (weight × reps) stored for new records
-  const setDetailsLoad =
-    isLoadType &&
-    workoutSession.setDetails != null &&
-    typeof workoutSession.setDetails === "object" &&
-    "weight" in (workoutSession.setDetails as object)
-      ? (workoutSession.setDetails as { weight: number; reps: number })
-      : null;
-
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center justify-between gap-4">
@@ -131,13 +122,35 @@ export default async function WorkoutSessionPage({
                 </span>
               </p>
             )}
-            {/* New records: show original weight × reps as context */}
-            {setDetailsLoad && (
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Lift: {setDetailsLoad.weight} lbs/kg × {setDetailsLoad.reps}{" "}
-                {setDetailsLoad.reps === 1 ? "rep" : "reps"}
-              </p>
-            )}
+            {(() => {
+              const sd = workoutSession.setDetails as {
+                sets?: { weight: number; reps: number }[];
+                weight?: number;
+                reps?: number;
+              } | null;
+              if (!isLoadType || !sd) return null;
+              if (Array.isArray(sd.sets) && sd.sets.length > 0) {
+                return (
+                  <ul className="text-sm text-muted-foreground mt-0.5 list-disc pl-4 space-y-0.5">
+                    {sd.sets.map((s, i) => (
+                      <li key={i}>
+                        Set {i + 1}: {s.weight} lbs/kg × {s.reps}{" "}
+                        {s.reps === 1 ? "rep" : "reps"}
+                      </li>
+                    ))}
+                  </ul>
+                );
+              }
+              if (typeof sd.weight === "number" && typeof sd.reps === "number") {
+                return (
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Lift: {sd.weight} lbs/kg × {sd.reps}{" "}
+                    {sd.reps === 1 ? "rep" : "reps"}
+                  </p>
+                );
+              }
+              return null;
+            })()}
           </div>
         )}
         {workoutSession.scoreType && (
@@ -156,14 +169,6 @@ export default async function WorkoutSessionPage({
             <p className="text-foreground whitespace-pre-wrap mt-0.5">
               {workoutSession.description}
             </p>
-          </div>
-        )}
-        {workoutSession.barbellLift && (
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Barbell lift
-            </span>
-            <p className="text-foreground mt-0.5">{workoutSession.barbellLift}</p>
           </div>
         )}
         {workoutSession.notes && (

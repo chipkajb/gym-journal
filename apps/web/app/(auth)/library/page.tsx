@@ -81,7 +81,6 @@ export default async function LibraryPage() {
                   id={t.id}
                   title={t.title}
                   scoreType={t.scoreType}
-                  barbellLift={t.barbellLift}
                   sessions={t.workoutSessions.map((s) => ({
                     id: s.id,
                     workoutDate: s.workoutDate.toISOString(),

@@ -44,7 +44,6 @@ export default async function LibraryTablePage() {
           title: t.title,
           description: t.description,
           scoreType: t.scoreType,
-          barbellLift: t.barbellLift,
         }))}
       />
     </div>

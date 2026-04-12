@@ -9,22 +9,18 @@ import type { HistorySession } from "@/components/features/workouts/workout-hist
 type Props = {
   id: string;
   title: string;
-  scoreType: string | null;
-  barbellLift: string | null;
+  scoreType: string;
   sessions: HistorySession[];
 };
 
-export function LibraryTemplateCard({ id, title, scoreType, barbellLift, sessions }: Props) {
+export function LibraryTemplateCard({ id, title, scoreType, sessions }: Props) {
   const [showHistory, setShowHistory] = useState(false);
 
   return (
     <div className="flex flex-col h-full p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
       <div className="flex-1">
         <h2 className="font-semibold text-gray-900 dark:text-white">{title}</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          {scoreType || "—"}
-          {barbellLift && ` · ${barbellLift}`}
-        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{scoreType}</p>
         {sessions.length > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
             {sessions.length} logged session{sessions.length !== 1 ? "s" : ""}

@@ -34,7 +34,6 @@ export default async function WodPage() {
     title: t.title,
     description: t.description,
     scoreType: t.scoreType,
-    barbellLift: t.barbellLift,
     sessions: t.workoutSessions.map((s) => ({
       id: s.id,
       workoutDate: s.workoutDate.toISOString(),

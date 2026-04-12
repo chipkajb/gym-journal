@@ -41,8 +41,7 @@ export default async function EditTemplatePage({
           id: template.id,
           title: template.title,
           description: template.description,
-          scoreType: template.scoreType,
-          barbellLift: template.barbellLift,
+          scoreType: template.scoreType ?? "Time",
         }}
       />
     </div>

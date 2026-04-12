@@ -4,7 +4,10 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recomputePrsForWorkout } from "@/lib/pr-utils";
+import { SCORE_TYPES } from "@/lib/score-types";
 import { z } from "zod";
+
+const scoreTypeEnum = z.enum(SCORE_TYPES);
 
 const updateSessionSchema = z.object({
   title: z.string().min(1).optional(),
@@ -12,8 +15,7 @@ const updateSessionSchema = z.object({
   workoutDate: z.string().optional(),
   bestResultRaw: z.number().optional().nullable(),
   bestResultDisplay: z.string().optional().nullable(),
-  scoreType: z.string().optional().nullable(),
-  barbellLift: z.string().optional().nullable(),
+  scoreType: scoreTypeEnum.optional(),
   setDetails: z.unknown().optional().nullable(),
   notes: z.string().optional().nullable(),
   rxOrScaled: z.string().optional().nullable(),
@@ -82,7 +84,7 @@ export async function PATCH(
     // Determine the new effective group identity so we can recompute both the
     // old group (if it changed) and the new group.
     const newTitle = data.title ?? existing.title;
-    const newScoreType = data.scoreType !== undefined ? (data.scoreType ?? null) : existing.scoreType;
+    const newScoreType = data.scoreType !== undefined ? data.scoreType : existing.scoreType;
     // workoutTemplateId is immutable after creation
     const templateId = existing.workoutTemplateId;
 
@@ -104,7 +106,6 @@ export async function PATCH(
           bestResultDisplay: data.bestResultDisplay,
         }),
         ...(data.scoreType !== undefined && { scoreType: data.scoreType }),
-        ...(data.barbellLift !== undefined && { barbellLift: data.barbellLift }),
         ...(data.setDetails !== undefined && {
           setDetails:
             data.setDetails === null
@@ -112,7 +113,14 @@ export async function PATCH(
               : (data.setDetails as object),
         }),
         ...(data.notes !== undefined && { notes: data.notes }),
-        ...(data.rxOrScaled !== undefined && { rxOrScaled: data.rxOrScaled }),
+        ...((data.rxOrScaled !== undefined || data.scoreType !== undefined) && {
+          rxOrScaled:
+            (data.scoreType ?? existing.scoreType) === "Load"
+              ? null
+              : data.rxOrScaled !== undefined
+                ? data.rxOrScaled
+                : existing.rxOrScaled,
+        }),
         ...(data.calories !== undefined && { calories: data.calories }),
         ...(data.maxHeartRate !== undefined && { maxHeartRate: data.maxHeartRate }),
         ...(data.avgHeartRate !== undefined && { avgHeartRate: data.avgHeartRate }),

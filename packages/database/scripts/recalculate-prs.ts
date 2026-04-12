@@ -3,33 +3,18 @@
  * stored in the old "225 x 5" display format, migrates them to the current
  * 1RM-based format so PR comparison is consistent.
  *
- * Algorithm for isPr:
- *   - Group sessions by (userId, workoutTemplateId) when a template exists,
- *     otherwise by (userId, title [case-insensitive]) + scoreType.
- *   - Within each group, sort chronologically (oldest first).
- *   - Track the running best bestResultRaw.
- *   - Mark isPr = true whenever the session beats the running best
- *     (lower for Time, higher for everything else).
- *   - Sessions with null bestResultRaw are left as isPr = false.
- *
- * Load-type data repair:
- *   Old sessions store display = "225 x 5" and bestResultRaw = raw weight.
- *   New sessions store display = "262.5" (1RM) and have setDetails JSON.
- *   This script detects old-format records (no setDetails, display = "N x M"),
- *   back-fills setDetails, recalculates 1RM via Epley's formula, and updates
- *   bestResultDisplay and bestResultRaw so all records are on the same scale.
- *
  * Usage:
  *   DATABASE_URL=... npx tsx packages/database/scripts/recalculate-prs.ts
- * Or via npm:
- *   npm run db:recalculate-prs
+ * Or: npm run db:recalculate-prs
+ *
+ * Import from other scripts:
+ *   import { recalculateAllPrs } from "./recalculate-prs";
+ *   await recalculateAllPrs(prisma);
  */
 
 import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
-
-// ---------- Epley helpers (mirrors apps/web/lib/workout-utils.ts) ----------
 
 function epleyOneRepMax(weight: number, reps: number): number {
   if (weight <= 0 || reps <= 0) return 0;
@@ -41,12 +26,6 @@ function roundOneRepMax(value: number): number {
   return Math.round(value * 2) / 2;
 }
 
-// ---------- Load-display parser (matches edit-workout-form.tsx) ----------
-
-/**
- * Detects the old "225 x 5" pattern and returns {weight, reps}.
- * Returns null for anything else (already a plain 1RM number, etc.).
- */
 function parseOldLoadDisplay(display: string): { weight: number; reps: number } | null {
   const match = display.trim().match(/^(\d+(?:\.\d+)?)\s*x\s*(\d+)$/i);
   if (!match) return null;
@@ -56,19 +35,37 @@ function parseOldLoadDisplay(display: string): { weight: number; reps: number } 
   return { weight, reps };
 }
 
-// ---------- Main ----------
+function bestRmFromSetDetails(sd: unknown): number | null {
+  if (!sd || typeof sd !== "object") return null;
+  const o = sd as Record<string, unknown>;
+  if (Array.isArray(o.sets)) {
+    let best = 0;
+    for (const row of o.sets) {
+      if (row && typeof row === "object") {
+        const r = row as { weight?: unknown; reps?: unknown };
+        const w = Number(r.weight);
+        const rep = Number(r.reps) || 1;
+        if (!isNaN(w) && w > 0 && rep > 0) {
+          const rm = roundOneRepMax(epleyOneRepMax(w, rep));
+          if (rm > best) best = rm;
+        }
+      }
+    }
+    return best > 0 ? best : null;
+  }
+  if (typeof o.weight === "number" && typeof o.reps === "number") {
+    return roundOneRepMax(epleyOneRepMax(o.weight, o.reps));
+  }
+  return null;
+}
 
-async function main() {
-  console.log("🔧  Starting PR recalculation…\n");
-
-  // ------------------------------------------------------------------ //
-  // Step 1 – Repair Load sessions stored in old "N x M" display format  //
-  // ------------------------------------------------------------------ //
-
-  const oldFormatSessions = await prisma.workoutSession.findMany({
+/**
+ * Repair Load rows and recompute isPr for all users. Safe to run after CSV import.
+ */
+export async function recalculateAllPrs(db: PrismaClient): Promise<void> {
+  const oldFormatSessions = await db.workoutSession.findMany({
     where: {
       scoreType: "Load",
-      // Use DbNull to match rows where setDetails IS NULL in the database
       setDetails: { equals: Prisma.DbNull },
       bestResultDisplay: { not: null },
     },
@@ -79,17 +76,15 @@ async function main() {
   for (const s of oldFormatSessions) {
     if (!s.bestResultDisplay) continue;
     const parsed = parseOldLoadDisplay(s.bestResultDisplay);
-    if (!parsed) continue; // already a plain number (1RM) — no repair needed
+    if (!parsed) continue;
 
     const { weight, reps } = parsed;
     const oneRM = roundOneRepMax(epleyOneRepMax(weight, reps));
 
-    await prisma.workoutSession.update({
+    await db.workoutSession.update({
       where: { id: s.id },
       data: {
-        // Store original lift so the edit form can reconstruct weight × reps
         setDetails: { weight, reps },
-        // Update display and raw to the 1RM value so comparisons are consistent
         bestResultDisplay: String(oneRM),
         bestResultRaw: oneRM,
       },
@@ -99,14 +94,7 @@ async function main() {
 
   console.log(`✅  Repaired ${repairedCount} Load session(s) from old "N x M" format to 1RM`);
 
-  // ------------------------------------------------------------------ //
-  // Step 2 – Also repair Load sessions that have setDetails but whose    //
-  //          bestResultRaw was not set to the 1RM (edge case from early  //
-  //          versions of the import script).                             //
-  // ------------------------------------------------------------------ //
-
-  type SetDetailsShape = { weight?: number; reps?: number } | null;
-  const setDetailsSessions = await prisma.workoutSession.findMany({
+  const setDetailsSessions = await db.workoutSession.findMany({
     where: {
       scoreType: "Load",
       setDetails: { not: null },
@@ -116,16 +104,12 @@ async function main() {
 
   let sdRepairedCount = 0;
   for (const s of setDetailsSessions) {
-    const sd = s.setDetails as SetDetailsShape;
-    if (!sd || typeof sd.weight !== "number" || typeof sd.reps !== "number") continue;
+    const expectedRM = bestRmFromSetDetails(s.setDetails);
+    if (expectedRM === null) continue;
 
-    const expectedRM = roundOneRepMax(epleyOneRepMax(sd.weight, sd.reps));
     const currentRaw = s.bestResultRaw;
-
-    // Only update if bestResultRaw differs from the expected 1RM by more than 0.1
-    // (tolerance for floating-point rounding)
     if (currentRaw === null || Math.abs(currentRaw - expectedRM) > 0.1) {
-      await prisma.workoutSession.update({
+      await db.workoutSession.update({
         where: { id: s.id },
         data: {
           bestResultRaw: expectedRM,
@@ -140,11 +124,7 @@ async function main() {
     console.log(`✅  Fixed bestResultRaw for ${sdRepairedCount} Load session(s) with setDetails`);
   }
 
-  // ------------------------------------------------------------------ //
-  // Step 3 – Recalculate isPr for all sessions                          //
-  // ------------------------------------------------------------------ //
-
-  const allSessions = await prisma.workoutSession.findMany({
+  const allSessions = await db.workoutSession.findMany({
     orderBy: [{ userId: "asc" }, { workoutDate: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
@@ -157,15 +137,6 @@ async function main() {
     },
   });
 
-  /**
-   * Grouping key: mirrors detectIsPr() in apps/web/app/api/sessions/route.ts.
-   *   - Template-linked sessions: keyed by userId + templateId + scoreType
-   *   - Free-form sessions:       keyed by userId + lower-cased title + scoreType
-   *
-   * scoreType is always part of the key (matching detectIsPr's WHERE clause)
-   * so that a template recorded under two different score types doesn't
-   * erroneously cross-compare results.
-   */
   function groupKey(s: {
     userId: string;
     title: string;
@@ -179,13 +150,11 @@ async function main() {
     return `freeform:${s.userId}:${s.title.toLowerCase()}:${scoreKey}`;
   }
 
-  // running best per group
   const runningBest = new Map<string, number>();
   const updates: Array<{ id: string; isPr: boolean }> = [];
 
   for (const s of allSessions) {
     if (s.bestResultRaw === null) {
-      // Can't compare — ensure isPr is false
       if (s.isPr) updates.push({ id: s.id, isPr: false });
       continue;
     }
@@ -196,12 +165,11 @@ async function main() {
 
     let isPr: boolean;
     if (prev === undefined) {
-      isPr = true; // first recorded result for this workout
+      isPr = true;
     } else {
       isPr = isTimeBased ? s.bestResultRaw < prev : s.bestResultRaw > prev;
     }
 
-    // Advance the running best when a PR is set
     if (isPr) {
       runningBest.set(key, s.bestResultRaw);
     }
@@ -211,11 +179,10 @@ async function main() {
     }
   }
 
-  // Batch-update in a transaction
   if (updates.length > 0) {
-    await prisma.$transaction(
+    await db.$transaction(
       updates.map(({ id, isPr }) =>
-        prisma.workoutSession.update({ where: { id }, data: { isPr } })
+        db.workoutSession.update({ where: { id }, data: { isPr } })
       )
     );
   }
@@ -226,7 +193,15 @@ async function main() {
     `✅  isPr recalculated: ${updates.length} session(s) changed` +
       ` (+${prGains} gained PR, -${prLosses} lost PR)`
   );
-  console.log("\n✨  Done!");
+}
+
+async function main() {
+  console.log("🔧  Starting PR recalculation…\n");
+  try {
+    await recalculateAllPrs(prisma);
+  } finally {
+    console.log("\n✨  Done!");
+  }
 }
 
 main()

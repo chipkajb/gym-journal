@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recomputePrsForWorkout } from "@/lib/pr-utils";
+import { SCORE_TYPES } from "@/lib/score-types";
 import { z } from "zod";
+
+const scoreTypeEnum = z.enum(SCORE_TYPES);
 
 const createSessionSchema = z.object({
   title: z.string().min(1),
@@ -11,8 +14,7 @@ const createSessionSchema = z.object({
   workoutDate: z.string().optional(), // ISO date or YYYY-MM-DD; default today
   bestResultRaw: z.number().optional().nullable(),
   bestResultDisplay: z.string().optional().nullable(),
-  scoreType: z.string().optional().nullable(),
-  barbellLift: z.string().optional().nullable(),
+  scoreType: scoreTypeEnum,
   setDetails: z.unknown().optional().nullable(),
   notes: z.string().optional().nullable(),
   rxOrScaled: z.string().optional().nullable(),
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
       ? new Date(data.workoutDate)
       : new Date();
     const templateId = data.templateId ?? null;
-    const scoreType = data.scoreType ?? null;
+    const scoreType = data.scoreType;
     const bestResultRaw = data.bestResultRaw ?? null;
 
     // Create the session with isPr=false; recomputePrsForWorkout will correct it.
@@ -100,10 +102,9 @@ export async function POST(request: Request) {
         bestResultRaw,
         bestResultDisplay: data.bestResultDisplay ?? null,
         scoreType,
-        barbellLift: data.barbellLift ?? null,
         setDetails: (data.setDetails as object) ?? null,
         notes: data.notes ?? null,
-        rxOrScaled: data.rxOrScaled ?? null,
+        rxOrScaled: data.scoreType === "Load" ? null : data.rxOrScaled ?? null,
         isPr: false,
         calories: data.calories ?? null,
         maxHeartRate: data.maxHeartRate ?? null,

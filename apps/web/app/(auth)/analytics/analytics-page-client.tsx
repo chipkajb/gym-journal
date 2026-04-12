@@ -291,6 +291,13 @@ export function AnalyticsPageClient({
     );
   }, [workoutResults, cutoff]);
 
+  const hideRxColumn = useMemo(
+    () =>
+      filteredResults.length > 0 &&
+      filteredResults.every((s) => s.scoreType === "Load"),
+    [filteredResults]
+  );
+
   const chartData = useMemo(() => {
     const base = filteredResults
       .filter((p) => p.bestResultRaw != null)
@@ -518,12 +525,11 @@ export function AnalyticsPageClient({
                     <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
                       Result
                     </th>
-                    <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
-                      RX/Scaled
-                    </th>
-                    <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
-                      PR
-                    </th>
+                    {!hideRxColumn && (
+                      <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
+                        RX/Scaled
+                      </th>
+                    )}
                     <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300 w-20">
                       Link
                     </th>
@@ -541,20 +547,23 @@ export function AnalyticsPageClient({
                           {format(parseISO(s.workoutDate), "MMM d, yyyy")}
                         </td>
                         <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                          {s.bestResultDisplay ?? (s.bestResultRaw != null ? String(s.bestResultRaw) : "—")}
-                        </td>
-                        <td className="px-4 py-2 text-gray-600 dark:text-gray-400">
-                          {s.rxOrScaled ?? "—"}
-                        </td>
-                        <td className="px-4 py-2">
-                          {s.isPr ? (
-                            <span className="text-amber-600 dark:text-amber-400 font-medium">
-                              PR
+                          <span className="inline-flex items-center gap-1.5">
+                            {s.isPr && (
+                              <span className="text-amber-500" title="Personal record">
+                                ★
+                              </span>
+                            )}
+                            <span>
+                              {s.bestResultDisplay ??
+                                (s.bestResultRaw != null ? String(s.bestResultRaw) : "—")}
                             </span>
-                          ) : (
-                            "—"
-                          )}
+                          </span>
                         </td>
+                        {!hideRxColumn && (
+                          <td className="px-4 py-2 text-gray-600 dark:text-gray-400">
+                            {s.rxOrScaled ?? "—"}
+                          </td>
+                        )}
                         <td className="px-4 py-2">
                           <Link
                             href={`/workouts/${s.id}`}

@@ -19,7 +19,7 @@ export async function recomputePrsForWorkout(params: {
   userId: string;
   workoutTemplateId: string | null;
   title: string;
-  scoreType: string | null;
+  scoreType: string;
 }): Promise<void> {
   const { userId, workoutTemplateId, title, scoreType } = params;
   const isTimeBased = scoreType === "Time";
@@ -27,7 +27,7 @@ export async function recomputePrsForWorkout(params: {
   const sessions = await prisma.workoutSession.findMany({
     where: {
       userId,
-      scoreType: scoreType ?? null,
+      scoreType,
       ...(workoutTemplateId
         ? { workoutTemplateId }
         : { title: { equals: title, mode: "insensitive" } }),

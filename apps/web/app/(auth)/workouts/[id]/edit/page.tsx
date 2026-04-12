@@ -42,8 +42,7 @@ export default async function EditWorkoutPage({
           workoutDate: workoutSession.workoutDate.toISOString().slice(0, 10),
           bestResultDisplay: workoutSession.bestResultDisplay ?? "",
           bestResultRaw: workoutSession.bestResultRaw?.toString() ?? "",
-          scoreType: workoutSession.scoreType ?? "",
-          barbellLift: workoutSession.barbellLift ?? "",
+          scoreType: workoutSession.scoreType,
           notes: workoutSession.notes ?? "",
           rxOrScaled: workoutSession.rxOrScaled ?? "",
           calories: workoutSession.calories?.toString() ?? "",
@@ -51,13 +50,7 @@ export default async function EditWorkoutPage({
           avgHeartRate: workoutSession.avgHeartRate?.toString() ?? "",
           totalDurationSeconds: workoutSession.totalDurationSeconds?.toString() ?? "",
           timedDurationSeconds: workoutSession.timedDurationSeconds?.toString() ?? "",
-          setDetails:
-            workoutSession.scoreType === "Load" &&
-            workoutSession.setDetails != null &&
-            typeof workoutSession.setDetails === "object" &&
-            "weight" in (workoutSession.setDetails as object)
-              ? (workoutSession.setDetails as { weight: number; reps: number })
-              : null,
+          setDetails: workoutSession.setDetails,
         }}
       />
     </div>

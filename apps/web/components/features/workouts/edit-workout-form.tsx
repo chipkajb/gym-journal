@@ -8,9 +8,10 @@ import {
   displayToRaw,
   validateDisplayResult,
   getResultPlaceholder,
-  epleyOneRepMax,
-  roundOneRepMax,
+  bestOneRmFromLoadSetDetails,
+  formatLoadSetsForNotes,
 } from "@/lib/workout-utils";
+import { SCORE_TYPES, type ScoreType, isValidScoreType } from "@/lib/score-types";
 
 type Props = {
   sessionId: string;
@@ -21,7 +22,6 @@ type Props = {
     bestResultDisplay: string;
     bestResultRaw: string;
     scoreType: string;
-    barbellLift: string;
     notes: string;
     rxOrScaled: string;
     calories: string;
@@ -29,13 +29,46 @@ type Props = {
     avgHeartRate: string;
     totalDurationSeconds: string;
     timedDurationSeconds: string;
-    /** Stored weight × reps for Load workouts (preferred over parsing bestResultDisplay) */
-    setDetails: { weight: number; reps: number } | null;
+    setDetails: unknown;
   };
 };
 
-const SCORE_TYPES = ["", "Time", "Reps", "Load", "Rounds + Reps", "Rounds"];
 const RX_OPTIONS = ["", "RX", "SCALED"];
+
+type LoadSetRow = { weight: string; reps: string };
+
+/**
+ * Parse "225 x 5" display format (old records) into weight/reps.
+ * New records store this in setDetails instead.
+ */
+function parseLoadDisplay(display: string): { weight: string; reps: string } {
+  const match = display.match(/^(\d+(?:\.\d+)?)\s*x\s*(\d+)$/);
+  if (match) return { weight: match[1]!, reps: match[2]! };
+  const single = display.match(/^(\d+(?:\.\d+)?)$/);
+  if (single) return { weight: single[1]!, reps: "1" };
+  return { weight: display, reps: "1" };
+}
+
+function initialLoadSets(
+  scoreType: string,
+  setDetails: unknown,
+  bestResultDisplay: string
+): LoadSetRow[] {
+  if (scoreType !== "Load") return [{ weight: "", reps: "1" }];
+  const o = setDetails as {
+    sets?: { weight: number; reps: number }[];
+    weight?: number;
+    reps?: number;
+  } | null;
+  if (o?.sets && Array.isArray(o.sets) && o.sets.length > 0) {
+    return o.sets.map((s) => ({ weight: String(s.weight), reps: String(s.reps) }));
+  }
+  if (o && typeof o.weight === "number" && typeof o.reps === "number") {
+    return [{ weight: String(o.weight), reps: String(o.reps) }];
+  }
+  const p = parseLoadDisplay(bestResultDisplay);
+  return [{ weight: p.weight, reps: p.reps }];
+}
 
 function formatDurationSec(secs: string): string {
   const n = parseInt(secs, 10);
@@ -57,27 +90,15 @@ function parseDurationInput(val: string): number | null {
   return isNaN(n) ? null : n * 60;
 }
 
-/**
- * Parse "225 x 5" display format (old records) into weight/reps.
- * New records store this in setDetails instead.
- */
-function parseLoadDisplay(display: string): { weight: string; reps: string } {
-  const match = display.match(/^(\d+(?:\.\d+)?)\s*x\s*(\d+)$/);
-  if (match) return { weight: match[1]!, reps: match[2]! };
-  // Single number could be a 1-rep lift (old) or a 1RM value (new) — default reps=1
-  const single = display.match(/^(\d+(?:\.\d+)?)$/);
-  if (single) return { weight: single[1]!, reps: "1" };
-  return { weight: display, reps: "1" };
-}
-
 export function EditWorkoutForm({ sessionId, initial }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
   const [description, setDescription] = useState(initial.description);
   const [workoutDate, setWorkoutDate] = useState(initial.workoutDate);
-  const [scoreType, setScoreType] = useState(initial.scoreType);
+  const [scoreType, setScoreType] = useState<ScoreType>(
+    isValidScoreType(initial.scoreType) ? initial.scoreType : "Time"
+  );
   const [bestResultDisplay, setBestResultDisplay] = useState(initial.bestResultDisplay);
-  const [barbellLift, setBarbellLift] = useState(initial.barbellLift);
   const [notes, setNotes] = useState(initial.notes);
   const [rxOrScaled, setRxOrScaled] = useState(initial.rxOrScaled);
   const [calories, setCalories] = useState(initial.calories);
@@ -93,15 +114,9 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
     !!(initial.calories || initial.maxHeartRate || initial.avgHeartRate || initial.totalDurationSeconds)
   );
 
-  // Load-specific sub-fields: prefer setDetails (new records), fall back to parsing display (old records)
-  const initLoad =
-    initial.scoreType === "Load"
-      ? initial.setDetails
-        ? { weight: String(initial.setDetails.weight), reps: String(initial.setDetails.reps) }
-        : parseLoadDisplay(initial.bestResultDisplay)
-      : null;
-  const [loadWeight, setLoadWeight] = useState(initLoad?.weight ?? "");
-  const [loadReps, setLoadReps] = useState(initLoad?.reps ?? "1");
+  const [loadSets, setLoadSets] = useState<LoadSetRow[]>(() =>
+    initialLoadSets(initial.scoreType, initial.setDetails, initial.bestResultDisplay)
+  );
 
   const [displayError, setDisplayError] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -118,26 +133,29 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
     }
   }, [bestResultDisplay, scoreType, isLoadType]);
 
-  // For Load workouts, bestResultDisplay is the estimated 1RM
   useEffect(() => {
-    if (isLoadType && loadWeight) {
-      const w = parseFloat(loadWeight);
-      const r = parseInt(loadReps, 10) || 1;
-      if (!isNaN(w) && w > 0) {
-        const orm = roundOneRepMax(epleyOneRepMax(w, r));
-        setBestResultDisplay(String(orm));
-      }
-    }
-  }, [isLoadType, loadWeight, loadReps]);
+    if (!isLoadType) return;
+    const setsPayload = {
+      sets: loadSets
+        .map((s) => ({
+          weight: parseFloat(s.weight),
+          reps: parseInt(s.reps, 10) || 1,
+        }))
+        .filter((s) => !isNaN(s.weight) && s.weight > 0),
+    };
+    const best = bestOneRmFromLoadSetDetails(setsPayload);
+    setBestResultDisplay(best != null ? String(best) : "");
+  }, [isLoadType, loadSets]);
 
-  /** Derive bestResultRaw */
   function deriveRaw(): number | null {
-    if (isLoadType && loadWeight) {
-      const w = parseFloat(loadWeight);
-      const r = parseInt(loadReps, 10) || 1;
-      if (!isNaN(w) && w > 0) {
-        return roundOneRepMax(epleyOneRepMax(w, r));
-      }
+    if (isLoadType) {
+      const sets = loadSets
+        .map((s) => ({
+          weight: parseFloat(s.weight),
+          reps: parseInt(s.reps, 10) || 1,
+        }))
+        .filter((s) => !isNaN(s.weight) && s.weight > 0);
+      return sets.length ? bestOneRmFromLoadSetDetails({ sets }) : null;
     }
     if (bestResultDisplay && scoreType) {
       return displayToRaw(bestResultDisplay, scoreType);
@@ -146,18 +164,20 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
   }
 
   const estimated1RM =
-    isLoadType && loadWeight
-      ? (() => {
-          const w = parseFloat(loadWeight);
-          const r = parseInt(loadReps, 10) || 1;
-          return !isNaN(w) && w > 0 ? roundOneRepMax(epleyOneRepMax(w, r)) : null;
-        })()
+    isLoadType && bestResultDisplay.trim()
+      ? parseFloat(bestResultDisplay)
       : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (bestResultDisplay && scoreType && !isLoadType) {
+    const bestResultRawPreview = deriveRaw();
+    if (isLoadType) {
+      if (bestResultRawPreview == null) {
+        setError("Add at least one set with a valid weight.");
+        return;
+      }
+    } else if (bestResultDisplay && scoreType) {
       const err = validateDisplayResult(bestResultDisplay, scoreType);
       if (err) {
         setError(`Result: ${err}`);
@@ -166,12 +186,24 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
     }
     setLoading(true);
     try {
-      const bestResultRaw = deriveRaw();
-      // For Load workouts, store weight × reps in setDetails
-      const setDetails =
-        isLoadType && loadWeight
-          ? { weight: parseFloat(loadWeight), reps: parseInt(loadReps, 10) || 1 }
-          : null;
+      const bestResultRaw = bestResultRawPreview;
+      const loadSetDetails = (() => {
+        if (!isLoadType) return null;
+        const sets = loadSets
+          .map((s) => ({
+            weight: parseFloat(s.weight),
+            reps: parseInt(s.reps, 10) || 1,
+          }))
+          .filter((s) => !isNaN(s.weight) && s.weight > 0);
+        return sets.length ? { sets } : null;
+      })();
+
+      const loadNotes = isLoadType ? formatLoadSetsForNotes(loadSets) : "";
+      const mergedNotes =
+        loadNotes && notes.trim()
+          ? `${notes.trim()}\n\n${loadNotes}`
+          : loadNotes || notes.trim() || null;
+
       const res = await fetch(`/api/sessions/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -181,11 +213,10 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           workoutDate: new Date(workoutDate).toISOString(),
           bestResultDisplay: bestResultDisplay.trim() || null,
           bestResultRaw,
-          scoreType: scoreType || null,
-          barbellLift: barbellLift.trim() || null,
-          setDetails,
-          notes: notes.trim() || null,
-          rxOrScaled: rxOrScaled || null,
+          scoreType,
+          setDetails: loadSetDetails,
+          notes: mergedNotes,
+          rxOrScaled: isLoadType ? null : rxOrScaled || null,
           calories: calories === "" ? null : parseInt(calories, 10),
           maxHeartRate: maxHeartRate === "" ? null : parseInt(maxHeartRate, 10),
           avgHeartRate: avgHeartRate === "" ? null : parseInt(avgHeartRate, 10),
@@ -236,7 +267,6 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
         <WorkoutNameGenerator
           description={description || undefined}
           scoreType={scoreType || undefined}
-          barbellLift={barbellLift || undefined}
           existingTitle={title || undefined}
           onSelect={(name) => setTitle(name)}
         />
@@ -269,18 +299,16 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           id="scoreType"
           value={scoreType}
           onChange={(e) => {
-            setScoreType(e.target.value);
-            if (e.target.value !== "Load") {
-              setBestResultDisplay("");
-              setLoadWeight("");
-              setLoadReps("1");
-            }
+            const v = e.target.value as ScoreType;
+            setScoreType(v);
+            setBestResultDisplay("");
+            setLoadSets([{ weight: "", reps: "1" }]);
           }}
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
         >
           {SCORE_TYPES.map((s) => (
-            <option key={s || "none"} value={s}>
-              {s || "—"}
+            <option key={s} value={s}>
+              {s}
             </option>
           ))}
         </select>
@@ -288,50 +316,64 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
 
       {/* Result — Load special case */}
       {isLoadType ? (
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">
-            Result
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">
-                Weight (lbs/kg)
-              </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={loadWeight}
-                onChange={(e) => setLoadWeight(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-                placeholder="225"
-                min={0}
-              />
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-foreground">Sets</label>
+          {loadSets.map((row, idx) => (
+            <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Weight</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={row.weight}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLoadSets((rows) => rows.map((r, i) => (i === idx ? { ...r, weight: v } : r)));
+                  }}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                  placeholder="225"
+                  min={0}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Reps</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={row.reps}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLoadSets((rows) => rows.map((r, i) => (i === idx ? { ...r, reps: v } : r)));
+                  }}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                  placeholder="1"
+                  min={1}
+                />
+              </div>
+              {loadSets.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setLoadSets((rows) => rows.filter((_, i) => i !== idx))}
+                  className="px-2 py-2 text-xs text-muted-foreground hover:text-destructive border border-border rounded-lg"
+                >
+                  Remove
+                </button>
+              )}
             </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">
-                Reps
-              </label>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={loadReps}
-                onChange={(e) => setLoadReps(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-                placeholder="1"
-                min={1}
-              />
-            </div>
-          </div>
-          {estimated1RM != null && (
-            <div className="mt-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
+          ))}
+          <button
+            type="button"
+            onClick={() => setLoadSets((rows) => [...rows, { weight: "", reps: "1" }])}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            + Add set
+          </button>
+          {estimated1RM != null && !isNaN(estimated1RM) && (
+            <div className="px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
               <p className="text-xs text-muted-foreground">
-                Est. 1RM (Epley&apos;s formula):{" "}
-                <span className="font-semibold text-foreground">
-                  {estimated1RM} lbs/kg
-                </span>
-                <span className="ml-1 text-muted-foreground">
-                  — saved as your score
-                </span>
+                Best est. 1RM (Epley):{" "}
+                <span className="font-semibold text-foreground">{estimated1RM} lbs/kg</span>
+                <span className="ml-1 text-muted-foreground">— saved as your score</span>
               </p>
             </div>
           )}
@@ -368,42 +410,28 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
         </div>
       )}
 
-      <div>
-        <label
-          htmlFor="barbellLift"
-          className="block text-sm font-medium text-foreground mb-1"
-        >
-          Barbell lift
-        </label>
-        <input
-          id="barbellLift"
-          type="text"
-          value={barbellLift}
-          onChange={(e) => setBarbellLift(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="rxOrScaled"
-          className="block text-sm font-medium text-foreground mb-1"
-        >
-          RX or Scaled
-        </label>
-        <select
-          id="rxOrScaled"
-          value={rxOrScaled}
-          onChange={(e) => setRxOrScaled(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-        >
-          {RX_OPTIONS.map((o) => (
-            <option key={o || "none"} value={o}>
-              {o || "—"}
-            </option>
-          ))}
-        </select>
-      </div>
+      {!isLoadType && (
+        <div>
+          <label
+            htmlFor="rxOrScaled"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            RX or Scaled
+          </label>
+          <select
+            id="rxOrScaled"
+            value={rxOrScaled}
+            onChange={(e) => setRxOrScaled(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+          >
+            {RX_OPTIONS.map((o) => (
+              <option key={o || "none"} value={o}>
+                {o || "—"}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <label

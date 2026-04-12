@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { SCORE_TYPES } from "@/lib/score-types";
 import { z } from "zod";
+
+const scoreTypeEnum = z.enum(SCORE_TYPES);
 
 const createTemplateSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional().nullable(),
-  scoreType: z.string().optional().nullable(),
-  barbellLift: z.string().optional().nullable(),
+  scoreType: scoreTypeEnum,
 });
 
 export async function GET() {
@@ -65,8 +67,7 @@ export async function POST(request: Request) {
         userId: session.user.id,
         title: parsed.data.title,
         description: parsed.data.description ?? null,
-        scoreType: parsed.data.scoreType ?? null,
-        barbellLift: parsed.data.barbellLift ?? null,
+        scoreType: parsed.data.scoreType,
       },
     });
     return NextResponse.json(template);

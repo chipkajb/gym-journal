@@ -3,16 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { WorkoutNameGenerator } from "@/components/features/workouts/workout-name-generator";
-
-const SCORE_TYPES = ["", "Time", "Reps", "Load", "Rounds + Reps", "Rounds"];
+import { SCORE_TYPES, type ScoreType, isValidScoreType } from "@/lib/score-types";
 
 type TemplateFormProps = {
   template?: {
     id: string;
     title: string;
     description: string | null;
-    scoreType: string | null;
-    barbellLift: string | null;
+    scoreType: string;
   };
 };
 
@@ -20,8 +18,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
   const [title, setTitle] = useState(template?.title ?? "");
   const [description, setDescription] = useState(template?.description ?? "");
-  const [scoreType, setScoreType] = useState(template?.scoreType ?? "");
-  const [barbellLift, setBarbellLift] = useState(template?.barbellLift ?? "");
+  const [scoreType, setScoreType] = useState<ScoreType>(
+    template?.scoreType && isValidScoreType(template.scoreType) ? template.scoreType : "Time"
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,8 +38,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
           body: JSON.stringify({
             title: title.trim(),
             description: description.trim() || null,
-            scoreType: scoreType || null,
-            barbellLift: barbellLift.trim() || null,
+            scoreType,
           }),
         });
         if (!res.ok) {
@@ -58,8 +56,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
           body: JSON.stringify({
             title: title.trim(),
             description: description.trim() || undefined,
-            scoreType: scoreType || null,
-            barbellLift: barbellLift.trim() || null,
+            scoreType,
           }),
         });
         if (!res.ok) {
@@ -100,7 +97,6 @@ export function TemplateForm({ template }: TemplateFormProps) {
         <WorkoutNameGenerator
           description={description || undefined}
           scoreType={scoreType || undefined}
-          barbellLift={barbellLift || undefined}
           existingTitle={title || undefined}
           onSelect={(name) => setTitle(name)}
         />
@@ -109,23 +105,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
       <div>
         <label htmlFor="scoreType" className="block text-sm font-medium text-foreground mb-1">Score type</label>
         <select
-          id="scoreType" value={scoreType} onChange={(e) => setScoreType(e.target.value)}
+          id="scoreType" value={scoreType} onChange={(e) => setScoreType(e.target.value as ScoreType)}
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+          required
         >
           {SCORE_TYPES.map((s) => (
-            <option key={s || "none"} value={s}>{s || "—"}</option>
+            <option key={s} value={s}>{s}</option>
           ))}
         </select>
-      </div>
-
-      <div>
-        <label htmlFor="barbellLift" className="block text-sm font-medium text-foreground mb-1">Barbell lift (optional)</label>
-        <input
-          id="barbellLift" type="text" value={barbellLift}
-          onChange={(e) => setBarbellLift(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-          placeholder="e.g. Back Squat"
-        />
       </div>
 
       <div>

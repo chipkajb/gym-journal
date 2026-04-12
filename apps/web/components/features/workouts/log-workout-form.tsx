@@ -16,24 +16,25 @@ import {
   displayToRaw,
   validateDisplayResult,
   getResultPlaceholder,
-  epleyOneRepMax,
-  roundOneRepMax,
+  bestOneRmFromLoadSetDetails,
+  formatLoadSetsForNotes,
 } from "@/lib/workout-utils";
+import { SCORE_TYPES, type ScoreType, isValidScoreType } from "@/lib/score-types";
 
 type TemplateOption = {
   id: string;
   title: string;
   description: string | null;
-  scoreType: string | null;
-  barbellLift: string | null;
+  scoreType: string;
 };
 
 type Props = {
   templates: TemplateOption[];
 };
 
-const SCORE_TYPES = ["", "Time", "Reps", "Load", "Rounds + Reps", "Rounds"];
 const RX_OPTIONS = ["", "RX", "SCALED"];
+
+type LoadSetRow = { weight: string; reps: string };
 
 // ---------------------------------------------------------------------------
 // Searchable template combobox
@@ -120,12 +121,7 @@ function TemplateCombobox({
                     }`}
                   >
                     <span className="block font-medium">{t.title}</span>
-                    {t.scoreType && (
-                      <span className="text-xs text-muted-foreground">
-                        {t.scoreType}
-                        {t.barbellLift ? ` · ${t.barbellLift}` : ""}
-                      </span>
-                    )}
+                    <span className="text-xs text-muted-foreground">{t.scoreType}</span>
                   </button>
                 </li>
               ))
@@ -156,12 +152,9 @@ export function LogWorkoutForm({ templates }: Props) {
   );
   // Display result (what the user types)
   const [bestResultDisplay, setBestResultDisplay] = useState("");
-  // Load-specific sub-fields (weight + reps)
-  const [loadWeight, setLoadWeight] = useState("");
-  const [loadReps, setLoadReps] = useState("1");
+  const [loadSets, setLoadSets] = useState<LoadSetRow[]>([{ weight: "", reps: "1" }]);
 
-  const [scoreType, setScoreType] = useState("");
-  const [barbellLift, setBarbellLift] = useState("");
+  const [scoreType, setScoreType] = useState<ScoreType>("Time");
   const [notes, setNotes] = useState("");
   const [rxOrScaled, setRxOrScaled] = useState("");
   const [calories, setCalories] = useState("");
@@ -187,8 +180,8 @@ export function LogWorkoutForm({ templates }: Props) {
       if (t) {
         setTitle(t.title);
         setDescription(t.description ?? "");
-        setScoreType(t.scoreType ?? "");
-        setBarbellLift(t.barbellLift ?? "");
+        setScoreType(isValidScoreType(t.scoreType) ? t.scoreType : "Time");
+        setLoadSets([{ weight: "", reps: "1" }]);
       }
     }
   }, [useTemplate, templateId, templates]);
@@ -232,17 +225,19 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }, [bestResultDisplay, scoreType]);
 
-  // For Load workouts, bestResultDisplay is the estimated 1RM
   useEffect(() => {
-    if (isLoadType && loadWeight) {
-      const w = parseFloat(loadWeight);
-      const r = parseInt(loadReps, 10) || 1;
-      if (!isNaN(w) && w > 0) {
-        const orm = roundOneRepMax(epleyOneRepMax(w, r));
-        setBestResultDisplay(String(orm));
-      }
-    }
-  }, [isLoadType, loadWeight, loadReps]);
+    if (!isLoadType) return;
+    const setsPayload = {
+      sets: loadSets
+        .map((s) => ({
+          weight: parseFloat(s.weight),
+          reps: parseInt(s.reps, 10) || 1,
+        }))
+        .filter((s) => !isNaN(s.weight) && s.weight > 0),
+    };
+    const best = bestOneRmFromLoadSetDetails(setsPayload);
+    setBestResultDisplay(best != null ? String(best) : "");
+  }, [isLoadType, loadSets]);
 
   function parseDurationInput(val: string): number | null {
     if (!val.trim()) return null;
@@ -259,9 +254,8 @@ export function LogWorkoutForm({ templates }: Props) {
   function handleTimerFinish(result: TimerResult) {
     setTimedResult(result);
     setShowTimer(false);
-    if (scoreType === "Time" || !scoreType) {
+    if (scoreType === "Time") {
       setBestResultDisplay(result.label);
-      if (!scoreType) setScoreType("Time");
     }
     if (result.roundsNote) {
       setNotes((prev) =>
@@ -270,14 +264,15 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }
 
-  /** Derive bestResultRaw. For Load, this is the estimated 1RM (same as bestResultDisplay). */
   function deriveRaw(): number | null {
-    if (isLoadType && loadWeight) {
-      const w = parseFloat(loadWeight);
-      const r = parseInt(loadReps, 10) || 1;
-      if (!isNaN(w) && w > 0) {
-        return roundOneRepMax(epleyOneRepMax(w, r));
-      }
+    if (isLoadType) {
+      const sets = loadSets
+        .map((s) => ({
+          weight: parseFloat(s.weight),
+          reps: parseInt(s.reps, 10) || 1,
+        }))
+        .filter((s) => !isNaN(s.weight) && s.weight > 0);
+      return sets.length ? bestOneRmFromLoadSetDetails({ sets }) : null;
     }
     if (bestResultDisplay && scoreType) {
       return displayToRaw(bestResultDisplay, scoreType);
@@ -293,8 +288,13 @@ export function LogWorkoutForm({ templates }: Props) {
       setError("Enter a workout title or choose a template.");
       return;
     }
-    // Validate display result before submitting
-    if (bestResultDisplay && scoreType) {
+    const bestResultRawPreview = deriveRaw();
+    if (isLoadType) {
+      if (bestResultRawPreview == null) {
+        setError("Add at least one set with a valid weight.");
+        return;
+      }
+    } else if (bestResultDisplay && scoreType) {
       const err = validateDisplayResult(bestResultDisplay, scoreType);
       if (err) {
         setError(`Result: ${err}`);
@@ -303,15 +303,23 @@ export function LogWorkoutForm({ templates }: Props) {
     }
     setLoading(true);
     try {
-      const bestResultRaw = deriveRaw();
-      // For Load workouts, store original weight × reps in setDetails for context
-      const setDetails =
-        isLoadType && loadWeight
-          ? {
-              weight: parseFloat(loadWeight),
-              reps: parseInt(loadReps, 10) || 1,
-            }
-          : null;
+      const bestResultRaw = bestResultRawPreview;
+      const loadSetDetails = (() => {
+        if (!isLoadType) return null;
+        const sets = loadSets
+          .map((s) => ({
+            weight: parseFloat(s.weight),
+            reps: parseInt(s.reps, 10) || 1,
+          }))
+          .filter((s) => !isNaN(s.weight) && s.weight > 0);
+        return sets.length ? { sets } : null;
+      })();
+
+      const loadNotes = isLoadType ? formatLoadSetsForNotes(loadSets) : "";
+      const mergedNotes =
+        loadNotes && notes.trim()
+          ? `${notes.trim()}\n\n${loadNotes}`
+          : loadNotes || notes.trim() || null;
 
       const payload = {
         title: titleToUse,
@@ -319,17 +327,17 @@ export function LogWorkoutForm({ templates }: Props) {
         workoutDate: new Date(workoutDate).toISOString(),
         bestResultDisplay: bestResultDisplay.trim() || null,
         bestResultRaw,
-        scoreType: scoreType || null,
-        barbellLift: barbellLift.trim() || null,
-        setDetails,
-        notes: notes.trim() || null,
-        rxOrScaled: rxOrScaled || null,
+        scoreType,
+        setDetails: loadSetDetails,
+        notes: mergedNotes,
+        rxOrScaled: isLoadType ? null : rxOrScaled || null,
         templateId: useTemplate && templateId ? templateId : null,
         calories: calories === "" ? null : parseInt(calories, 10),
         maxHeartRate: maxHeartRate === "" ? null : parseInt(maxHeartRate, 10),
         avgHeartRate: avgHeartRate === "" ? null : parseInt(avgHeartRate, 10),
         totalDurationSeconds: parseDurationInput(totalDurationInput),
-        timedDurationSeconds: null,
+        timedDurationSeconds:
+          scoreType === "Time" && timedResult ? timedResult.durationSeconds : null,
       };
       const res = await fetch("/api/sessions", {
         method: "POST",
@@ -355,37 +363,37 @@ export function LogWorkoutForm({ templates }: Props) {
 
   // Estimated 1RM for Load type
   const estimated1RM =
-    isLoadType && loadWeight
-      ? (() => {
-          const w = parseFloat(loadWeight);
-          const r = parseInt(loadReps, 10) || 1;
-          return !isNaN(w) && w > 0 ? roundOneRepMax(epleyOneRepMax(w, r)) : null;
-        })()
+    isLoadType && bestResultDisplay.trim()
+      ? parseFloat(bestResultDisplay)
       : null;
 
   return (
     <div className="space-y-4 max-w-lg">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setShowTimer((v) => !v)}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-border hover:bg-accent text-foreground transition-colors"
-        >
-          <Clock className="w-4 h-4" />
-          {showTimer ? "Hide timer" : "Open timer"}
-        </button>
-        {timedResult && !showTimer && (
-          <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-            ✓ Timed: {timedResult.label}
-          </span>
-        )}
-      </div>
+      {!isLoadType && (
+        <>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowTimer((v) => !v)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-border hover:bg-accent text-foreground transition-colors"
+            >
+              <Clock className="w-4 h-4" />
+              {showTimer ? "Hide timer" : "Open timer"}
+            </button>
+            {timedResult && !showTimer && (
+              <span className="text-sm text-green-600 dark:text-green-400 font-medium">
+                ✓ Timed: {timedResult.label}
+              </span>
+            )}
+          </div>
 
-      {showTimer && (
-        <WorkoutTimer
-          onFinish={handleTimerFinish}
-          onDiscard={() => setShowTimer(false)}
-        />
+          {showTimer && (
+            <WorkoutTimer
+              onFinish={handleTimerFinish}
+              onDiscard={() => setShowTimer(false)}
+            />
+          )}
+        </>
       )}
 
       <form
@@ -414,7 +422,11 @@ export function LogWorkoutForm({ templates }: Props) {
               type="radio"
               name="mode"
               checked={!useTemplate}
-              onChange={() => setUseTemplate(false)}
+              onChange={() => {
+                setUseTemplate(false);
+                setScoreType("Time");
+                setLoadSets([{ weight: "", reps: "1" }]);
+              }}
             />
             <span className="text-sm text-foreground">Free workout</span>
           </label>
@@ -489,7 +501,6 @@ export function LogWorkoutForm({ templates }: Props) {
           <WorkoutNameGenerator
             description={description || currentTemplate?.description || undefined}
             scoreType={scoreType || currentTemplate?.scoreType || undefined}
-            barbellLift={barbellLift || currentTemplate?.barbellLift || undefined}
             existingTitle={title || undefined}
             onSelect={(name) => setTitle(name)}
           />
@@ -524,16 +535,17 @@ export function LogWorkoutForm({ templates }: Props) {
             id="scoreType"
             value={scoreType}
             onChange={(e) => {
-              setScoreType(e.target.value);
+              const v = e.target.value as ScoreType;
+              setScoreType(v);
               setBestResultDisplay("");
-              setLoadWeight("");
-              setLoadReps("1");
+              setLoadSets([{ weight: "", reps: "1" }]);
+              setTimedResult(null);
             }}
             className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
           >
             {SCORE_TYPES.map((s) => (
-              <option key={s || "none"} value={s}>
-                {s || "—"}
+              <option key={s} value={s}>
+                {s}
               </option>
             ))}
           </select>
@@ -541,50 +553,68 @@ export function LogWorkoutForm({ templates }: Props) {
 
         {/* Result — Load special case */}
         {isLoadType ? (
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Result
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">
-                  Weight (lbs/kg)
-                </label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={loadWeight}
-                  onChange={(e) => setLoadWeight(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="225"
-                  min={0}
-                />
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-foreground">Sets</label>
+            <p className="text-xs text-muted-foreground">
+              Add each set below. Your best estimated 1RM (Epley) across sets is saved as the score;
+              sets are copied into Notes when you log.
+            </p>
+            {loadSets.map((row, idx) => (
+              <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Weight</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={row.weight}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setLoadSets((rows) => rows.map((r, i) => (i === idx ? { ...r, weight: v } : r)));
+                    }}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                    placeholder="225"
+                    min={0}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Reps</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={row.reps}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setLoadSets((rows) => rows.map((r, i) => (i === idx ? { ...r, reps: v } : r)));
+                    }}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                    placeholder="1"
+                    min={1}
+                  />
+                </div>
+                {loadSets.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setLoadSets((rows) => rows.filter((_, i) => i !== idx))}
+                    className="px-2 py-2 text-xs text-muted-foreground hover:text-destructive border border-border rounded-lg"
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">
-                  Reps
-                </label>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={loadReps}
-                  onChange={(e) => setLoadReps(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="1"
-                  min={1}
-                />
-              </div>
-            </div>
-            {estimated1RM != null && (
-              <div className="mt-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
+            ))}
+            <button
+              type="button"
+              onClick={() => setLoadSets((rows) => [...rows, { weight: "", reps: "1" }])}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              + Add set
+            </button>
+            {estimated1RM != null && !isNaN(estimated1RM) && (
+              <div className="px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="text-xs text-muted-foreground">
-                  Est. 1RM (Epley&apos;s formula):{" "}
-                  <span className="font-semibold text-foreground">
-                    {estimated1RM} lbs/kg
-                  </span>
-                  <span className="ml-1 text-muted-foreground">
-                    — saved as your score
-                  </span>
+                  Best est. 1RM (Epley):{" "}
+                  <span className="font-semibold text-foreground">{estimated1RM} lbs/kg</span>
+                  <span className="ml-1 text-muted-foreground">— saved as your score</span>
                 </p>
               </div>
             )}
@@ -639,46 +669,28 @@ export function LogWorkoutForm({ templates }: Props) {
           </div>
         )}
 
-        {/* Barbell lift */}
-        <div>
-          <label
-            htmlFor="barbellLift"
-            className="block text-sm font-medium text-foreground mb-1"
-          >
-            Barbell lift{" "}
-            <span className="font-normal text-muted-foreground">(optional)</span>
-          </label>
-          <input
-            id="barbellLift"
-            type="text"
-            value={barbellLift}
-            onChange={(e) => setBarbellLift(e.target.value)}
-            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-            placeholder="e.g. Back Squat"
-          />
-        </div>
-
-        {/* RX / Scaled */}
-        <div>
-          <label
-            htmlFor="rxOrScaled"
-            className="block text-sm font-medium text-foreground mb-1"
-          >
-            RX or Scaled
-          </label>
-          <select
-            id="rxOrScaled"
-            value={rxOrScaled}
-            onChange={(e) => setRxOrScaled(e.target.value)}
-            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-          >
-            {RX_OPTIONS.map((o) => (
-              <option key={o || "none"} value={o}>
-                {o || "—"}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!isLoadType && (
+          <div>
+            <label
+              htmlFor="rxOrScaled"
+              className="block text-sm font-medium text-foreground mb-1"
+            >
+              RX or Scaled
+            </label>
+            <select
+              id="rxOrScaled"
+              value={rxOrScaled}
+              onChange={(e) => setRxOrScaled(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+            >
+              {RX_OPTIONS.map((o) => (
+                <option key={o || "none"} value={o}>
+                  {o || "—"}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Notes */}
         <div>

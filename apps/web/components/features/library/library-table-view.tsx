@@ -8,8 +8,7 @@ type Template = {
   id: string;
   title: string;
   description: string | null;
-  scoreType: string | null;
-  barbellLift: string | null;
+  scoreType: string;
 };
 
 type Props = { templates: Template[] };
@@ -73,9 +72,6 @@ export function LibraryTableView({ templates }: Props) {
                 <th className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
                   Score type
                 </th>
-                <th className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
-                  Barbell lift
-                </th>
                 <th className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300 text-right">
                   Actions
                 </th>
@@ -85,7 +81,7 @@ export function LibraryTableView({ templates }: Props) {
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={3}
                     className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
                   >
                     No templates match the filters.
@@ -101,10 +97,7 @@ export function LibraryTableView({ templates }: Props) {
                       {t.title}
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {t.scoreType || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {t.barbellLift || "—"}
+                      {t.scoreType}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">

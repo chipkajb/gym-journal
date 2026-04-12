@@ -35,7 +35,6 @@ export default async function NewWorkoutPage() {
           title: t.title,
           description: t.description,
           scoreType: t.scoreType,
-          barbellLift: t.barbellLift,
         }))}
       />
     </div>

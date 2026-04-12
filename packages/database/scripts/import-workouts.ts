@@ -1,7 +1,7 @@
 /**
  * Imports workouts from workouts.csv into the database.
  * - Clears existing workout sessions and templates for the target user.
- * - Creates one WorkoutTemplate per distinct workout title (first occurrence's description/scoreType/barbellLift).
+ * - Creates one WorkoutTemplate per distinct workout title (first occurrence's description/scoreType).
  * - Creates one WorkoutSession per CSV row, linked to template when title matches.
  *
  * Expects workouts.csv at repo root or path in WORKOUTS_CSV env.
@@ -13,6 +13,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { recalculateAllPrs } from "./recalculate-prs";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -135,20 +136,17 @@ async function main() {
   const rows = parseCsv(content);
   console.log(`Parsed ${rows.length} rows from ${csvPath}`);
 
-  // Build unique templates by title (first occurrence wins for description/scoreType/barbellLift)
-  const templateByTitle = new Map<
-    string,
-    { title: string; description: string; scoreType: string; barbellLift: string }
-  >();
+  // Build unique templates by title (first occurrence wins for description/scoreType)
+  const templateByTitle = new Map<string, { title: string; description: string; scoreType: string }>();
   for (const r of rows) {
     const t = r.title?.trim();
     if (!t) continue;
     if (!templateByTitle.has(t)) {
+      const st = r.score_type?.trim() || "Time";
       templateByTitle.set(t, {
         title: t,
         description: r.description?.trim() ?? "",
-        scoreType: r.score_type?.trim() ?? "",
-        barbellLift: r.barbell_lift?.trim() ?? "",
+        scoreType: ["Time", "Reps", "Load", "Rounds + Reps"].includes(st) ? st : "Time",
       });
     }
   }
@@ -158,8 +156,7 @@ async function main() {
       userId,
       title: v.title,
       description: v.description || null,
-      scoreType: v.scoreType || null,
-      barbellLift: v.barbellLift || null,
+      scoreType: v.scoreType,
     })),
   });
   console.log(`Created ${createdTemplates.count} templates`);
@@ -179,6 +176,8 @@ async function main() {
     const setDetails = parseSetDetails(r.set_details);
     const isPr = /^PR$/i.test(r.pr?.trim() ?? "");
 
+    const st = r.score_type?.trim() || "Time";
+    const scoreType = ["Time", "Reps", "Load", "Rounds + Reps"].includes(st) ? st : "Time";
     await prisma.workoutSession.create({
       data: {
         userId,
@@ -188,18 +187,20 @@ async function main() {
         workoutDate,
         bestResultRaw,
         bestResultDisplay: r.best_result_display?.trim() || null,
-        scoreType: r.score_type?.trim() || null,
-        barbellLift: r.barbell_lift?.trim() || null,
+        scoreType,
         setDetails: setDetails as object | null,
         notes: r.notes?.trim() || null,
-        rxOrScaled: r.rx_or_scaled?.trim() || null,
+        rxOrScaled: scoreType === "Load" ? null : r.rx_or_scaled?.trim() || null,
         isPr,
       },
     });
     created++;
   }
 
-  console.log(`Created ${created} workout sessions. Import done.`);
+  console.log(`Created ${created} workout sessions.`);
+  console.log("Recalculating PRs (including Load 1RM repair)…");
+  await recalculateAllPrs(prisma);
+  console.log("Import done.");
 }
 
 main()

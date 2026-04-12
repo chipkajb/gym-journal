@@ -34,8 +34,7 @@ type Template = {
   id: string;
   title: string;
   description: string | null;
-  scoreType: string | null;
-  barbellLift: string | null;
+  scoreType: string;
   sessions: Session[];
 };
 
@@ -383,16 +382,9 @@ export function WodClient({ templates }: { templates: Template[] }) {
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    {selected.scoreType && (
-                      <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                        {selected.scoreType}
-                      </span>
-                    )}
-                    {selected.barbellLift && (
-                      <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                        {selected.barbellLift}
-                      </span>
-                    )}
+                    <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                      {selected.scoreType}
+                    </span>
                   </div>
                   <h2 className="text-2xl font-bold text-foreground">
                     {selected.title}

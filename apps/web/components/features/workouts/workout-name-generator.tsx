@@ -6,7 +6,6 @@ import { Copy, Check, AlertTriangle } from "lucide-react";
 type Props = {
   description?: string;
   scoreType?: string;
-  barbellLift?: string;
   existingTitle?: string;
   onSelect: (name: string) => void;
 };
@@ -14,7 +13,6 @@ type Props = {
 function buildPrompt(data: {
   description?: string;
   scoreType?: string;
-  barbellLift?: string;
   existingTitle?: string;
 }): string {
   const workoutDetails: string[] = [];
@@ -24,9 +22,6 @@ function buildPrompt(data: {
   }
   if (data.scoreType) {
     workoutDetails.push(`Score type: ${data.scoreType}`);
-  }
-  if (data.barbellLift) {
-    workoutDetails.push(`Barbell lift: ${data.barbellLift}`);
   }
   if (data.description) {
     workoutDetails.push(`Workout description:\n${data.description}`);
@@ -87,7 +82,6 @@ async function copyToClipboard(text: string): Promise<void> {
 export function WorkoutNameGenerator({
   description,
   scoreType,
-  barbellLift,
   existingTitle,
   onSelect: _onSelect,
 }: Props) {
@@ -96,7 +90,7 @@ export function WorkoutNameGenerator({
 
   async function handleCopy() {
     setError("");
-    const prompt = buildPrompt({ description, scoreType, barbellLift, existingTitle });
+    const prompt = buildPrompt({ description, scoreType, existingTitle });
     try {
       await copyToClipboard(prompt);
       setCopied(true);

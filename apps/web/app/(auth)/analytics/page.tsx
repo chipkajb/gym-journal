@@ -34,7 +34,8 @@ export default async function AnalyticsPage() {
     prisma.workoutSession.groupBy({
       by: ["title"],
       where: { userId: session.user.id },
-      orderBy: { title: "asc" },
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
     }),
     prisma.profile.findUnique({
       where: { userId: session.user.id },
@@ -51,7 +52,7 @@ export default async function AnalyticsPage() {
     rxOrScaled: p.rxOrScaled,
   }));
 
-  const workoutTitles = titleRows.map((r) => r.title);
+  const workoutTitles = titleRows.map((r) => r.title).filter(Boolean);
 
   return (
     <AnalyticsPageClient

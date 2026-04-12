@@ -7,30 +7,31 @@ export type TimerMode = "free" | "fortime" | "amrap" | "tabata" | "emom";
 
 export type TimerResult = {
   mode: TimerMode;
-  durationSeconds: number; // actual elapsed time
-  label: string; // human-readable result (e.g. "10:44", "8 rounds", etc.)
-  roundsNote?: string; // pre-formatted round splits, if any were recorded
+  durationSeconds: number;
+  label: string;
+  roundsNote?: string;
 };
 
 type Round = {
   round: number;
-  elapsed: number; // total timer elapsed at the moment of the round
-  split: number;   // time since the previous round (or start)
+  elapsed: number;
+  split: number;
+  /** seconds faster (+) or slower (-) than previous round split */
+  diffVsPrevSec: number | null;
 };
 
 type TimerConfig = {
-  // For Time
-  timeCap?: number; // seconds, 0 = no cap
-  // AMRAP
-  amrapDuration?: number; // seconds
-  // Tabata
-  tabataWork?: number; // seconds (default 20)
-  tabataRest?: number; // seconds (default 10)
-  tabataRounds?: number; // total rounds (default 8)
-  // EMOM
-  emomInterval?: number; // seconds per minute (default 60)
-  emomRounds?: number; // number of rounds
+  timeCap?: number;
+  amrapDuration?: number;
+  tabataWork?: number;
+  tabataRest?: number;
+  tabataRounds?: number;
+  emomInterval?: number;
+  emomRounds?: number;
 };
+
+const COUNTDOWN_START = 10;
+const BEEP_AT_SECONDS = new Set([3, 2, 1]);
 
 function formatTime(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
@@ -47,6 +48,52 @@ function parseMmSs(val: string): number {
   if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
   if (parts.length === 1) return parts[0] ?? 0;
   return 0;
+}
+
+function playShortBeep(): void {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AC();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.value = 0.12;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.12);
+    osc.onended = () => ctx.close().catch(() => {});
+  } catch {
+    // no audio (autoplay policy, etc.)
+  }
+}
+
+/** Very quiet looping buffer — helps some mobile browsers stay awake with wake lock. */
+function startSilentKeepAlive(): () => void {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AC();
+    const buffer = ctx.createBuffer(1, Math.max(2, ctx.sampleRate), ctx.sampleRate);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.0001;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+    return () => {
+      try {
+        src.stop();
+        ctx.close();
+      } catch {
+        /* noop */
+      }
+    };
+  } catch {
+    return () => {};
+  }
 }
 
 type Props = {
@@ -67,17 +114,12 @@ export function WorkoutTimer({
   const [mode, setMode] = useState<TimerMode>(initialMode);
   const [showConfig, setShowConfig] = useState(false);
 
-  // Config state
   const [timeCap, setTimeCap] = useState(initialConfig.timeCap ?? 0);
   const [timeCapInput, setTimeCapInput] = useState(
     initialConfig.timeCap ? formatTime(initialConfig.timeCap) : ""
   );
-  const [amrapDuration, setAmrapDuration] = useState(
-    initialConfig.amrapDuration ?? 1200
-  );
-  const [amrapInput, setAmrapInput] = useState(
-    formatTime(initialConfig.amrapDuration ?? 1200)
-  );
+  const [amrapDuration, setAmrapDuration] = useState(initialConfig.amrapDuration ?? 1200);
+  const [amrapInput, setAmrapInput] = useState(formatTime(initialConfig.amrapDuration ?? 1200));
   const [tabataWork, setTabataWork] = useState(initialConfig.tabataWork ?? 20);
   const [tabataRest, setTabataRest] = useState(initialConfig.tabataRest ?? 10);
   const [tabataRounds, setTabataRounds] = useState(initialConfig.tabataRounds ?? 8);
@@ -87,36 +129,43 @@ export function WorkoutTimer({
   );
   const [emomRounds, setEmomRounds] = useState(initialConfig.emomRounds ?? 10);
 
-  // Timer state
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
-  const [elapsed, setElapsed] = useState(0); // total elapsed seconds
+  const [elapsed, setElapsed] = useState(0);
   const [tabataPhase, setTabataPhase] = useState<"work" | "rest">("work");
   const [tabataCurrentRound, setTabataCurrentRound] = useState(1);
-  const [tabataPhaseElapsed, setTabataPhaseElapsed] = useState(0);
   const [emomCurrentRound, setEmomCurrentRound] = useState(1);
   const [emomRoundElapsed, setEmomRoundElapsed] = useState(0);
   const [result, setResult] = useState<TimerResult | null>(null);
   const [rounds, setRounds] = useState<Round[]>([]);
 
+  const [inCountdown, setInCountdown] = useState(false);
+  const [countdownSec, setCountdownSec] = useState(COUNTDOWN_START);
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   const elapsedAtPauseRef = useRef<number>(0);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const keepAliveStopRef = useRef<(() => void) | null>(null);
+  const tabataRestCountdownScheduledRef = useRef(false);
+  const emomBoundaryCountdownScheduledRef = useRef(false);
+  const lastBeepCountdownRef = useRef<number | null>(null);
+  const pendingTabataAfterCountdownRef = useRef<null | { nextRound: number }>(null);
+  const pendingEmomRoundAfterCountdownRef = useRef<number | null>(null);
 
-  // Prevent the screen from sleeping while the timer is running
+  const mainClockActive = running && !inCountdown;
+
   useEffect(() => {
-    if (!running || !("wakeLock" in navigator)) return;
+    if (!mainClockActive || !("wakeLock" in navigator)) return;
 
     const requestWakeLock = async () => {
       try {
         wakeLockRef.current = await navigator.wakeLock.request("screen");
       } catch {
-        // Wake lock unavailable (battery saver, unsupported browser, etc.)
+        /* unsupported or denied */
       }
     };
 
-    // Re-acquire after returning from background (iOS releases lock on hide)
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         requestWakeLock();
@@ -131,12 +180,27 @@ export function WorkoutTimer({
       wakeLockRef.current?.release();
       wakeLockRef.current = null;
     };
+  }, [mainClockActive]);
+
+  useEffect(() => {
+    if (!running) {
+      keepAliveStopRef.current?.();
+      keepAliveStopRef.current = null;
+      return;
+    }
+    keepAliveStopRef.current?.();
+    keepAliveStopRef.current = startSilentKeepAlive();
+    return () => {
+      keepAliveStopRef.current?.();
+      keepAliveStopRef.current = null;
+    };
   }, [running]);
 
   const stop = useCallback(
     (reason: "finish" | "cap") => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       setRunning(false);
+      setInCountdown(false);
       setFinished(true);
       const totalSeconds = Math.round(elapsed);
       let label = formatTime(totalSeconds);
@@ -144,9 +208,7 @@ export function WorkoutTimer({
       const roundsNote =
         rounds.length > 0
           ? "Round splits:\n" +
-            rounds
-              .map((r) => `Round ${r.round}: ${formatTime(Math.round(r.split))}`)
-              .join("\n")
+            rounds.map((r) => `Round ${r.round}: ${formatTime(Math.round(r.split))}`).join("\n")
           : undefined;
       const r: TimerResult = { mode, durationSeconds: totalSeconds, label, roundsNote };
       setResult(r);
@@ -154,9 +216,8 @@ export function WorkoutTimer({
     [elapsed, mode, rounds]
   );
 
-  // Timer tick
   useEffect(() => {
-    if (!running) return;
+    if (!mainClockActive) return;
     intervalRef.current = setInterval(() => {
       const now = Date.now();
       const newElapsed = elapsedAtPauseRef.current + (now - startTimeRef.current) / 1000;
@@ -164,16 +225,6 @@ export function WorkoutTimer({
 
       const secs = Math.floor(newElapsed);
 
-      // Tabata tracking
-      if (mode === "tabata") {
-        const phaseDuration = tabataPhase === "work" ? tabataWork : tabataRest;
-        setTabataPhaseElapsed((prev) => {
-          const next = prev + (1 / 10);
-          return next;
-        });
-      }
-
-      // Check termination conditions
       if (mode === "fortime" && timeCap > 0 && secs >= timeCap) {
         stop("cap");
       } else if (mode === "amrap" && secs >= amrapDuration) {
@@ -184,28 +235,31 @@ export function WorkoutTimer({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [running, mode, timeCap, amrapDuration, tabataPhase, tabataWork, tabataRest, stop]);
+  }, [mainClockActive, mode, timeCap, amrapDuration, stop]);
 
-  // Tabata / EMOM phase advancement
   useEffect(() => {
-    if (!running || (mode !== "tabata" && mode !== "emom")) return;
+    if (!mainClockActive || (mode !== "tabata" && mode !== "emom")) return;
 
     const secs = Math.floor(elapsed);
 
     if (mode === "tabata") {
       const phaseDuration = tabataPhase === "work" ? tabataWork : tabataRest;
-      const totalTabataElapsed = (tabataCurrentRound - 1) * (tabataWork + tabataRest) + (tabataPhase === "rest" ? tabataWork : 0);
+      const totalTabataElapsed =
+        (tabataCurrentRound - 1) * (tabataWork + tabataRest) + (tabataPhase === "rest" ? tabataWork : 0);
       const phaseElapsed = secs - totalTabataElapsed;
       if (phaseElapsed >= phaseDuration) {
         if (tabataPhase === "work") {
           setTabataPhase("rest");
+          tabataRestCountdownScheduledRef.current = false;
         } else {
           const nextRound = tabataCurrentRound + 1;
           if (nextRound > tabataRounds) {
             stop("finish");
-          } else {
-            setTabataCurrentRound(nextRound);
-            setTabataPhase("work");
+          } else if (!tabataRestCountdownScheduledRef.current && !inCountdown) {
+            tabataRestCountdownScheduledRef.current = true;
+            pendingTabataAfterCountdownRef.current = { nextRound };
+            setInCountdown(true);
+            setCountdownSec(COUNTDOWN_START);
           }
         }
       }
@@ -218,20 +272,115 @@ export function WorkoutTimer({
       if (currentRound !== emomCurrentRound) {
         if (currentRound > emomRounds) {
           stop("finish");
-        } else {
-          setEmomCurrentRound(currentRound);
+        } else if (!emomBoundaryCountdownScheduledRef.current && secs > 0 && !inCountdown) {
+          emomBoundaryCountdownScheduledRef.current = true;
+          pendingEmomRoundAfterCountdownRef.current = currentRound;
+          setInCountdown(true);
+          setCountdownSec(COUNTDOWN_START);
         }
       }
     }
-  }, [elapsed, running, mode, tabataPhase, tabataWork, tabataRest, tabataRounds, tabataCurrentRound, emomInterval, emomRounds, emomCurrentRound, stop]);
+  }, [
+    elapsed,
+    mainClockActive,
+    mode,
+    tabataPhase,
+    tabataWork,
+    tabataRest,
+    tabataRounds,
+    tabataCurrentRound,
+    emomInterval,
+    emomRounds,
+    emomCurrentRound,
+    inCountdown,
+    stop,
+  ]);
 
-  function startResume() {
+  useEffect(() => {
+    if (!inCountdown) {
+      lastBeepCountdownRef.current = null;
+      return;
+    }
+    if (BEEP_AT_SECONDS.has(countdownSec) && lastBeepCountdownRef.current !== countdownSec) {
+      lastBeepCountdownRef.current = countdownSec;
+      playShortBeep();
+    }
+  }, [inCountdown, countdownSec]);
+
+  useEffect(() => {
+    if (!inCountdown) return;
+    const id = setInterval(() => {
+      setCountdownSec((c) => (c <= 1 ? 0 : c - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [inCountdown]);
+
+  const countdownZeroHandledRef = useRef(false);
+  useEffect(() => {
+    if (!inCountdown) {
+      countdownZeroHandledRef.current = false;
+      return;
+    }
+    if (countdownSec !== 0) return;
+    if (countdownZeroHandledRef.current) return;
+    countdownZeroHandledRef.current = true;
+
+    const frozenElapsed = elapsed;
+    if (pendingTabataAfterCountdownRef.current) {
+      const { nextRound } = pendingTabataAfterCountdownRef.current;
+      pendingTabataAfterCountdownRef.current = null;
+      tabataRestCountdownScheduledRef.current = false;
+      setTabataCurrentRound(nextRound);
+      setTabataPhase("work");
+    }
+    if (pendingEmomRoundAfterCountdownRef.current != null) {
+      const nr = pendingEmomRoundAfterCountdownRef.current;
+      pendingEmomRoundAfterCountdownRef.current = null;
+      emomBoundaryCountdownScheduledRef.current = false;
+      setEmomCurrentRound(nr);
+    }
+    setInCountdown(false);
+    setCountdownSec(COUNTDOWN_START);
+    startTimeRef.current = Date.now();
+    elapsedAtPauseRef.current = frozenElapsed;
+  }, [inCountdown, countdownSec, elapsed]);
+
+  function beginMainClockFromHere() {
     startTimeRef.current = Date.now();
     elapsedAtPauseRef.current = elapsed;
     setRunning(true);
   }
 
+  function startResume() {
+    if (finished) return;
+    if (running && !inCountdown) {
+      return;
+    }
+    if (inCountdown) return;
+
+    if (!running && elapsed === 0) {
+      setInCountdown(true);
+      setCountdownSec(COUNTDOWN_START);
+      setRunning(true);
+      return;
+    }
+
+    if (!running && elapsed > 0) {
+      beginMainClockFromHere();
+    }
+  }
+
   function pause() {
+    if (inCountdown) {
+      setInCountdown(false);
+      setCountdownSec(COUNTDOWN_START);
+      pendingTabataAfterCountdownRef.current = null;
+      pendingEmomRoundAfterCountdownRef.current = null;
+      tabataRestCountdownScheduledRef.current = false;
+      emomBoundaryCountdownScheduledRef.current = false;
+      setRunning(false);
+      return;
+    }
     if (intervalRef.current) clearInterval(intervalRef.current);
     elapsedAtPauseRef.current = elapsed;
     setRunning(false);
@@ -240,9 +389,18 @@ export function WorkoutTimer({
   function recordRound() {
     setRounds((prev) => {
       const lastElapsed = prev.length > 0 ? prev[prev.length - 1].elapsed : 0;
+      const split = elapsed - lastElapsed;
+      const prevSplit = prev.length > 0 ? prev[prev.length - 1].split : null;
+      const diffVsPrevSec =
+        prevSplit != null ? Math.round(prevSplit - split) : null;
       return [
         ...prev,
-        { round: prev.length + 1, elapsed, split: elapsed - lastElapsed },
+        {
+          round: prev.length + 1,
+          elapsed,
+          split,
+          diffVsPrevSec,
+        },
       ];
     });
   }
@@ -250,6 +408,8 @@ export function WorkoutTimer({
   function reset() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setRunning(false);
+    setInCountdown(false);
+    setCountdownSec(COUNTDOWN_START);
     setFinished(false);
     setElapsed(0);
     setResult(null);
@@ -257,9 +417,12 @@ export function WorkoutTimer({
     elapsedAtPauseRef.current = 0;
     setTabataPhase("work");
     setTabataCurrentRound(1);
-    setTabataPhaseElapsed(0);
     setEmomCurrentRound(1);
     setEmomRoundElapsed(0);
+    tabataRestCountdownScheduledRef.current = false;
+    emomBoundaryCountdownScheduledRef.current = false;
+    pendingTabataAfterCountdownRef.current = null;
+    pendingEmomRoundAfterCountdownRef.current = null;
   }
 
   function handleFinish() {
@@ -268,22 +431,20 @@ export function WorkoutTimer({
 
   const supportsRounds = mode === "free" || mode === "fortime" || mode === "amrap";
 
-  // Compute countdown for countup/countdown modes
   const secs = Math.floor(elapsed);
   const countdownTarget =
     mode === "amrap" ? amrapDuration : mode === "fortime" && timeCap > 0 ? timeCap : 0;
   const display = countdownTarget > 0 ? Math.max(0, countdownTarget - secs) : secs;
   const isCountdown = countdownTarget > 0;
 
-  // Tabata display
   let tabataPhaseRemaining = 0;
   if (mode === "tabata") {
     const phaseDuration = tabataPhase === "work" ? tabataWork : tabataRest;
-    const totalTabataElapsed = (tabataCurrentRound - 1) * (tabataWork + tabataRest) + (tabataPhase === "rest" ? tabataWork : 0);
+    const totalTabataElapsed =
+      (tabataCurrentRound - 1) * (tabataWork + tabataRest) + (tabataPhase === "rest" ? tabataWork : 0);
     tabataPhaseRemaining = Math.max(0, phaseDuration - (secs - totalTabataElapsed));
   }
 
-  // EMOM display
   const emomPhaseRemaining = Math.max(0, emomInterval - emomRoundElapsed);
 
   const modeLabels: Record<TimerMode, string> = {
@@ -296,14 +457,16 @@ export function WorkoutTimer({
 
   return (
     <div className={`rounded-2xl border border-border bg-card ${compact ? "p-4" : "p-6"} space-y-4`}>
-      {/* Mode selector */}
       {!running && !finished && (
         <div className="flex flex-wrap gap-2">
           {(["free", "fortime", "amrap", "tabata", "emom"] as TimerMode[]).map((m) => (
             <button
               key={m}
               type="button"
-              onClick={() => { setMode(m); reset(); }}
+              onClick={() => {
+                setMode(m);
+                reset();
+              }}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                 mode === m
                   ? "bg-primary text-primary-foreground border-primary"
@@ -316,7 +479,6 @@ export function WorkoutTimer({
         </div>
       )}
 
-      {/* Configuration */}
       {!running && !finished && (
         <>
           {mode === "fortime" && (
@@ -385,12 +547,17 @@ export function WorkoutTimer({
           {mode === "emom" && (
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Interval (mm:ss)</label>
+                <label className="block text-xs text-muted-foreground mb-1">
+                  Interval (mm:ss) — any length
+                </label>
                 <input
                   type="text"
                   value={emomIntervalInput}
                   onChange={(e) => setEmomIntervalInput(e.target.value)}
-                  onBlur={() => setEmomInterval(parseMmSs(emomIntervalInput))}
+                  onBlur={() => {
+                    const v = parseMmSs(emomIntervalInput);
+                    setEmomInterval(Math.max(1, v));
+                  }}
                   className="w-full px-2 py-1 border border-border rounded bg-background text-foreground text-center"
                 />
               </div>
@@ -409,11 +576,22 @@ export function WorkoutTimer({
         </>
       )}
 
-      {/* Main clock display */}
       <div className="text-center py-4">
-        {mode === "tabata" && running && (
+        {inCountdown && (
+          <div className="mb-4 space-y-2">
+            <p className="text-sm font-semibold uppercase tracking-widest text-amber-500">Get ready</p>
+            <div className="font-mono font-bold text-6xl text-amber-500">{countdownSec}</div>
+            <p className="text-xs text-muted-foreground">Beeps on the last 3 seconds</p>
+          </div>
+        )}
+
+        {!inCountdown && mode === "tabata" && running && (
           <div className="mb-2 space-y-1">
-            <div className={`text-sm font-bold uppercase tracking-widest ${tabataPhase === "work" ? "text-green-500" : "text-blue-500"}`}>
+            <div
+              className={`text-sm font-bold uppercase tracking-widest ${
+                tabataPhase === "work" ? "text-green-500" : "text-blue-500"
+              }`}
+            >
               {tabataPhase === "work" ? "WORK" : "REST"}
             </div>
             <div className="text-muted-foreground text-xs">
@@ -422,48 +600,48 @@ export function WorkoutTimer({
           </div>
         )}
 
-        {mode === "emom" && running && (
+        {!inCountdown && mode === "emom" && running && (
           <div className="mb-2 space-y-1">
             <div className="text-sm font-bold uppercase tracking-widest text-orange-500">
-              MINUTE {emomCurrentRound}
+              INTERVAL {emomCurrentRound}
             </div>
             <div className="text-muted-foreground text-xs">
-              of {emomRounds} · {formatTime(emomPhaseRemaining)} left this round
+              of {emomRounds} · {formatTime(emomPhaseRemaining)} left this interval
             </div>
           </div>
         )}
 
-        <div
-          className={`font-mono font-bold tracking-tight ${
-            compact ? "text-5xl" : "text-7xl md:text-8xl"
-          } ${
-            finished ? "text-green-500" :
-            mode === "tabata"
-              ? tabataPhase === "work" ? "text-green-400" : "text-blue-400"
-              : isCountdown && display <= 10 && running
-              ? "text-red-500"
-              : "text-foreground"
-          }`}
-        >
-          {mode === "tabata" && running
-            ? formatTime(tabataPhaseRemaining)
-            : formatTime(display)}
-        </div>
-
-        {mode === "tabata" && running && (
-          <div className="mt-1 text-muted-foreground text-xs">
-            Total: {formatTime(secs)}
+        {!inCountdown && (
+          <div
+            className={`font-mono font-bold tracking-tight ${
+              compact ? "text-5xl" : "text-7xl md:text-8xl"
+            } ${
+              finished
+                ? "text-green-500"
+                : mode === "tabata"
+                  ? tabataPhase === "work"
+                    ? "text-green-400"
+                    : "text-blue-400"
+                  : isCountdown && display <= 10 && running
+                    ? "text-red-500"
+                    : "text-foreground"
+            }`}
+          >
+            {mode === "tabata" && running
+              ? formatTime(tabataPhaseRemaining)
+              : formatTime(display)}
           </div>
+        )}
+
+        {!inCountdown && mode === "tabata" && running && (
+          <div className="mt-1 text-muted-foreground text-xs">Total: {formatTime(secs)}</div>
         )}
 
         {finished && result && (
-          <div className="mt-2 text-sm text-green-600 dark:text-green-400 font-semibold">
-            {result.label}
-          </div>
+          <div className="mt-2 text-sm text-green-600 dark:text-green-400 font-semibold">{result.label}</div>
         )}
       </div>
 
-      {/* Controls */}
       <div className="flex items-center justify-center gap-3">
         {!finished ? (
           <>
@@ -472,7 +650,7 @@ export function WorkoutTimer({
                 type="button"
                 onClick={pause}
                 className="p-4 rounded-full bg-amber-500 hover:bg-amber-600 text-white transition-colors"
-                aria-label="Pause"
+                aria-label={inCountdown ? "Cancel countdown" : "Pause"}
               >
                 <Pause className="w-6 h-6" />
               </button>
@@ -486,7 +664,7 @@ export function WorkoutTimer({
                 <Play className="w-6 h-6 ml-0.5" />
               </button>
             )}
-            {running && supportsRounds && (
+            {running && !inCountdown && supportsRounds && (
               <div className="flex flex-col items-center gap-1">
                 <button
                   type="button"
@@ -499,7 +677,7 @@ export function WorkoutTimer({
                 <span className="text-xs text-muted-foreground">Round Counter</span>
               </div>
             )}
-            {(running || elapsed > 0) && (
+            {(running || elapsed > 0) && !inCountdown && (
               <button
                 type="button"
                 onClick={() => stop("finish")}
@@ -520,7 +698,7 @@ export function WorkoutTimer({
           </>
         ) : (
           <div className="flex flex-col items-center gap-3 w-full">
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap justify-center">
               {onFinish && (
                 <button
                   type="button"
@@ -557,7 +735,6 @@ export function WorkoutTimer({
         )}
       </div>
 
-      {/* Mode label */}
       <div className="text-center">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
           {modeLabels[mode]}
@@ -568,28 +745,36 @@ export function WorkoutTimer({
         </span>
       </div>
 
-      {/* Round list */}
       {rounds.length > 0 && (
         <div className="border-t border-border pt-3">
           <div className="flex justify-between text-xs text-muted-foreground uppercase tracking-wide mb-2 px-1">
             <span>Round</span>
-            <span>{mode === "amrap" ? "Split · Remaining" : "Split · Total"}</span>
+            <span>{mode === "amrap" ? "Split · Remaining · Δ" : "Split · Total · Δ"}</span>
           </div>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {[...rounds].reverse().map((r) => (
-              <div key={r.round} className="flex items-center justify-between text-sm px-1 py-0.5">
-                <span className="text-muted-foreground font-medium w-16">
-                  Round {r.round}
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="font-mono font-semibold">
-                    {formatTime(Math.round(r.split))}
-                  </span>
+              <div key={r.round} className="flex items-center justify-between text-sm px-1 py-0.5 gap-2">
+                <span className="text-muted-foreground font-medium w-16 shrink-0">Round {r.round}</span>
+                <span className="flex items-center gap-2 flex-wrap justify-end">
+                  <span className="font-mono font-semibold">{formatTime(Math.round(r.split))}</span>
                   <span className="font-mono text-xs text-muted-foreground w-14 text-right">
                     {mode === "amrap"
                       ? formatTime(Math.max(0, amrapDuration - Math.round(r.elapsed)))
                       : formatTime(Math.round(r.elapsed))}
                   </span>
+                  {r.diffVsPrevSec != null && (
+                    <span
+                      className={`text-xs font-semibold w-16 text-right ${
+                        r.diffVsPrevSec > 0
+                          ? "text-green-600 dark:text-green-400"
+                          : r.diffVsPrevSec < 0
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-muted-foreground"
+                      }`}
+                    >
+                      {r.diffVsPrevSec > 0 ? `+${r.diffVsPrevSec}s` : r.diffVsPrevSec < 0 ? `${r.diffVsPrevSec}s` : "—"}
+                    </span>
+                  )}
                 </span>
               </div>
             ))}
