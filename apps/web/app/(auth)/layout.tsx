@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { NavLinks } from "@/components/nav-links";
+import { AppScreenWakeLock } from "@/components/screen-wake-lock";
 import { Settings } from "lucide-react";
 
 function displayName(session: { user?: { name?: string | null; email?: string | null } | null }) {
@@ -27,6 +28,7 @@ export default async function AuthLayout({
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <AppScreenWakeLock />
       <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <Link

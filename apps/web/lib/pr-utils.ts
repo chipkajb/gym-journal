@@ -1,14 +1,14 @@
 import { prisma } from "./prisma";
 
 /**
- * Recomputes isPr for every session in a workout group by walking them
- * chronologically and tracking the running best result.
+ * Recomputes isPr for every session in a workout group.
  *
- * A session is a PR when its bestResultRaw beats every prior session in the
- * same group: lower is better for Time, higher is better for everything else.
- * Sessions without a bestResultRaw (no numeric result) are never PRs.
+ * Only the current best in the group is marked PR: the chronologically latest
+ * session among those tied for the best numeric result (min time, max load /
+ * reps / etc.). Earlier sessions that were once a personal best are cleared.
+ * Sessions without bestResultRaw are never PRs.
  *
- * Groups mirror the detectIsPr / recalculate-prs logic:
+ * Groups mirror recalculate-prs logic:
  *   - Template-linked sessions: same userId + workoutTemplateId + scoreType
  *   - Free-form sessions:       same userId + title (case-insensitive) + scoreType
  *
@@ -33,30 +33,41 @@ export async function recomputePrsForWorkout(params: {
         : { title: { equals: title, mode: "insensitive" } }),
     },
     orderBy: [{ workoutDate: "asc" }, { createdAt: "asc" }],
-    select: { id: true, bestResultRaw: true, isPr: true },
+    select: {
+      id: true,
+      bestResultRaw: true,
+      isPr: true,
+      workoutDate: true,
+      createdAt: true,
+    },
   });
 
-  let runningBest: number | null = null;
+  const withRaw = sessions.filter((s) => s.bestResultRaw !== null);
+  let prId: string | null = null;
+
+  if (withRaw.length > 0) {
+    const globalBest = withRaw.reduce((acc, s) => {
+      const v = s.bestResultRaw!;
+      return isTimeBased ? Math.min(acc, v) : Math.max(acc, v);
+    }, withRaw[0]!.bestResultRaw!);
+
+    const eps = 1e-6;
+    const tied = withRaw.filter((s) => Math.abs(s.bestResultRaw! - globalBest) < eps);
+
+    tied.sort((a, b) => {
+      const d = b.workoutDate.getTime() - a.workoutDate.getTime();
+      if (d !== 0) return d;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+    prId = tied[0]!.id;
+  }
+
   const updates: Array<{ id: string; isPr: boolean }> = [];
 
   for (const s of sessions) {
-    if (s.bestResultRaw === null) {
-      if (s.isPr) updates.push({ id: s.id, isPr: false });
-      continue;
-    }
-
-    let isPr: boolean;
-    if (runningBest === null) {
-      isPr = true; // first result in the group
-    } else {
-      isPr = isTimeBased ? s.bestResultRaw < runningBest : s.bestResultRaw > runningBest;
-    }
-
-    // Advance the running best whenever this session sets a new record
-    if (isPr) runningBest = s.bestResultRaw;
-
-    if (isPr !== s.isPr) {
-      updates.push({ id: s.id, isPr });
+    const nextPr = s.bestResultRaw !== null && s.id === prId;
+    if (nextPr !== s.isPr) {
+      updates.push({ id: s.id, isPr: nextPr });
     }
   }
 

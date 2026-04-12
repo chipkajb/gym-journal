@@ -50,30 +50,87 @@ function parseMmSs(val: string): number {
   return 0;
 }
 
-function playShortBeep(): void {
+function getAudioContextCtor(): (typeof AudioContext) | null {
+  if (typeof window === "undefined") return null;
+  return (
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ||
+    null
+  );
+}
+
+const sharedAudio: {
+  ctx: AudioContext | null;
+  silentSource: AudioBufferSourceNode | null;
+} = { ctx: null, silentSource: null };
+
+/** Call synchronously from pointer/touch handlers so mobile Safari unlocks audio. */
+function primeAudioFromUserGesture(): void {
+  const Ctor = getAudioContextCtor();
+  if (!Ctor) return;
   try {
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AC();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 880;
-    gain.gain.value = 0.12;
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.12);
-    osc.onended = () => ctx.close().catch(() => {});
+    if (!sharedAudio.ctx || sharedAudio.ctx.state === "closed") {
+      sharedAudio.ctx = new Ctor();
+      sharedAudio.silentSource = null;
+    }
+    void sharedAudio.ctx.resume();
   } catch {
-    // no audio (autoplay policy, etc.)
+    /* noop */
   }
 }
 
-/** Very quiet looping buffer — helps some mobile browsers stay awake with wake lock. */
-function startSilentKeepAlive(): () => void {
+async function ensureAudioContext(): Promise<AudioContext | null> {
+  const Ctor = getAudioContextCtor();
+  if (!Ctor) return null;
   try {
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AC();
+    if (!sharedAudio.ctx || sharedAudio.ctx.state === "closed") {
+      sharedAudio.ctx = new Ctor();
+      sharedAudio.silentSource = null;
+    }
+    const { ctx } = sharedAudio;
+    if (ctx.state === "suspended") {
+      await ctx.resume();
+    }
+    return ctx;
+  } catch {
+    return null;
+  }
+}
+
+function playShortBeep(): void {
+  void ensureAudioContext().then((ctx) => {
+    if (!ctx) return;
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.value = 0.12;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    } catch {
+      /* no audio */
+    }
+  });
+}
+
+function stopSilentKeepAlive(): void {
+  if (sharedAudio.silentSource) {
+    try {
+      sharedAudio.silentSource.stop();
+    } catch {
+      /* noop */
+    }
+    sharedAudio.silentSource = null;
+  }
+}
+
+/** Very quiet looping buffer on the shared context — helps mobile audio + timing. */
+function startSilentKeepAliveOnContext(ctx: AudioContext): void {
+  stopSilentKeepAlive();
+  try {
     const buffer = ctx.createBuffer(1, Math.max(2, ctx.sampleRate), ctx.sampleRate);
     const src = ctx.createBufferSource();
     src.buffer = buffer;
@@ -83,16 +140,9 @@ function startSilentKeepAlive(): () => void {
     src.connect(gain);
     gain.connect(ctx.destination);
     src.start();
-    return () => {
-      try {
-        src.stop();
-        ctx.close();
-      } catch {
-        /* noop */
-      }
-    };
+    sharedAudio.silentSource = src;
   } catch {
-    return () => {};
+    /* noop */
   }
 }
 
@@ -144,8 +194,6 @@ export function WorkoutTimer({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   const elapsedAtPauseRef = useRef<number>(0);
-  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
-  const keepAliveStopRef = useRef<(() => void) | null>(null);
   const lastBeepCountdownRef = useRef<number | null>(null);
   /** Beeps at 3,2,1 seconds remaining within the current timed segment (AMRAP, cap, Tabata phase, EMOM interval). */
   const segmentBeepRef = useRef<{ phaseId: string; floored: number }>({
@@ -156,43 +204,18 @@ export function WorkoutTimer({
   const mainClockActive = running && !inCountdown;
 
   useEffect(() => {
-    if (!mainClockActive || !("wakeLock" in navigator)) return;
-
-    const requestWakeLock = async () => {
-      try {
-        wakeLockRef.current = await navigator.wakeLock.request("screen");
-      } catch {
-        /* unsupported or denied */
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        requestWakeLock();
-      }
-    };
-
-    requestWakeLock();
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      wakeLockRef.current?.release();
-      wakeLockRef.current = null;
-    };
-  }, [mainClockActive]);
-
-  useEffect(() => {
     if (!running) {
-      keepAliveStopRef.current?.();
-      keepAliveStopRef.current = null;
+      stopSilentKeepAlive();
       return;
     }
-    keepAliveStopRef.current?.();
-    keepAliveStopRef.current = startSilentKeepAlive();
+    let cancelled = false;
+    void ensureAudioContext().then((ctx) => {
+      if (!ctx || cancelled) return;
+      startSilentKeepAliveOnContext(ctx);
+    });
     return () => {
-      keepAliveStopRef.current?.();
-      keepAliveStopRef.current = null;
+      cancelled = true;
+      stopSilentKeepAlive();
     };
   }, [running]);
 
@@ -388,6 +411,8 @@ export function WorkoutTimer({
       return;
     }
     if (inCountdown) return;
+
+    primeAudioFromUserGesture();
 
     if (!running && elapsed === 0) {
       setInCountdown(true);
@@ -605,7 +630,6 @@ export function WorkoutTimer({
           <div className="mb-4 space-y-2">
             <p className="text-sm font-semibold uppercase tracking-widest text-amber-500">Get ready</p>
             <div className="font-mono font-bold text-6xl text-amber-500">{countdownSec}</div>
-            <p className="text-xs text-muted-foreground">Beeps on the last 3 seconds</p>
           </div>
         )}
 
@@ -771,34 +795,45 @@ export function WorkoutTimer({
 
       {rounds.length > 0 && (
         <div className="border-t border-border pt-3">
-          <div className="flex justify-between text-xs text-muted-foreground uppercase tracking-wide mb-2 px-1">
+          <div className="grid grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-2 gap-y-1 text-xs text-muted-foreground uppercase tracking-wide mb-2 px-1 items-end">
             <span>Round</span>
-            <span>{mode === "amrap" ? "Split · Remaining · Δ" : "Split · Total · Δ"}</span>
+            <span className="text-right">Split</span>
+            <span className="text-right">{mode === "amrap" ? "Remaining" : "Total"}</span>
+            <span className="text-right">Diff</span>
           </div>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {[...rounds].reverse().map((r) => (
-              <div key={r.round} className="flex items-center justify-between text-sm px-1 py-0.5 gap-2">
-                <span className="text-muted-foreground font-medium w-16 shrink-0">Round {r.round}</span>
-                <span className="flex items-center gap-2 flex-wrap justify-end">
-                  <span className="font-mono font-semibold">{formatTime(Math.round(r.split))}</span>
-                  <span className="font-mono text-xs text-muted-foreground w-14 text-right">
-                    {mode === "amrap"
-                      ? formatTime(Math.max(0, amrapDuration - Math.round(r.elapsed)))
-                      : formatTime(Math.round(r.elapsed))}
-                  </span>
-                  {r.diffVsPrevSec != null && (
-                    <span
-                      className={`text-xs font-semibold w-16 text-right ${
-                        r.diffVsPrevSec > 0
-                          ? "text-green-600 dark:text-green-400"
-                          : r.diffVsPrevSec < 0
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-muted-foreground"
-                      }`}
-                    >
-                      {r.diffVsPrevSec > 0 ? `+${r.diffVsPrevSec}s` : r.diffVsPrevSec < 0 ? `${r.diffVsPrevSec}s` : "—"}
-                    </span>
-                  )}
+              <div
+                key={r.round}
+                className="grid grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-2 text-sm px-1 py-0.5 items-center"
+              >
+                <span className="text-muted-foreground font-medium">Round {r.round}</span>
+                <span className="font-mono font-semibold text-right tabular-nums">
+                  {formatTime(Math.round(r.split))}
+                </span>
+                <span className="font-mono text-xs text-muted-foreground text-right tabular-nums">
+                  {mode === "amrap"
+                    ? formatTime(Math.max(0, amrapDuration - Math.round(r.elapsed)))
+                    : formatTime(Math.round(r.elapsed))}
+                </span>
+                <span
+                  className={`text-xs font-semibold text-right tabular-nums ${
+                    r.diffVsPrevSec == null
+                      ? "text-muted-foreground"
+                      : r.diffVsPrevSec > 0
+                        ? "text-green-600 dark:text-green-400"
+                        : r.diffVsPrevSec < 0
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-muted-foreground"
+                  }`}
+                >
+                  {r.diffVsPrevSec == null
+                    ? "—"
+                    : r.diffVsPrevSec > 0
+                      ? `+${r.diffVsPrevSec}s`
+                      : r.diffVsPrevSec < 0
+                        ? `${r.diffVsPrevSec}s`
+                        : "—"}
                 </span>
               </div>
             ))}

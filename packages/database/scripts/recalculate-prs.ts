@@ -134,6 +134,8 @@ export async function recalculateAllPrs(db: PrismaClient): Promise<void> {
       scoreType: true,
       bestResultRaw: true,
       isPr: true,
+      workoutDate: true,
+      createdAt: true,
     },
   });
 
@@ -150,32 +152,47 @@ export async function recalculateAllPrs(db: PrismaClient): Promise<void> {
     return `freeform:${s.userId}:${s.title.toLowerCase()}:${scoreKey}`;
   }
 
-  const runningBest = new Map<string, number>();
-  const updates: Array<{ id: string; isPr: boolean }> = [];
-
+  type SessionRow = (typeof allSessions)[number];
+  const byGroup = new Map<string, SessionRow[]>();
   for (const s of allSessions) {
-    if (s.bestResultRaw === null) {
-      if (s.isPr) updates.push({ id: s.id, isPr: false });
-      continue;
-    }
-
     const key = groupKey(s);
-    const isTimeBased = s.scoreType === "Time";
-    const prev = runningBest.get(key);
+    const list = byGroup.get(key);
+    if (list) list.push(s);
+    else byGroup.set(key, [s]);
+  }
 
-    let isPr: boolean;
-    if (prev === undefined) {
-      isPr = true;
-    } else {
-      isPr = isTimeBased ? s.bestResultRaw < prev : s.bestResultRaw > prev;
+  const updates: Array<{ id: string; isPr: boolean }> = [];
+  const eps = 1e-6;
+
+  for (const groupSessions of byGroup.values()) {
+    const scoreType = groupSessions[0]?.scoreType ?? "";
+    const isTimeBased = scoreType === "Time";
+    const withRaw = groupSessions.filter((s) => s.bestResultRaw !== null);
+    let prId: string | null = null;
+
+    if (withRaw.length > 0) {
+      const globalBest = withRaw.reduce(
+        (acc, s) => {
+          const v = s.bestResultRaw!;
+          return isTimeBased ? Math.min(acc, v) : Math.max(acc, v);
+        },
+        withRaw[0]!.bestResultRaw!
+      );
+
+      const tied = withRaw.filter((s) => Math.abs(s.bestResultRaw! - globalBest) < eps);
+      tied.sort((a, b) => {
+        const d = b.workoutDate.getTime() - a.workoutDate.getTime();
+        if (d !== 0) return d;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+      prId = tied[0]!.id;
     }
 
-    if (isPr) {
-      runningBest.set(key, s.bestResultRaw);
-    }
-
-    if (isPr !== s.isPr) {
-      updates.push({ id: s.id, isPr });
+    for (const s of groupSessions) {
+      const nextPr = s.bestResultRaw !== null && s.id === prId;
+      if (nextPr !== s.isPr) {
+        updates.push({ id: s.id, isPr: nextPr });
+      }
     }
   }
 
