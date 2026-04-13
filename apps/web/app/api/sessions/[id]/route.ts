@@ -24,7 +24,6 @@ const updateSessionSchema = z.object({
   maxHeartRate: z.number().int().optional().nullable(),
   avgHeartRate: z.number().int().optional().nullable(),
   totalDurationSeconds: z.number().int().optional().nullable(),
-  timedDurationSeconds: z.number().int().optional().nullable(),
 });
 
 export async function GET(
@@ -81,6 +80,34 @@ export async function PATCH(
     }
     const data = parsed.data;
 
+    const mergedScoreType = data.scoreType ?? existing.scoreType;
+    const mergedNotes = data.notes !== undefined ? data.notes : existing.notes;
+    const mergedDescription =
+      data.description !== undefined ? data.description : existing.description;
+    const mergedRx =
+      data.rxOrScaled !== undefined ? data.rxOrScaled : existing.rxOrScaled;
+
+    if (!mergedNotes?.trim()) {
+      return NextResponse.json(
+        { error: { notes: ["Notes are required."] } },
+        { status: 400 }
+      );
+    }
+    if (!mergedDescription?.trim()) {
+      return NextResponse.json(
+        { error: { description: ["Description is required."] } },
+        { status: 400 }
+      );
+    }
+    if (mergedScoreType !== "Load") {
+      if (mergedRx !== "RX" && mergedRx !== "SCALED") {
+        return NextResponse.json(
+          { error: { rxOrScaled: ["Choose RX or Scaled for this workout."] } },
+          { status: 400 }
+        );
+      }
+    }
+
     // Determine the new effective group identity so we can recompute both the
     // old group (if it changed) and the new group.
     const newTitle = data.title ?? existing.title;
@@ -125,17 +152,16 @@ export async function PATCH(
         ...(data.maxHeartRate !== undefined && { maxHeartRate: data.maxHeartRate }),
         ...(data.avgHeartRate !== undefined && { avgHeartRate: data.avgHeartRate }),
         ...(data.totalDurationSeconds !== undefined && { totalDurationSeconds: data.totalDurationSeconds }),
-        ...(data.timedDurationSeconds !== undefined && { timedDurationSeconds: data.timedDurationSeconds }),
       },
       include: { workoutTemplate: true },
     });
 
     // If the session moved to a different group (title or scoreType changed),
     // recompute the old group first so it isn't left with a stale isPr.
-    if (oldGroupChanged && !templateId) {
+    if (oldGroupChanged) {
       await recomputePrsForWorkout({
         userId: session.user.id,
-        workoutTemplateId: null,
+        workoutTemplateId: templateId,
         title: existing.title,
         scoreType: existing.scoreType,
       });

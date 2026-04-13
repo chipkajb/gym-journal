@@ -49,7 +49,6 @@ export default async function EditWorkoutPage({
           maxHeartRate: workoutSession.maxHeartRate?.toString() ?? "",
           avgHeartRate: workoutSession.avgHeartRate?.toString() ?? "",
           totalDurationSeconds: workoutSession.totalDurationSeconds?.toString() ?? "",
-          timedDurationSeconds: workoutSession.timedDurationSeconds?.toString() ?? "",
           setDetails: workoutSession.setDetails,
         }}
       />

@@ -51,6 +51,9 @@ COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
+COPY --from=builder /app/packages/database/scripts/repair-all-prs.ts ./repair-all-prs.ts
+
+RUN npm install prisma@5.22.0 tsx@4.19.2 --prefix /app/.prisma-migrate
 
 # Set permissions
 RUN chown -R nextjs:nodejs /app
@@ -62,5 +65,5 @@ EXPOSE 3001
 ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
-# Run database migrations and start app
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=./packages/database/prisma/schema.prisma && node apps/web/server.js"]
+# Migrate, normalize PR flags (idempotent), then start the app
+CMD ["sh", "-c", "/app/.prisma-migrate/node_modules/.bin/prisma migrate deploy --schema=./packages/database/prisma/schema.prisma && /app/.prisma-migrate/node_modules/.bin/tsx /app/repair-all-prs.ts && node apps/web/server.js"]

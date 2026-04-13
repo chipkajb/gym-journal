@@ -136,6 +136,7 @@ export async function recalculateAllPrs(db: PrismaClient): Promise<void> {
       isPr: true,
       workoutDate: true,
       createdAt: true,
+      rxOrScaled: true,
     },
   });
 
@@ -167,7 +168,12 @@ export async function recalculateAllPrs(db: PrismaClient): Promise<void> {
   for (const groupSessions of byGroup.values()) {
     const scoreType = groupSessions[0]?.scoreType ?? "";
     const isTimeBased = scoreType === "Time";
-    const withRaw = groupSessions.filter((s) => s.bestResultRaw !== null);
+    const eligible = (s: SessionRow) => {
+      if (s.bestResultRaw == null) return false;
+      if (scoreType === "Load") return true;
+      return s.rxOrScaled === "RX";
+    };
+    const withRaw = groupSessions.filter(eligible);
     let prId: string | null = null;
 
     if (withRaw.length > 0) {
@@ -189,7 +195,7 @@ export async function recalculateAllPrs(db: PrismaClient): Promise<void> {
     }
 
     for (const s of groupSessions) {
-      const nextPr = s.bestResultRaw !== null && s.id === prId;
+      const nextPr = eligible(s) && s.id === prId;
       if (nextPr !== s.isPr) {
         updates.push({ id: s.id, isPr: nextPr });
       }

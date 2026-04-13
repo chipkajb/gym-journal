@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { WorkoutNameGenerator } from "./workout-name-generator";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   displayToRaw,
@@ -28,12 +27,11 @@ type Props = {
     maxHeartRate: string;
     avgHeartRate: string;
     totalDurationSeconds: string;
-    timedDurationSeconds: string;
     setDetails: unknown;
   };
 };
 
-const RX_OPTIONS = ["", "RX", "SCALED"];
+const RX_VALUES = ["RX", "SCALED"] as const;
 
 type LoadSetRow = { weight: string; reps: string };
 
@@ -100,15 +98,14 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
   );
   const [bestResultDisplay, setBestResultDisplay] = useState(initial.bestResultDisplay);
   const [notes, setNotes] = useState(initial.notes);
-  const [rxOrScaled, setRxOrScaled] = useState(initial.rxOrScaled);
+  const [rxOrScaled, setRxOrScaled] = useState(() =>
+    initial.rxOrScaled === "RX" || initial.rxOrScaled === "SCALED" ? initial.rxOrScaled : ""
+  );
   const [calories, setCalories] = useState(initial.calories);
   const [maxHeartRate, setMaxHeartRate] = useState(initial.maxHeartRate);
   const [avgHeartRate, setAvgHeartRate] = useState(initial.avgHeartRate);
   const [totalDurationInput, setTotalDurationInput] = useState(
     initial.totalDurationSeconds ? formatDurationSec(initial.totalDurationSeconds) : ""
-  );
-  const [timedDurationInput, setTimedDurationInput] = useState(
-    initial.timedDurationSeconds ? formatDurationSec(initial.timedDurationSeconds) : ""
   );
   const [showHealthMetrics, setShowHealthMetrics] = useState(
     !!(initial.calories || initial.maxHeartRate || initial.avgHeartRate || initial.totalDurationSeconds)
@@ -171,13 +168,31 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!description.trim()) {
+      setError("Workout description is required.");
+      return;
+    }
+    if (!notes.trim()) {
+      setError("Notes are required.");
+      return;
+    }
+    if (!isLoadType) {
+      if (rxOrScaled !== "RX" && rxOrScaled !== "SCALED") {
+        setError("Select RX or Scaled.");
+        return;
+      }
+    }
     const bestResultRawPreview = deriveRaw();
     if (isLoadType) {
       if (bestResultRawPreview == null) {
         setError("Add at least one set with a valid weight.");
         return;
       }
-    } else if (bestResultDisplay && scoreType) {
+    } else {
+      if (!bestResultDisplay.trim()) {
+        setError("Enter your workout result.");
+        return;
+      }
       const err = validateDisplayResult(bestResultDisplay, scoreType);
       if (err) {
         setError(`Result: ${err}`);
@@ -216,12 +231,11 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           scoreType,
           setDetails: loadSetDetails,
           notes: mergedNotes,
-          rxOrScaled: isLoadType ? null : rxOrScaled || null,
+          rxOrScaled: isLoadType ? null : rxOrScaled,
           calories: calories === "" ? null : parseInt(calories, 10),
           maxHeartRate: maxHeartRate === "" ? null : parseInt(maxHeartRate, 10),
           avgHeartRate: avgHeartRate === "" ? null : parseInt(avgHeartRate, 10),
           totalDurationSeconds: parseDurationInput(totalDurationInput),
-          timedDurationSeconds: parseDurationInput(timedDurationInput),
         }),
       });
       if (!res.ok) {
@@ -264,11 +278,21 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground mb-2"
           required
         />
-        <WorkoutNameGenerator
-          description={description || undefined}
-          scoreType={scoreType || undefined}
-          existingTitle={title || undefined}
-          onSelect={(name) => setTitle(name)}
+      </div>
+
+      <div>
+        <label
+          htmlFor="description"
+          className="block text-sm font-medium text-foreground mb-1"
+        >
+          Workout description
+        </label>
+        <textarea
+          id="description"
+          rows={3}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
         />
       </div>
 
@@ -422,11 +446,15 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
             id="rxOrScaled"
             value={rxOrScaled}
             onChange={(e) => setRxOrScaled(e.target.value)}
+            required
             className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
           >
-            {RX_OPTIONS.map((o) => (
-              <option key={o || "none"} value={o}>
-                {o || "—"}
+            <option value="" disabled>
+              Select RX or Scaled…
+            </option>
+            {RX_VALUES.map((o) => (
+              <option key={o} value={o}>
+                {o === "SCALED" ? "Scaled" : o}
               </option>
             ))}
           </select>
@@ -438,7 +466,7 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           htmlFor="notes"
           className="block text-sm font-medium text-foreground mb-1"
         >
-          Notes
+          Notes <span className="text-red-500">*</span>
         </label>
         <textarea
           id="notes"
@@ -527,7 +555,7 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
                 htmlFor="totalDuration"
                 className="block text-xs font-medium text-muted-foreground mb-1"
               >
-                Total time (mm:ss)
+                Total time training (mm:ss)
               </label>
               <input
                 id="totalDuration"
@@ -537,28 +565,6 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
                 placeholder="e.g. 45:00"
               />
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Incl. warm-up &amp; cool-down
-              </p>
-            </div>
-            <div>
-              <label
-                htmlFor="timedDuration"
-                className="block text-xs font-medium text-muted-foreground mb-1"
-              >
-                Timer result (mm:ss)
-              </label>
-              <input
-                id="timedDuration"
-                type="text"
-                value={timedDurationInput}
-                onChange={(e) => setTimedDurationInput(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                placeholder="e.g. 10:44"
-              />
-              <p className="text-xs text-muted-foreground mt-0.5">
-                In-app timer result
-              </p>
             </div>
           </div>
         )}

@@ -14,6 +14,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { FrequencyChart } from "./frequency-chart";
+import { HealthMetricsCharts } from "./health-metrics-charts";
 import {
   LineChart,
   Line,
@@ -347,10 +348,10 @@ export function AnalyticsPageClient({
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <BarChart3 className="w-7 h-7" />
-          Progress & Analytics
+          Training insights
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Personal records, progress over time, and workout trends.
+          Personal records, progress over time, workout trends, and smartwatch metrics.
         </p>
       </div>
 
@@ -716,6 +717,8 @@ export function AnalyticsPageClient({
           </>
         )}
       </div>
+
+      <HealthMetricsCharts />
     </div>
   );
 }

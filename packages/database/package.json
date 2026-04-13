@@ -12,7 +12,8 @@
     "db:clear-workouts": "tsx scripts/clear-workout-data.ts",
     "db:import-workouts": "tsx scripts/import-workouts.ts",
     "db:seed-templates": "tsx scripts/seed-templates.ts",
-    "db:recalculate-prs": "tsx scripts/recalculate-prs.ts"
+    "db:recalculate-prs": "tsx scripts/recalculate-prs.ts",
+    "db:repair-prs": "tsx scripts/repair-all-prs.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1"

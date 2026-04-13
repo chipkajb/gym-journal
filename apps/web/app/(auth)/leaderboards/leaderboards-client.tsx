@@ -209,7 +209,7 @@ export function LeaderboardsClient({
               <div>
                 <p className="text-xs text-muted-foreground">Total Time Training</p>
                 <p className="text-xl font-bold text-blue-500">{formatMinutes(stats.totalMinutes)}</p>
-                <p className="text-xs text-muted-foreground">all time (incl. warmup)</p>
+                <p className="text-xs text-muted-foreground">from logged session totals</p>
               </div>
             )}
           </div>

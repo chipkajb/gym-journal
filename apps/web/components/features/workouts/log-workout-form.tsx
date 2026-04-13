@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { WorkoutTimer, type TimerResult } from "./workout-timer";
-import { WorkoutNameGenerator } from "./workout-name-generator";
 import { WorkoutHistoryPanel, type HistorySession } from "./workout-history-panel";
 import {
   Clock,
@@ -32,7 +31,7 @@ type Props = {
   templates: TemplateOption[];
 };
 
-const RX_OPTIONS = ["", "RX", "SCALED"];
+const RX_VALUES = ["RX", "SCALED"] as const;
 
 type LoadSetRow = { weight: string; reps: string };
 
@@ -163,7 +162,6 @@ export function LogWorkoutForm({ templates }: Props) {
   const [totalDurationInput, setTotalDurationInput] = useState("");
   const [showHealthMetrics, setShowHealthMetrics] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
-  const [timedResult, setTimedResult] = useState<TimerResult | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistorySession[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -252,7 +250,6 @@ export function LogWorkoutForm({ templates }: Props) {
   }
 
   function handleTimerFinish(result: TimerResult) {
-    setTimedResult(result);
     setShowTimer(false);
     if (scoreType === "Time") {
       setBestResultDisplay(result.label);
@@ -288,17 +285,37 @@ export function LogWorkoutForm({ templates }: Props) {
       setError("Enter a workout title or choose a template.");
       return;
     }
+    if (!description.trim()) {
+      setError("Workout description is required.");
+      return;
+    }
+    if (!notes.trim()) {
+      setError("Notes are required.");
+      return;
+    }
+    if (!isLoadType) {
+      if (rxOrScaled !== "RX" && rxOrScaled !== "SCALED") {
+        setError("Select RX or Scaled.");
+        return;
+      }
+    }
     const bestResultRawPreview = deriveRaw();
     if (isLoadType) {
       if (bestResultRawPreview == null) {
         setError("Add at least one set with a valid weight.");
         return;
       }
-    } else if (bestResultDisplay && scoreType) {
-      const err = validateDisplayResult(bestResultDisplay, scoreType);
-      if (err) {
-        setError(`Result: ${err}`);
+    } else {
+      if (!bestResultDisplay.trim()) {
+        setError("Enter your workout result.");
         return;
+      }
+      if (scoreType) {
+        const err = validateDisplayResult(bestResultDisplay, scoreType);
+        if (err) {
+          setError(`Result: ${err}`);
+          return;
+        }
       }
     }
     setLoading(true);
@@ -330,28 +347,34 @@ export function LogWorkoutForm({ templates }: Props) {
         scoreType,
         setDetails: loadSetDetails,
         notes: mergedNotes,
-        rxOrScaled: isLoadType ? null : rxOrScaled || null,
+        rxOrScaled: isLoadType ? null : rxOrScaled,
         templateId: useTemplate && templateId ? templateId : null,
         calories: calories === "" ? null : parseInt(calories, 10),
         maxHeartRate: maxHeartRate === "" ? null : parseInt(maxHeartRate, 10),
         avgHeartRate: avgHeartRate === "" ? null : parseInt(avgHeartRate, 10),
         totalDurationSeconds: parseDurationInput(totalDurationInput),
-        timedDurationSeconds:
-          scoreType === "Time" && timedResult ? timedResult.durationSeconds : null,
       };
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const raw = await res.json();
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error?.title?.[0] ?? "Failed to log workout");
+        const fe = raw.error;
+        let msg = "Failed to log workout";
+        if (typeof fe === "string") msg = fe;
+        else if (fe && typeof fe === "object") {
+          const parts = Object.values(fe)
+            .flat()
+            .filter((x): x is string => typeof x === "string");
+          if (parts.length) msg = parts.join(" ");
+        }
+        setError(msg);
         setLoading(false);
         return;
       }
-      const data = await res.json();
-      router.push(`/workouts/${data.id}`);
+      router.push(`/workouts/${raw.id}`);
       router.refresh();
     } catch {
       setError("Something went wrong");
@@ -380,11 +403,6 @@ export function LogWorkoutForm({ templates }: Props) {
               <Clock className="w-4 h-4" />
               {showTimer ? "Hide timer" : "Open timer"}
             </button>
-            {timedResult && !showTimer && (
-              <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                ✓ Timed: {timedResult.label}
-              </span>
-            )}
           </div>
 
           {showTimer && (
@@ -495,14 +513,25 @@ export function LogWorkoutForm({ templates }: Props) {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground mb-2"
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
             placeholder="e.g. DT, Linda, Fran"
           />
-          <WorkoutNameGenerator
-            description={description || currentTemplate?.description || undefined}
-            scoreType={scoreType || currentTemplate?.scoreType || undefined}
-            existingTitle={title || undefined}
-            onSelect={(name) => setTitle(name)}
+        </div>
+
+        <div>
+          <label
+            htmlFor="description"
+            className="block text-sm font-medium text-foreground mb-1"
+          >
+            Workout description
+          </label>
+          <textarea
+            id="description"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
+            placeholder="Movements, stimulus, equipment — whatever defines this session."
           />
         </div>
 
@@ -539,7 +568,6 @@ export function LogWorkoutForm({ templates }: Props) {
               setScoreType(v);
               setBestResultDisplay("");
               setLoadSets([{ weight: "", reps: "1" }]);
-              setTimedResult(null);
             }}
             className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
           >
@@ -642,29 +670,12 @@ export function LogWorkoutForm({ templates }: Props) {
               className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${
                 displayError ? "border-red-400 dark:border-red-500" : "border-border"
               }`}
-              placeholder={
-                timedResult
-                  ? timedResult.label
-                  : scoreType
-                  ? getResultPlaceholder(scoreType)
-                  : "e.g. 10:44, 5+2, 225"
-              }
+              placeholder={scoreType ? getResultPlaceholder(scoreType) : "e.g. 10:44, 5+2, 225"}
             />
             {displayError && (
               <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                 {displayError}
               </p>
-            )}
-            {timedResult && (
-              <button
-                type="button"
-                onClick={() => {
-                  setBestResultDisplay(timedResult.label);
-                }}
-                className="mt-1 text-xs text-primary hover:underline"
-              >
-                ← Use timed result: {timedResult.label}
-              </button>
             )}
           </div>
         )}
@@ -675,17 +686,21 @@ export function LogWorkoutForm({ templates }: Props) {
               htmlFor="rxOrScaled"
               className="block text-sm font-medium text-foreground mb-1"
             >
-              RX or Scaled
+              RX or Scaled <span className="text-red-500">*</span>
             </label>
             <select
               id="rxOrScaled"
               value={rxOrScaled}
               onChange={(e) => setRxOrScaled(e.target.value)}
+              required
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
             >
-              {RX_OPTIONS.map((o) => (
-                <option key={o || "none"} value={o}>
-                  {o || "—"}
+              <option value="" disabled>
+                Select RX or Scaled…
+              </option>
+              {RX_VALUES.map((o) => (
+                <option key={o} value={o}>
+                  {o === "SCALED" ? "Scaled" : o}
                 </option>
               ))}
             </select>
@@ -698,7 +713,7 @@ export function LogWorkoutForm({ templates }: Props) {
             htmlFor="notes"
             className="block text-sm font-medium text-foreground mb-1"
           >
-            Notes
+            Notes <span className="text-red-500">*</span>
           </label>
           <textarea
             id="notes"
@@ -791,7 +806,7 @@ export function LogWorkoutForm({ templates }: Props) {
                   htmlFor="totalDuration"
                   className="block text-xs font-medium text-muted-foreground mb-1"
                 >
-                  Total time (mm:ss)
+                  Total time training (mm:ss)
                 </label>
                 <input
                   id="totalDuration"
@@ -801,9 +816,6 @@ export function LogWorkoutForm({ templates }: Props) {
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
                   placeholder="e.g. 45:00"
                 />
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Incl. warm-up &amp; cool-down
-                </p>
               </div>
             </div>
           )}

@@ -161,7 +161,6 @@ model WorkoutSession {
   maxHeartRate         Int?   // Max heart rate (bpm)
   avgHeartRate         Int?   // Average heart rate (bpm)
   totalDurationSeconds Int?   // Total workout time incl. warm-up/cool-down (seconds)
-  timedDurationSeconds Int?   // In-app timer result (seconds)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

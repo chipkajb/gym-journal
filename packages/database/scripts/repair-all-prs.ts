@@ -1,20 +1,18 @@
-import { Prisma } from "@prisma/client";
-import { prisma } from "./prisma";
-
 /**
- * Sessions that may hold the single PR for a group.
- * - Load: no RX/Scaled field — all sessions with a numeric score compete.
- * - Other score types: only RX (scaled never earns PR).
+ * Recomputes `isPr` for every distinct workout group (merged template + same-title
+ * free-form, Load vs RX rules). Idempotent — safe after every deploy.
+ *
+ * Keep logic aligned with: apps/web/lib/pr-utils.ts
  */
+import { PrismaClient, Prisma } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
 function isPrEligible(scoreType: string, rxOrScaled: string | null): boolean {
   if (scoreType === "Load") return true;
   return rxOrScaled === "RX";
 }
 
-/**
- * Where clause for all sessions that compete for the same PR line
- * (template-linked + same-title free-form + free-form title matching a template name).
- */
 function buildPrGroupWhere(
   userId: string,
   scoreType: string,
@@ -48,22 +46,7 @@ function buildPrGroupWhere(
   };
 }
 
-/**
- * Recomputes isPr for every session in a workout group.
- *
- * Only the current best in the group is marked PR: the chronologically latest
- * session among those tied for the best numeric result (min time, max load /
- * reps / etc.). Earlier sessions that were once a personal best are cleared.
- * Sessions without bestResultRaw are never PRs. Scaled (non-load) workouts
- * never earn PR.
- *
- * Groups include template sessions and same-title free-form so analytics
- * charts stay consistent with stored flags.
- *
- * Call this after any mutation that may affect the group (create, update, delete).
- * It is safe to call multiple times; it is idempotent.
- */
-export async function recomputePrsForWorkout(params: {
+async function recomputePrsForWorkout(params: {
   userId: string;
   workoutTemplateId: string | null;
   title: string;
@@ -125,3 +108,42 @@ export async function recomputePrsForWorkout(params: {
     );
   }
 }
+
+async function main() {
+  const rows = await prisma.workoutSession.findMany({
+    select: {
+      userId: true,
+      workoutTemplateId: true,
+      title: true,
+      scoreType: true,
+    },
+  });
+
+  const seen = new Set<string>();
+  let n = 0;
+  for (const r of rows) {
+    const key = [r.userId, r.workoutTemplateId ?? "∅", r.title, r.scoreType].join("\t");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    await recomputePrsForWorkout({
+      userId: r.userId,
+      workoutTemplateId: r.workoutTemplateId,
+      title: r.title,
+      scoreType: r.scoreType,
+    });
+    n++;
+  }
+
+  console.log(
+    `✅  Repaired PR flags for ${n} distinct workout group(s) (${rows.length} session(s) scanned).`
+  );
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

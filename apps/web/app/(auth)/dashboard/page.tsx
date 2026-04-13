@@ -4,6 +4,107 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { BookOpen, PenLine, Calendar, BarChart3, Dumbbell, Shuffle, Trophy, Flame, Target, Zap, TrendingUp } from "lucide-react";
 
+function hashToUint(str: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function pickDashboardGreeting(params: {
+  firstName: string;
+  streak: number;
+  hour: number;
+  dayOfWeek: number;
+  userId: string;
+  dateKey: string;
+}): { headline: string; sub: string } {
+  const { firstName, streak, hour, dayOfWeek, userId, dateKey } = params;
+  const seed = hashToUint(`${userId}:${dateKey}`);
+  const roll = (n: number) => seed % n;
+
+  const genericHeadlines = [
+    () => `Welcome back, ${firstName}`,
+    () => `Hey ${firstName}`,
+    () => `Good to see you, ${firstName}`,
+    () => `Let's get after it, ${firstName}`,
+    () => `Time to train, ${firstName}`,
+    () => `You showed up — nice work, ${firstName}`,
+    () => `Gym Journal missed you, ${firstName}`,
+  ];
+
+  const timeHeadlines: { test: boolean; h: string; s: string }[] = [
+    {
+      test: hour < 5,
+      h: `Still grinding, ${firstName}?`,
+      s: "Late session or early bird — either way, respect.",
+    },
+    {
+      test: hour >= 5 && hour < 12,
+      h: `Morning, ${firstName}`,
+      s: "Fresh start — log a session when you're done.",
+    },
+    {
+      test: hour >= 12 && hour < 17,
+      h: `Afternoon energy, ${firstName}`,
+      s: "Knock out the plan you came for.",
+    },
+    {
+      test: hour >= 17 && hour < 21,
+      h: `Evening session, ${firstName}?`,
+      s: "Finish strong and note what worked.",
+    },
+    {
+      test: hour >= 21,
+      h: `Night owl mode, ${firstName}`,
+      s: "Wrap the day with a solid log.",
+    },
+  ];
+
+  const streakSubs = [
+    streak > 14
+      ? `${streak} days straight — you're building something real.`
+      : streak > 7
+        ? `${streak} days on the board. Momentum is yours.`
+        : streak > 0
+          ? `${streak}-day streak — keep the chain alive.`
+          : "Log today to start or extend your streak.",
+    streak > 0
+      ? `Streak: ${streak} day${streak === 1 ? "" : "s"}. One more session keeps it honest.`
+      : "No active streak yet — today's a great day to begin.",
+  ];
+
+  const dowFlavor = [
+    "Sunday reset — plan the week and move.",
+    "Monday: show up, warm up, build.",
+    "Tuesday grind — consistency beats intensity spikes.",
+    "Midweek check-in — small wins compound.",
+    "Thursday push — finish what you started Monday.",
+    "Friday finish — leave nothing in the tank you needed.",
+    "Weekend warrior mode — train on your terms.",
+  ][dayOfWeek]!;
+
+  const pool: { headline: string; sub: string }[] = [];
+
+  for (const g of genericHeadlines) {
+    const headline = g();
+    pool.push({ headline, sub: streakSubs[roll(streakSubs.length)]! });
+  }
+
+  const th = timeHeadlines.find((x) => x.test);
+  if (th) pool.push({ headline: th.h, sub: th.s });
+
+  pool.push({
+    headline: `This ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dayOfWeek]}, ${firstName}`,
+    sub: dowFlavor,
+  });
+
+  const pick = pool[roll(pool.length)]!;
+  return pick;
+}
+
 // Calculate current streak from sorted dates (descending)
 function calcStreak(dates: Date[]): number {
   if (dates.length === 0) return 0;
@@ -71,6 +172,15 @@ export default async function DashboardPage() {
     : session.user.email?.split("@")[0] ?? "there";
 
   const currentStreak = calcStreak(allDates.map(r => r.workoutDate));
+  const dateKey = now.toISOString().slice(0, 10);
+  const greeting = pickDashboardGreeting({
+    firstName,
+    streak: currentStreak,
+    hour: now.getHours(),
+    dayOfWeek: now.getDay(),
+    userId: session.user.id,
+    dateKey,
+  });
   const totalWorkouts = allDates.length;
 
   const stats = [
@@ -86,20 +196,14 @@ export default async function DashboardPage() {
     { href: "/library", label: "Workout Library", desc: `${templateCount} template${templateCount !== 1 ? "s" : ""}`, icon: BookOpen, accent: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30", border: "hover:border-blue-400 dark:hover:border-blue-500" },
     { href: "/leaderboards", label: "Leaderboard", desc: "Track achievements", icon: Trophy, accent: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/30", border: "hover:border-amber-400 dark:hover:border-amber-500" },
     { href: "/history", label: "History", desc: "Calendar & past workouts", icon: Calendar, accent: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-950/30", border: "hover:border-sky-400 dark:hover:border-sky-500" },
-    { href: "/analytics", label: "Analytics", desc: "Progress & PRs", icon: BarChart3, accent: "text-violet-600 dark:text-violet-400", bg: "bg-violet-50 dark:bg-violet-950/30", border: "hover:border-violet-400 dark:hover:border-violet-500" },
+    { href: "/analytics", label: "Insights", desc: "PRs, progress, health trends", icon: BarChart3, accent: "text-violet-600 dark:text-violet-400", bg: "bg-violet-50 dark:bg-violet-950/30", border: "hover:border-violet-400 dark:hover:border-violet-500" },
   ];
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">
-          Welcome back, {firstName} 👊
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {currentStreak > 0
-            ? `You're on a ${currentStreak}-day streak. Keep it up!`
-            : "Ready to crush today's workout?"}
-        </p>
+        <h1 className="text-2xl font-bold text-foreground">{greeting.headline}</h1>
+        <p className="text-muted-foreground mt-1">{greeting.sub}</p>
       </div>
 
       {/* Stats Row */}

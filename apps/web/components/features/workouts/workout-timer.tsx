@@ -31,6 +31,7 @@ type TimerConfig = {
 };
 
 const COUNTDOWN_START = 10;
+/** Beeps at 3, 2, 1 before the distinct “go” tone at 0. */
 const BEEP_AT_SECONDS = new Set([3, 2, 1]);
 
 function formatTime(totalSeconds: number): string {
@@ -97,19 +98,50 @@ async function ensureAudioContext(): Promise<AudioContext | null> {
   }
 }
 
-function playShortBeep(): void {
+/** Loud countdown ticks (3–2–1) and segment warnings. */
+function playCountdownTickBeep(): void {
   void ensureAudioContext().then((ctx) => {
     if (!ctx) return;
     try {
+      const t0 = ctx.currentTime;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
-      osc.frequency.value = 880;
-      gain.gain.value = 0.12;
+      osc.frequency.value = 920;
+      gain.gain.setValueAtTime(0.001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.42, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.12);
+      osc.start(t0);
+      osc.stop(t0 + 0.17);
+    } catch {
+      /* no audio */
+    }
+  });
+}
+
+/** Short two-tone “go” — clearly different from the countdown ticks. */
+function playGoBeep(): void {
+  void ensureAudioContext().then((ctx) => {
+    if (!ctx) return;
+    try {
+      const t0 = ctx.currentTime;
+      const mk = (freq: number, start: number, dur: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.001, start);
+        gain.gain.exponentialRampToValueAtTime(0.38, start + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + dur + 0.01);
+      };
+      mk(392, t0, 0.1);
+      mk(523.25, t0 + 0.09, 0.14);
     } catch {
       /* no audio */
     }
@@ -228,11 +260,23 @@ export function WorkoutTimer({
       const totalSeconds = Math.round(elapsed);
       let label = formatTime(totalSeconds);
       if (reason === "cap") label += " (time cap)";
-      const roundsNote =
-        rounds.length > 0
-          ? "Round splits:\n" +
-            rounds.map((r) => `Round ${r.round}: ${formatTime(Math.round(r.split))}`).join("\n")
-          : undefined;
+      const supportsRoundsLocal = mode === "free" || mode === "fortime" || mode === "amrap";
+      const lastMark =
+        rounds.length > 0 ? rounds[rounds.length - 1]!.elapsed : 0;
+      const tailRemainderSec = Math.max(0, Math.round(totalSeconds - lastMark));
+      let roundsNote: string | undefined;
+      if (supportsRoundsLocal && rounds.length > 0) {
+        const lines = [
+          "Round splits:",
+          ...rounds.map((r) => `Round ${r.round}: ${formatTime(Math.round(r.split))}`),
+        ];
+        if (tailRemainderSec > 0) {
+          lines.push(
+            `Time after last split (e.g. final round if you stopped without a new mark): ${formatTime(tailRemainderSec)}`
+          );
+        }
+        roundsNote = lines.join("\n");
+      }
       const r: TimerResult = { mode, durationSeconds: totalSeconds, label, roundsNote };
       setResult(r);
     },
@@ -347,7 +391,7 @@ export function WorkoutTimer({
     }
     if (floored >= 1 && floored <= 3 && floored !== segmentBeepRef.current.floored) {
       segmentBeepRef.current.floored = floored;
-      playShortBeep();
+      playCountdownTickBeep();
     }
   }, [
     mainClockActive,
@@ -370,7 +414,7 @@ export function WorkoutTimer({
     }
     if (BEEP_AT_SECONDS.has(countdownSec) && lastBeepCountdownRef.current !== countdownSec) {
       lastBeepCountdownRef.current = countdownSec;
-      playShortBeep();
+      playCountdownTickBeep();
     }
   }, [inCountdown, countdownSec]);
 
@@ -391,6 +435,8 @@ export function WorkoutTimer({
     if (countdownSec !== 0) return;
     if (countdownZeroHandledRef.current) return;
     countdownZeroHandledRef.current = true;
+
+    playGoBeep();
 
     const frozenElapsed = elapsed;
     setInCountdown(false);
@@ -686,7 +732,14 @@ export function WorkoutTimer({
         )}
 
         {finished && result && (
-          <div className="mt-2 text-sm text-green-600 dark:text-green-400 font-semibold">{result.label}</div>
+          <div className="mt-2 space-y-2 text-sm text-green-600 dark:text-green-400 font-semibold">
+            <div>{result.label}</div>
+            {result.roundsNote && (
+              <pre className="text-left text-xs font-medium text-muted-foreground whitespace-pre-wrap font-sans max-w-md mx-auto">
+                {result.roundsNote}
+              </pre>
+            )}
+          </div>
         )}
       </div>
 

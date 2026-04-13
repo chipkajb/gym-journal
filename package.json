@@ -31,6 +31,7 @@
     "db:clear-workouts": "npm run db:clear-workouts --workspace=packages/database",
     "db:import-workouts": "npm run db:import-workouts --workspace=packages/database",
     "db:recalculate-prs": "npm run db:recalculate-prs --workspace=packages/database",
+    "db:repair-prs": "npm run db:repair-prs --workspace=packages/database",
     "prepare": "husky install"
   },
   "devDependencies": {

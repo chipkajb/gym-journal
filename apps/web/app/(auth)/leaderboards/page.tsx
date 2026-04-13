@@ -54,7 +54,6 @@ export default async function LeaderboardsPage() {
       maxHeartRate: true,
       avgHeartRate: true,
       totalDurationSeconds: true,
-      timedDurationSeconds: true,
     },
   });
 

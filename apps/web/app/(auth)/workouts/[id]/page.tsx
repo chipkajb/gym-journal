@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ChevronLeft, Flame, Heart, Clock, Timer, History } from "lucide-react";
+import { ChevronLeft, Flame, Heart, Clock, History } from "lucide-react";
 import { format } from "date-fns";
 import { WorkoutSessionActions } from "@/components/features/workouts/workout-session-actions";
 import { WorkoutHistoryPanel } from "@/components/features/workouts/workout-history-panel";
@@ -60,8 +60,7 @@ export default async function WorkoutSessionPage({
     workoutSession.calories != null ||
     workoutSession.maxHeartRate != null ||
     workoutSession.avgHeartRate != null ||
-    workoutSession.totalDurationSeconds != null ||
-    workoutSession.timedDurationSeconds != null;
+    workoutSession.totalDurationSeconds != null;
 
   const isLoadType = workoutSession.scoreType === "Load";
   // Old records stored "225 x 5" as display; new records store the 1RM directly.
@@ -237,25 +236,10 @@ export default async function WorkoutSessionPage({
                   <Clock className="w-4 h-4 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Total time</p>
+                  <p className="text-xs text-muted-foreground">Total time training</p>
                   <p className="text-lg font-bold text-foreground">
                     {formatDuration(workoutSession.totalDurationSeconds)}
                   </p>
-                  <p className="text-xs text-muted-foreground">incl. warmup</p>
-                </div>
-              </div>
-            )}
-            {workoutSession.timedDurationSeconds != null && (
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-950/30">
-                  <Timer className="w-4 h-4 text-violet-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Timer result</p>
-                  <p className="text-lg font-bold text-foreground">
-                    {formatDuration(workoutSession.timedDurationSeconds)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">in-app timer</p>
                 </div>
               </div>
             )}

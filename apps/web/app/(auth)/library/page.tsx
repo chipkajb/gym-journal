@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Plus, BookOpen, List, LayoutGrid } from "lucide-react";
-import { LibraryTemplateCard } from "@/components/features/library/library-template-card";
+import { LibraryCardGrid } from "@/components/features/library/library-card-grid";
 
 export default async function LibraryPage() {
   const session = await getServerSession(authOptions);
@@ -74,27 +74,23 @@ export default async function LibraryPage() {
             <LayoutGrid className="w-4 h-4" />
             Card view
           </div>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {templates.map((t) => (
-              <li key={t.id}>
-                <LibraryTemplateCard
-                  id={t.id}
-                  title={t.title}
-                  scoreType={t.scoreType}
-                  sessions={t.workoutSessions.map((s) => ({
-                    id: s.id,
-                    workoutDate: s.workoutDate.toISOString(),
-                    bestResultDisplay: s.bestResultDisplay,
-                    bestResultRaw: s.bestResultRaw,
-                    rxOrScaled: s.rxOrScaled,
-                    isPr: s.isPr,
-                    scoreType: s.scoreType,
-                    notes: s.notes,
-                  }))}
-                />
-              </li>
-            ))}
-          </ul>
+          <LibraryCardGrid
+            templates={templates.map((t) => ({
+              id: t.id,
+              title: t.title,
+              scoreType: t.scoreType,
+              sessions: t.workoutSessions.map((s) => ({
+                id: s.id,
+                workoutDate: s.workoutDate.toISOString(),
+                bestResultDisplay: s.bestResultDisplay,
+                bestResultRaw: s.bestResultRaw,
+                rxOrScaled: s.rxOrScaled,
+                isPr: s.isPr,
+                scoreType: s.scoreType,
+                notes: s.notes,
+              })),
+            }))}
+          />
         </>
       )}
     </div>

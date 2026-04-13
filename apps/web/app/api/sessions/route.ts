@@ -24,7 +24,6 @@ const createSessionSchema = z.object({
   maxHeartRate: z.number().int().optional().nullable(),
   avgHeartRate: z.number().int().optional().nullable(),
   totalDurationSeconds: z.number().int().optional().nullable(),
-  timedDurationSeconds: z.number().int().optional().nullable(),
 });
 
 export async function GET(request: Request) {
@@ -92,6 +91,27 @@ export async function POST(request: Request) {
     const bestResultRaw = data.bestResultRaw ?? null;
 
     // Create the session with isPr=false; recomputePrsForWorkout will correct it.
+    if (!data.notes?.trim()) {
+      return NextResponse.json(
+        { error: { notes: ["Notes are required."] } },
+        { status: 400 }
+      );
+    }
+    if (!data.description?.trim()) {
+      return NextResponse.json(
+        { error: { description: ["Description is required."] } },
+        { status: 400 }
+      );
+    }
+    if (data.scoreType !== "Load") {
+      if (data.rxOrScaled !== "RX" && data.rxOrScaled !== "SCALED") {
+        return NextResponse.json(
+          { error: { rxOrScaled: ["Choose RX or Scaled for this workout."] } },
+          { status: 400 }
+        );
+      }
+    }
+
     const workoutSession = await prisma.workoutSession.create({
       data: {
         userId: session.user.id,
@@ -104,13 +124,12 @@ export async function POST(request: Request) {
         scoreType,
         setDetails: (data.setDetails as object) ?? null,
         notes: data.notes ?? null,
-        rxOrScaled: data.scoreType === "Load" ? null : data.rxOrScaled ?? null,
+        rxOrScaled: data.scoreType === "Load" ? null : data.rxOrScaled,
         isPr: false,
         calories: data.calories ?? null,
         maxHeartRate: data.maxHeartRate ?? null,
         avgHeartRate: data.avgHeartRate ?? null,
         totalDurationSeconds: data.totalDurationSeconds ?? null,
-        timedDurationSeconds: data.timedDurationSeconds ?? null,
       },
     });
 

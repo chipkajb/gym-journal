@@ -23,4 +23,5 @@ systemctl restart gym-journal.service
 
 echo ""
 echo "Done. Gym Journal has been redeployed."
+echo "The app container runs: prisma migrate deploy → PR flag repair (idempotent) → Next server."
 echo "Check status with: sudo systemctl status gym-journal"
