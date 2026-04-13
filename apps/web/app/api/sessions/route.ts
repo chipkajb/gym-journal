@@ -91,12 +91,6 @@ export async function POST(request: Request) {
     const bestResultRaw = data.bestResultRaw ?? null;
 
     // Create the session with isPr=false; recomputePrsForWorkout will correct it.
-    if (!data.notes?.trim()) {
-      return NextResponse.json(
-        { error: { notes: ["Notes are required."] } },
-        { status: 400 }
-      );
-    }
     if (!data.description?.trim()) {
       return NextResponse.json(
         { error: { description: ["Description is required."] } },

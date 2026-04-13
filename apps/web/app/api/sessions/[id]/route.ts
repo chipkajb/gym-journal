@@ -87,12 +87,6 @@ export async function PATCH(
     const mergedRx =
       data.rxOrScaled !== undefined ? data.rxOrScaled : existing.rxOrScaled;
 
-    if (!mergedNotes?.trim()) {
-      return NextResponse.json(
-        { error: { notes: ["Notes are required."] } },
-        { status: 400 }
-      );
-    }
     if (!mergedDescription?.trim()) {
       return NextResponse.json(
         { error: { description: ["Description is required."] } },

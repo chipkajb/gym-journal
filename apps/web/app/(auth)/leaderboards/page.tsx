@@ -115,19 +115,13 @@ export default async function LeaderboardsPage() {
 
   const uniqueWorkouts = new Set(allSessions.map(s => s.title)).size;
 
-  // Health metrics aggregations
-  const withCalories = allSessions.filter(s => s.calories != null);
-  const totalCalories = withCalories.reduce((sum, s) => sum + (s.calories ?? 0), 0);
-  const maxCaloriesSession = withCalories.reduce((best, s) =>
-    (s.calories ?? 0) > (best?.calories ?? 0) ? s : best, null as typeof allSessions[0] | null);
-  const withMaxHR = allSessions.filter(s => s.maxHeartRate != null);
-  const allTimeMaxHR = withMaxHR.reduce((max, s) => Math.max(max, s.maxHeartRate ?? 0), 0);
-  const withAvgHR = allSessions.filter(s => s.avgHeartRate != null);
-  const avgHROverall = withAvgHR.length > 0
-    ? Math.round(withAvgHR.reduce((sum, s) => sum + (s.avgHeartRate ?? 0), 0) / withAvgHR.length)
-    : null;
-  const withTotalDuration = allSessions.filter(s => s.totalDurationSeconds != null);
-  const totalMinutes = Math.round(withTotalDuration.reduce((sum, s) => sum + (s.totalDurationSeconds ?? 0), 0) / 60);
+  const healthSessions = allSessions.map(s => ({
+    workoutDate: s.workoutDate.toISOString(),
+    calories: s.calories,
+    maxHeartRate: s.maxHeartRate,
+    avgHeartRate: s.avgHeartRate,
+    totalDurationSeconds: s.totalDurationSeconds,
+  }));
 
   const stats = {
     currentStreak: streaks.current,
@@ -140,12 +134,6 @@ export default async function LeaderboardsPage() {
     uniqueWorkouts,
     bestMonthLabel,
     bestMonthCount,
-    // Health
-    totalCalories,
-    maxCaloriesInSession: maxCaloriesSession?.calories ?? null,
-    allTimeMaxHR: allTimeMaxHR > 0 ? allTimeMaxHR : null,
-    avgHROverall,
-    totalMinutes: totalMinutes > 0 ? totalMinutes : null,
   };
 
   const recentPrs = prSessions.slice(0, 10).map(s => ({
@@ -160,6 +148,7 @@ export default async function LeaderboardsPage() {
   return (
     <LeaderboardsClient
       stats={stats}
+      healthSessions={healthSessions}
       monthlyData={monthlyData}
       dayOfWeekData={dayOfWeekData}
       recentPrs={recentPrs}

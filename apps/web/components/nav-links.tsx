@@ -13,10 +13,12 @@ import {
   Timer,
   Dumbbell,
   ChevronDown,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
 const trainingItems: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/wod", label: "WOD Picker", icon: Shuffle },
   { href: "/workouts", label: "Workouts", icon: PenLine },
   { href: "/library", label: "Library", icon: BookOpen },
 ];
@@ -32,11 +34,13 @@ const toolsItems: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 function NavDropdown({
-  label,
+  icon: TriggerIcon,
+  menuLabel,
   items,
   pathname,
 }: {
-  label: string;
+  icon: LucideIcon;
+  menuLabel: string;
   items: { href: string; label: string; icon: LucideIcon }[];
   pathname: string | null;
 }) {
@@ -63,14 +67,18 @@ function NavDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={menuLabel}
+        title={menuLabel}
+        className={`flex items-center gap-0.5 px-2 py-1.5 rounded-lg text-sm font-medium transition-colors ${
           active
             ? "bg-primary text-primary-foreground"
             : "text-muted-foreground hover:text-foreground hover:bg-accent"
         }`}
       >
-        <span className="hidden sm:inline">{label}</span>
-        <ChevronDown className={`w-3.5 h-3.5 transition-transform sm:ml-0.5 ${open ? "rotate-180" : ""}`} />
+        <TriggerIcon className="w-4 h-4 shrink-0" />
+        <ChevronDown className={`w-3 h-3 opacity-70 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
@@ -102,30 +110,43 @@ export function NavLinks() {
 
   return (
     <nav className="flex items-center gap-0.5 flex-wrap sm:flex-nowrap">
-      {[
-        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/wod", label: "WOD", icon: Shuffle },
-      ].map(({ href, label, icon: Icon }) => {
+      {[{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }].map(({ href, label, icon: Icon }) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+            aria-label={label}
+            title={label}
+            className={`flex items-center justify-center px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               isActive
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent"
             }`}
           >
             <Icon className="w-4 h-4 shrink-0" />
-            <span className="hidden lg:inline">{label}</span>
           </Link>
         );
       })}
 
-      <NavDropdown label="Training" items={trainingItems} pathname={pathname} />
-      <NavDropdown label="Stats" items={insightsItems} pathname={pathname} />
-      <NavDropdown label="Tools" items={toolsItems} pathname={pathname} />
+      <NavDropdown
+        icon={Dumbbell}
+        menuLabel="Training menu"
+        items={trainingItems}
+        pathname={pathname}
+      />
+      <NavDropdown
+        icon={BarChart3}
+        menuLabel="Stats and insights menu"
+        items={insightsItems}
+        pathname={pathname}
+      />
+      <NavDropdown
+        icon={Wrench}
+        menuLabel="Tools menu"
+        items={toolsItems}
+        pathname={pathname}
+      />
     </nav>
   );
 }

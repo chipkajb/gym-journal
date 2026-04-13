@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
+import { format, subDays, subYears, startOfDay, endOfDay } from "date-fns";
 import { Trophy, Flame, Zap, Target, TrendingUp, Calendar, Medal, Star, BarChart2, Heart, Clock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -15,13 +17,68 @@ type Stats = {
   uniqueWorkouts: number;
   bestMonthLabel: string;
   bestMonthCount: number;
-  // Health
-  totalCalories: number;
-  maxCaloriesInSession: number | null;
-  allTimeMaxHR: number | null;
-  avgHROverall: number | null;
-  totalMinutes: number | null;
 };
+
+type HealthSessionRow = {
+  workoutDate: string;
+  calories: number | null;
+  maxHeartRate: number | null;
+  avgHeartRate: number | null;
+  totalDurationSeconds: number | null;
+};
+
+type HealthPreset = "7d" | "30d" | "1y" | "all" | "custom";
+
+function healthPresetRange(
+  preset: HealthPreset,
+  customFrom: string,
+  customTo: string
+): { from: Date; to: Date } {
+  const to = startOfDay(new Date());
+  if (preset === "custom" && customFrom && customTo) {
+    return { from: startOfDay(new Date(customFrom)), to: startOfDay(new Date(customTo)) };
+  }
+  switch (preset) {
+    case "7d":
+      return { from: startOfDay(subDays(to, 6)), to };
+    case "30d":
+      return { from: startOfDay(subDays(to, 29)), to };
+    case "1y":
+      return { from: startOfDay(subYears(to, 1)), to };
+    case "all":
+      return { from: startOfDay(subYears(to, 25)), to };
+    default:
+      return { from: startOfDay(subDays(to, 29)), to };
+  }
+}
+
+function aggregateHealthStats(sessions: HealthSessionRow[]) {
+  const withCalories = sessions.filter(s => s.calories != null && s.calories > 0);
+  const totalCalories = withCalories.reduce((sum, s) => sum + (s.calories ?? 0), 0);
+  const maxCaloriesInSession =
+    withCalories.length > 0 ? Math.max(...withCalories.map(s => s.calories ?? 0)) : null;
+  const withMaxHR = sessions.filter(s => s.maxHeartRate != null);
+  const allTimeMaxHR =
+    withMaxHR.length > 0 ? Math.max(...withMaxHR.map(s => s.maxHeartRate ?? 0)) : null;
+  const withAvgHR = sessions.filter(s => s.avgHeartRate != null);
+  const avgHROverall =
+    withAvgHR.length > 0
+      ? Math.round(withAvgHR.reduce((sum, s) => sum + (s.avgHeartRate ?? 0), 0) / withAvgHR.length)
+      : null;
+  const withTotalDuration = sessions.filter(s => s.totalDurationSeconds != null && s.totalDurationSeconds > 0);
+  const totalMinutes =
+    withTotalDuration.length > 0
+      ? Math.round(withTotalDuration.reduce((sum, s) => sum + (s.totalDurationSeconds ?? 0), 0) / 60)
+      : null;
+
+  return {
+    totalCalories,
+    maxCaloriesInSession,
+    allTimeMaxHR: allTimeMaxHR != null && allTimeMaxHR > 0 ? allTimeMaxHR : null,
+    avgHROverall,
+    totalMinutes: totalMinutes != null && totalMinutes > 0 ? totalMinutes : null,
+  };
+}
 
 type MonthlyData = { month: string; total: number; rx: number }[];
 type DayData = { day: string; count: number }[];
@@ -43,15 +100,52 @@ function formatMinutes(minutes: number): string {
 
 export function LeaderboardsClient({
   stats,
+  healthSessions,
   monthlyData,
   dayOfWeekData,
   recentPrs,
 }: {
   stats: Stats;
+  healthSessions: HealthSessionRow[];
   monthlyData: MonthlyData;
   dayOfWeekData: DayData;
   recentPrs: PR[];
 }) {
+  const [healthPreset, setHealthPreset] = useState<HealthPreset>("30d");
+  const [customFrom, setCustomFrom] = useState(() =>
+    format(startOfDay(subDays(new Date(), 29)), "yyyy-MM-dd")
+  );
+  const [customTo, setCustomTo] = useState(() => format(startOfDay(new Date()), "yyyy-MM-dd"));
+
+  const { from, to } = useMemo(
+    () => healthPresetRange(healthPreset, customFrom, customTo),
+    [healthPreset, customFrom, customTo]
+  );
+
+  const filteredHealthSessions = useMemo(() => {
+    const end = endOfDay(to);
+    return healthSessions.filter(s => {
+      const d = new Date(s.workoutDate);
+      return d >= from && d <= end;
+    });
+  }, [healthSessions, from, to]);
+
+  const healthStats = useMemo(
+    () => aggregateHealthStats(filteredHealthSessions),
+    [filteredHealthSessions]
+  );
+
+  const hasAnyHealthEver = useMemo(
+    () =>
+      healthSessions.some(
+        s =>
+          (s.calories != null && s.calories > 0) ||
+          s.maxHeartRate != null ||
+          s.avgHeartRate != null ||
+          (s.totalDurationSeconds != null && s.totalDurationSeconds > 0)
+      ),
+    [healthSessions]
+  );
   const topStats = [
     {
       label: "Current Streak",
@@ -127,7 +221,11 @@ export function LeaderboardsClient({
     },
   ];
 
-  const hasHealthStats = stats.totalCalories > 0 || stats.allTimeMaxHR != null || stats.avgHROverall != null || stats.totalMinutes != null;
+  const hasHealthStats =
+    healthStats.totalCalories > 0 ||
+    healthStats.allTimeMaxHR != null ||
+    healthStats.avgHROverall != null ||
+    healthStats.totalMinutes != null;
 
   return (
     <div className="space-y-8">
@@ -169,50 +267,113 @@ export function LeaderboardsClient({
         ))}
       </div>
 
-      {/* Health & Performance Stats */}
-      {hasHealthStats && (
-        <div className="p-5 rounded-xl bg-card border border-border">
-          <div className="flex items-center gap-2 mb-4">
-            <Heart className="w-4 h-4 text-muted-foreground" />
-            <h2 className="font-semibold text-foreground">Health & Performance</h2>
+      {/* Health & Performance Stats (time window) */}
+      {hasAnyHealthEver && (
+        <div className="p-5 rounded-xl bg-card border border-border space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Heart className="w-4 h-4 text-muted-foreground" />
+              <h2 className="font-semibold text-foreground">Health & Performance</h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {(
+                [
+                  ["7d", "Last 7 days"],
+                  ["30d", "Last month"],
+                  ["1y", "Last year"],
+                  ["all", "All"],
+                  ["custom", "Custom"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setHealthPreset(key)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    healthPreset === key
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {stats.totalCalories > 0 && (
+
+          {healthPreset === "custom" && (
+            <div className="flex flex-wrap items-end gap-3 text-sm">
               <div>
-                <p className="text-xs text-muted-foreground">Total Calories Burned</p>
-                <p className="text-xl font-bold text-orange-500">{stats.totalCalories.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">kcal all time</p>
+                <label className="block text-xs text-muted-foreground mb-1">From</label>
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  className="px-2 py-1 border border-border rounded-lg bg-background text-foreground"
+                />
               </div>
-            )}
-            {stats.maxCaloriesInSession != null && (
               <div>
-                <p className="text-xs text-muted-foreground">Best Single Session</p>
-                <p className="text-xl font-bold text-orange-400">{stats.maxCaloriesInSession}</p>
-                <p className="text-xs text-muted-foreground">kcal in one workout</p>
+                <label className="block text-xs text-muted-foreground mb-1">To</label>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={e => setCustomTo(e.target.value)}
+                  className="px-2 py-1 border border-border rounded-lg bg-background text-foreground"
+                />
               </div>
-            )}
-            {stats.allTimeMaxHR != null && (
-              <div>
-                <p className="text-xs text-muted-foreground">Peak Heart Rate</p>
-                <p className="text-xl font-bold text-red-500">{stats.allTimeMaxHR}</p>
-                <p className="text-xs text-muted-foreground">bpm all time</p>
-              </div>
-            )}
-            {stats.avgHROverall != null && (
-              <div>
-                <p className="text-xs text-muted-foreground">Avg Heart Rate</p>
-                <p className="text-xl font-bold text-pink-500">{stats.avgHROverall}</p>
-                <p className="text-xs text-muted-foreground">bpm across workouts</p>
-              </div>
-            )}
-            {stats.totalMinutes != null && stats.totalMinutes > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground">Total Time Training</p>
-                <p className="text-xl font-bold text-blue-500">{formatMinutes(stats.totalMinutes)}</p>
-                <p className="text-xs text-muted-foreground">from logged session totals</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            {healthPreset === "all"
+              ? "All logged history with health data."
+              : `Including sessions from ${format(from, "MMM d, yyyy")} through ${format(to, "MMM d, yyyy")}.`}
+          </p>
+
+          {hasHealthStats ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {healthStats.totalCalories > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Calories Burned</p>
+                  <p className="text-xl font-bold text-orange-500">{healthStats.totalCalories.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">kcal in range</p>
+                </div>
+              )}
+              {healthStats.maxCaloriesInSession != null && healthStats.maxCaloriesInSession > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Best Single Session</p>
+                  <p className="text-xl font-bold text-orange-400">{healthStats.maxCaloriesInSession}</p>
+                  <p className="text-xs text-muted-foreground">kcal in one workout</p>
+                </div>
+              )}
+              {healthStats.allTimeMaxHR != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Peak Heart Rate</p>
+                  <p className="text-xl font-bold text-red-500">{healthStats.allTimeMaxHR}</p>
+                  <p className="text-xs text-muted-foreground">bpm in range</p>
+                </div>
+              )}
+              {healthStats.avgHROverall != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Avg Heart Rate</p>
+                  <p className="text-xl font-bold text-pink-500">{healthStats.avgHROverall}</p>
+                  <p className="text-xs text-muted-foreground">bpm across workouts</p>
+                </div>
+              )}
+              {healthStats.totalMinutes != null && healthStats.totalMinutes > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Time Training</p>
+                  <p className="text-xl font-bold text-blue-500">{formatMinutes(healthStats.totalMinutes)}</p>
+                  <p className="text-xs text-muted-foreground">from logged session totals</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No health metrics in this window. Try a wider range or log calories, heart rate, or duration on
+              sessions.
+            </p>
+          )}
         </div>
       )}
 

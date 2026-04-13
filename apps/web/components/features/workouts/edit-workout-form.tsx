@@ -172,10 +172,6 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
       setError("Workout description is required.");
       return;
     }
-    if (!notes.trim()) {
-      setError("Notes are required.");
-      return;
-    }
     if (!isLoadType) {
       if (rxOrScaled !== "RX" && rxOrScaled !== "SCALED") {
         setError("Select RX or Scaled.");
@@ -466,7 +462,7 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
           htmlFor="notes"
           className="block text-sm font-medium text-foreground mb-1"
         >
-          Notes <span className="text-red-500">*</span>
+          Notes
         </label>
         <textarea
           id="notes"
