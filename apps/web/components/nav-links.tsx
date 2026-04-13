@@ -8,6 +8,7 @@ import {
   BookOpen,
   PenLine,
   BarChart3,
+  PieChart,
   Shuffle,
   Trophy,
   Timer,
@@ -136,7 +137,7 @@ export function NavLinks() {
         pathname={pathname}
       />
       <NavDropdown
-        icon={BarChart3}
+        icon={PieChart}
         menuLabel="Stats and insights menu"
         items={insightsItems}
         pathname={pathname}

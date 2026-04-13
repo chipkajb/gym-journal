@@ -34,6 +34,11 @@ const COUNTDOWN_START = 10;
 /** Beeps at 3, 2, 1 before the distinct “go” tone at 0. */
 const BEEP_AT_SECONDS = new Set([3, 2, 1]);
 
+/** Peak gain for countdown ticks (0–1; higher = louder; may clip slightly at the peak). */
+const COUNTDOWN_BEEP_PEAK = 0.96;
+/** Peak gain per partial in the two-tone “go” beep. */
+const GO_BEEP_PEAK = 0.94;
+
 function formatTime(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
@@ -247,7 +252,7 @@ function playCountdownTickBeep(): void {
       osc.type = "sine";
       osc.frequency.value = 920;
       gain.gain.setValueAtTime(0.001, t0);
-      gain.gain.exponentialRampToValueAtTime(0.42, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(COUNTDOWN_BEEP_PEAK, t0 + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -271,7 +276,7 @@ function playGoBeep(): void {
         osc.type = "triangle";
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(0.001, start);
-        gain.gain.exponentialRampToValueAtTime(0.38, start + 0.015);
+        gain.gain.exponentialRampToValueAtTime(GO_BEEP_PEAK, start + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
         osc.connect(gain);
         gain.connect(ctx.destination);

@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import {
   BookOpen,
   PenLine,
-  Calendar,
   BarChart3,
   Dumbbell,
   Shuffle,
@@ -15,7 +14,7 @@ import {
   Zap,
   TrendingUp,
   Timer,
-  ClipboardList,
+  type LucideIcon,
 } from "lucide-react";
 import { DashboardGreeting } from "./dashboard-greeting";
 
@@ -95,16 +94,95 @@ export default async function DashboardPage() {
     { label: "All Time", value: totalWorkouts, icon: TrendingUp, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-950/30" },
   ];
 
-  const quickActions = [
-    { href: "/workouts/new", label: "Log Workout", desc: "Record today's session", icon: PenLine, accent: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/30", border: "hover:border-emerald-400 dark:hover:border-emerald-500" },
-    { href: "/wod", label: "WOD Picker", desc: "Random workout from your library", icon: Shuffle, accent: "text-orange-600 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950/30", border: "hover:border-orange-400 dark:hover:border-orange-500" },
-    { href: "/workouts", label: "Workouts", desc: "Sessions list & history", icon: ClipboardList, accent: "text-teal-600 dark:text-teal-400", bg: "bg-teal-50 dark:bg-teal-950/30", border: "hover:border-teal-400 dark:hover:border-teal-500" },
-    { href: "/library", label: "Library", desc: `${templateCount} template${templateCount !== 1 ? "s" : ""}`, icon: BookOpen, accent: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30", border: "hover:border-blue-400 dark:hover:border-blue-500" },
-    { href: "/analytics", label: "Insights", desc: "PRs, progress, smartwatch metrics", icon: BarChart3, accent: "text-violet-600 dark:text-violet-400", bg: "bg-violet-50 dark:bg-violet-950/30", border: "hover:border-violet-400 dark:hover:border-violet-500" },
-    { href: "/leaderboards", label: "Leaderboard", desc: "Achievements & health stats", icon: Trophy, accent: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/30", border: "hover:border-amber-400 dark:hover:border-amber-500" },
-    { href: "/timer", label: "Timer", desc: "Standalone workout timer", icon: Timer, accent: "text-lime-600 dark:text-lime-400", bg: "bg-lime-50 dark:bg-lime-950/30", border: "hover:border-lime-400 dark:hover:border-lime-500" },
-    { href: "/tools/1rm", label: "1RM estimate", desc: "Strength calculator", icon: Dumbbell, accent: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-950/30", border: "hover:border-rose-400 dark:hover:border-rose-500" },
-    { href: "/history", label: "History", desc: "Calendar & past workouts", icon: Calendar, accent: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-950/30", border: "hover:border-sky-400 dark:hover:border-sky-500" },
+  type QuickAction = {
+    href: string;
+    label: string;
+    desc: string;
+    icon: LucideIcon;
+    accent: string;
+    bg: string;
+    border: string;
+  };
+
+  const quickActionGroups: { title: string; actions: QuickAction[] }[] = [
+    {
+      title: "Training",
+      actions: [
+        {
+          href: "/wod",
+          label: "WOD Picker",
+          desc: "Random workout from your library",
+          icon: Shuffle,
+          accent: "text-orange-600 dark:text-orange-400",
+          bg: "bg-orange-50 dark:bg-orange-950/30",
+          border: "hover:border-orange-400 dark:hover:border-orange-500",
+        },
+        {
+          href: "/workouts",
+          label: "Workouts",
+          desc: "Sessions list & history",
+          icon: PenLine,
+          accent: "text-teal-600 dark:text-teal-400",
+          bg: "bg-teal-50 dark:bg-teal-950/30",
+          border: "hover:border-teal-400 dark:hover:border-teal-500",
+        },
+        {
+          href: "/library",
+          label: "Library",
+          desc: `${templateCount} template${templateCount !== 1 ? "s" : ""}`,
+          icon: BookOpen,
+          accent: "text-blue-600 dark:text-blue-400",
+          bg: "bg-blue-50 dark:bg-blue-950/30",
+          border: "hover:border-blue-400 dark:hover:border-blue-500",
+        },
+      ],
+    },
+    {
+      title: "Stats",
+      actions: [
+        {
+          href: "/analytics",
+          label: "Insights",
+          desc: "PRs, progress, smartwatch metrics",
+          icon: BarChart3,
+          accent: "text-violet-600 dark:text-violet-400",
+          bg: "bg-violet-50 dark:bg-violet-950/30",
+          border: "hover:border-violet-400 dark:hover:border-violet-500",
+        },
+        {
+          href: "/leaderboards",
+          label: "Leaderboard",
+          desc: "Achievements & health stats",
+          icon: Trophy,
+          accent: "text-amber-600 dark:text-amber-400",
+          bg: "bg-amber-50 dark:bg-amber-950/30",
+          border: "hover:border-amber-400 dark:hover:border-amber-500",
+        },
+      ],
+    },
+    {
+      title: "Tools",
+      actions: [
+        {
+          href: "/timer",
+          label: "Timer",
+          desc: "Standalone workout timer",
+          icon: Timer,
+          accent: "text-lime-600 dark:text-lime-400",
+          bg: "bg-lime-50 dark:bg-lime-950/30",
+          border: "hover:border-lime-400 dark:hover:border-lime-500",
+        },
+        {
+          href: "/tools/1rm",
+          label: "1RM estimate",
+          desc: "Strength calculator",
+          icon: Dumbbell,
+          accent: "text-rose-600 dark:text-rose-400",
+          bg: "bg-rose-50 dark:bg-rose-950/30",
+          border: "hover:border-rose-400 dark:hover:border-rose-500",
+        },
+      ],
+    },
   ];
 
   return (
@@ -128,26 +206,35 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {quickActions.map(({ href, label, desc, icon: Icon, accent, bg, border }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 p-4 rounded-xl bg-card border border-border ${border} transition-all hover:shadow-sm`}
-            >
-              <div className={`p-2.5 rounded-lg ${bg} shrink-0`}>
-                <Icon className={`w-5 h-5 ${accent}`} />
-              </div>
-              <div className="min-w-0">
-                <h3 className="font-semibold text-foreground text-sm">{label}</h3>
-                <p className="text-xs text-muted-foreground truncate">{desc}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
+      {/* Quick Actions — same groups, order, and destinations as the header toolbar */}
+      <div className="space-y-6">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Quick Actions
+        </h2>
+        {quickActionGroups.map(({ title, actions }) => (
+          <div key={title}>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              {title}
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {actions.map(({ href, label, desc, icon: Icon, accent, bg, border }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center gap-3 p-4 rounded-xl bg-card border border-border ${border} transition-all hover:shadow-sm`}
+                >
+                  <div className={`p-2.5 rounded-lg ${bg} shrink-0`}>
+                    <Icon className={`w-5 h-5 ${accent}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground text-sm">{label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{desc}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Recent Workouts */}
