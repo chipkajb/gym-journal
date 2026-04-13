@@ -7,9 +7,9 @@ import {
   LayoutDashboard,
   BookOpen,
   PenLine,
+  BarChart3,
   Lightbulb,
   Shuffle,
-  TrendingUp,
   Trophy,
   Timer,
   Dumbbell,
@@ -137,7 +137,7 @@ export function NavLinks() {
         pathname={pathname}
       />
       <NavDropdown
-        icon={TrendingUp}
+        icon={BarChart3}
         menuLabel="Stats and insights menu"
         items={insightsItems}
         pathname={pathname}
