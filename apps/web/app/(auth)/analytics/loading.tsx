@@ -1,11 +1,11 @@
-import { BarChart3 } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 
 export default function AnalyticsLoading() {
   return (
     <div className="space-y-8 animate-pulse">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <BarChart3 className="w-7 h-7" />
+          <Lightbulb className="w-7 h-7" />
           Progress & analytics
         </h1>
         <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-64 mt-2" />

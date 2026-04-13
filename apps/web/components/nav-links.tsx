@@ -7,9 +7,9 @@ import {
   LayoutDashboard,
   BookOpen,
   PenLine,
-  BarChart3,
-  PieChart,
+  Lightbulb,
   Shuffle,
+  TrendingUp,
   Trophy,
   Timer,
   Dumbbell,
@@ -25,7 +25,7 @@ const trainingItems: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 const insightsItems: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/analytics", label: "Insights", icon: BarChart3 },
+  { href: "/analytics", label: "Insights", icon: Lightbulb },
   { href: "/leaderboards", label: "Leaderboard", icon: Trophy },
 ];
 
@@ -137,7 +137,7 @@ export function NavLinks() {
         pathname={pathname}
       />
       <NavDropdown
-        icon={PieChart}
+        icon={TrendingUp}
         menuLabel="Stats and insights menu"
         items={insightsItems}
         pathname={pathname}

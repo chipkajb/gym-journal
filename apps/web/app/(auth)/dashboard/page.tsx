@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import {
   BookOpen,
   PenLine,
-  BarChart3,
+  Lightbulb,
   Dumbbell,
   Shuffle,
   Trophy,
@@ -144,7 +144,7 @@ export default async function DashboardPage() {
           href: "/analytics",
           label: "Insights",
           desc: "PRs, progress, smartwatch metrics",
-          icon: BarChart3,
+          icon: Lightbulb,
           accent: "text-violet-600 dark:text-violet-400",
           bg: "bg-violet-50 dark:bg-violet-950/30",
           border: "hover:border-violet-400 dark:hover:border-violet-500",

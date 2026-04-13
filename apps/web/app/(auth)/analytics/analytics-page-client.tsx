@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { format, parseISO, subMonths, subYears } from "date-fns";
 import {
-  BarChart3,
+  Lightbulb,
   Trophy,
   Dumbbell,
   Calendar,
@@ -347,7 +347,7 @@ export function AnalyticsPageClient({
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <BarChart3 className="w-7 h-7" />
+          <Lightbulb className="w-7 h-7" />
           Training insights
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
