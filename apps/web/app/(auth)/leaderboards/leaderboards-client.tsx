@@ -45,7 +45,7 @@ type HealthSessionRow = {
 
 type HealthPreset = "7d" | "30d" | "1y" | "all" | "custom";
 
-type SnapshotRangePreset = "7d" | "30d" | "90d" | "1y";
+type SnapshotRangePreset = "7d" | "30d" | "90d" | "1y" | "all";
 
 function snapshotRange(preset: SnapshotRangePreset): { from: Date; to: Date } {
   const to = endOfDay(new Date());
@@ -58,8 +58,8 @@ function snapshotRange(preset: SnapshotRangePreset): { from: Date; to: Date } {
       return { from: startOfDay(subDays(to, 89)), to };
     case "1y":
       return { from: startOfDay(subYears(to, 1)), to };
-    default:
-      return { from: startOfDay(subDays(to, 29)), to };
+    case "all":
+      return { from: startOfDay(subYears(to, 100)), to };
   }
 }
 
@@ -165,7 +165,8 @@ const SNAPSHOT_RANGE_KEYS = [
   ["30d", "30d"],
   ["90d", "90d"],
   ["1y", "1y"],
-] as const;
+  ["all", "All time"],
+] as const satisfies readonly (readonly [SnapshotRangePreset, string])[];
 
 function PeriodRangeControl({
   value,
@@ -181,7 +182,7 @@ function PeriodRangeControl({
       role="radiogroup"
       aria-label="Period"
       aria-controls={controlsId}
-      className="grid w-full grid-cols-4 gap-0.5 rounded-xl border border-border bg-muted/40 p-1 shadow-inner"
+      className="grid w-full grid-cols-5 gap-0.5 rounded-xl border border-border bg-muted/40 p-1 shadow-inner"
     >
       {SNAPSHOT_RANGE_KEYS.map(([key, label]) => {
         const selected = value === key;
@@ -192,7 +193,7 @@ function PeriodRangeControl({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(key)}
-            className={`min-h-[2.25rem] w-full rounded-lg px-2 py-2 text-center text-xs font-semibold tabular-nums transition-colors sm:min-h-[2.5rem] sm:text-sm ${
+            className={`min-h-[2.25rem] w-full rounded-lg px-1 py-2 text-center text-[10px] font-semibold tabular-nums transition-colors sm:min-h-[2.5rem] sm:px-1.5 sm:text-xs ${
               selected
                 ? "bg-background text-foreground shadow-sm ring-1 ring-border"
                 : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
