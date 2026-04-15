@@ -89,6 +89,16 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
 
   const uniqueWorkouts = new Set(allSessions.map(s => s.title)).size;
 
+  let rxLoggedCount = 0;
+  let rxOrScaledLoggedCount = 0;
+  for (const s of allSessions) {
+    if (!isRxOrScaledChoice(s)) continue;
+    rxOrScaledLoggedCount++;
+    if (s.rxOrScaled === "RX") rxLoggedCount++;
+  }
+  const rxPercentage =
+    rxOrScaledLoggedCount > 0 ? Math.round((100 * rxLoggedCount) / rxOrScaledLoggedCount) : null;
+
   const healthSessions = allSessions.map(s => ({
     workoutDate: s.workoutDate.toISOString(),
     calories: s.calories,
@@ -108,6 +118,7 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
     bestMonthLabel,
     bestMonthCount,
     rolling30Count,
+    rxPercentage,
   };
 
   const recentPrs = prSessions.slice(0, 10).map(s => ({

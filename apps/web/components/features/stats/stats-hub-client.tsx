@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, Heart, Lightbulb } from "lucide-react";
+import { BarChart3, Heart, TrendingUp } from "lucide-react";
 import { LeaderboardsClient } from "@/app/(auth)/leaderboards/leaderboards-client";
 import { AnalyticsPageClient } from "@/app/(auth)/analytics/analytics-page-client";
 import { HealthMetricsCharts } from "@/app/(auth)/analytics/health-metrics-charts";
@@ -66,7 +66,7 @@ export function StatsHubClient({
           id="tab-workouts"
           selected={view === "workouts"}
           onClick={() => setView("workouts")}
-          icon={Lightbulb}
+          icon={TrendingUp}
           label="Workouts"
         />
         <TabButton

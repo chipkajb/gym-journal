@@ -8,12 +8,13 @@ import {
   Trophy,
   Flame,
   Zap,
-  TrendingUp,
+  LineChart,
   Calendar,
   Medal,
   Star,
   BarChart2,
   Heart,
+  Percent,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -29,6 +30,8 @@ type Stats = {
   bestMonthCount: number;
   /** Rolling window: sessions with workoutDate in the last 30 days. */
   rolling30Count: number;
+  /** Share of RX among sessions with RX or Scaled logged (null if none). */
+  rxPercentage: number | null;
 };
 
 type HealthSessionRow = {
@@ -266,7 +269,7 @@ export function LeaderboardsClient({
       label: "This Year",
       value: `${stats.thisYearCount}`,
       unit: "workouts",
-      icon: TrendingUp,
+      icon: LineChart,
       color: "text-sky-500",
       bg: "bg-sky-50 dark:bg-sky-950/30",
       note: `${Math.round(stats.thisYearCount / (new Date().getMonth() + 1))} avg/month`,
@@ -288,6 +291,15 @@ export function LeaderboardsClient({
       color: "text-rose-500",
       bg: "bg-rose-50 dark:bg-rose-950/30",
       note: "Different workouts done",
+    },
+    {
+      label: "RX rate",
+      value: stats.rxPercentage != null ? `${stats.rxPercentage}` : "—",
+      unit: stats.rxPercentage != null ? "%" : "",
+      icon: Percent,
+      color: "text-teal-600 dark:text-teal-400",
+      bg: "bg-teal-50 dark:bg-teal-950/30",
+      note: "",
     },
   ];
 
@@ -346,41 +358,52 @@ export function LeaderboardsClient({
             {note ? <p className="text-xs text-muted-foreground mt-0.5">{note}</p> : null}
           </div>
         ))}
-      </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground">
-        <p>
-          <span className="font-semibold text-foreground">{stats.rolling30Count}</span> sessions in the last
-          30 rolling days
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-foreground font-medium">PRs in selected window</span>
-          <span className="font-semibold text-foreground tabular-nums">{prsInWindow}</span>
-          <div className="flex flex-wrap gap-1">
-            {(
-              [
-                ["7d", "7d"],
-                ["30d", "30d"],
-                ["90d", "90d"],
-                ["1y", "1y"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setPrWindowPreset(key)}
-                className={`px-2 py-0.5 rounded-md text-xs font-medium border transition-colors ${
-                  prWindowPreset === key
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+        <div className="col-span-2 md:col-span-4 p-4 rounded-xl bg-card border border-border">
+          <div className="flex flex-col gap-3 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="inline-flex p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 shrink-0">
+                <Trophy className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground tabular-nums">
+                  {prsInWindow}
+                  <span className="text-sm font-normal text-muted-foreground ml-1.5">PRs</span>
+                </p>
+                <p className="text-xs font-medium text-foreground mt-0.5">In selected window</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1 min-[480px]:justify-end shrink-0">
+              {(
+                [
+                  ["7d", "7d"],
+                  ["30d", "30d"],
+                  ["90d", "90d"],
+                  ["1y", "1y"],
+                ] as const
+              ).map(([key, winLabel]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPrWindowPreset(key)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                    prWindowPreset === key
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {winLabel}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        <span className="font-semibold text-foreground">{stats.rolling30Count}</span> sessions in the last 30
+        rolling days
+      </p>
 
       {/* Health & Performance Stats (time window) */}
       {hasAnyHealthEver && (
