@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { DashboardGreeting } from "./dashboard-greeting";
 import { computeWorkoutStreaks } from "@/lib/workout-streak";
+import { formatWorkoutCalendarDate } from "@/lib/calendar-date";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -69,48 +70,33 @@ export default async function DashboardPage() {
     border: string;
   };
 
-  const quickActionGroups: { title: string; actions: QuickAction[] }[] = [
+  const quickActions: QuickAction[] = [
     {
-      title: "Training",
-      actions: [
-        {
-          href: "/training",
-          label: "Training",
-          desc: `WOD picker, workouts, library · ${templateCount} template${templateCount !== 1 ? "s" : ""}`,
-          icon: Dumbbell,
-          accent: "text-orange-600 dark:text-orange-400",
-          bg: "bg-orange-50 dark:bg-orange-950/30",
-          border: "hover:border-orange-400 dark:hover:border-orange-500",
-        },
-      ],
+      href: "/training",
+      label: "Training",
+      desc: `WOD picker, workouts, library · ${templateCount} template${templateCount !== 1 ? "s" : ""}`,
+      icon: Dumbbell,
+      accent: "text-orange-600 dark:text-orange-400",
+      bg: "bg-orange-50 dark:bg-orange-950/30",
+      border: "hover:border-orange-400 dark:hover:border-orange-500",
     },
     {
-      title: "Stats",
-      actions: [
-        {
-          href: "/analytics",
-          label: "Training stats",
-          desc: "Overview, workouts & PRs, and health trends",
-          icon: BarChart3,
-          accent: "text-violet-600 dark:text-violet-400",
-          bg: "bg-violet-50 dark:bg-violet-950/30",
-          border: "hover:border-violet-400 dark:hover:border-violet-500",
-        },
-      ],
+      href: "/analytics",
+      label: "Stats",
+      desc: "Overview, workouts & PRs, and health trends",
+      icon: BarChart3,
+      accent: "text-violet-600 dark:text-violet-400",
+      bg: "bg-violet-50 dark:bg-violet-950/30",
+      border: "hover:border-violet-400 dark:hover:border-violet-500",
     },
     {
-      title: "Tools",
-      actions: [
-        {
-          href: "/tools",
-          label: "Tools",
-          desc: "Timer and 1RM calculator",
-          icon: Wrench,
-          accent: "text-lime-600 dark:text-lime-400",
-          bg: "bg-lime-50 dark:bg-lime-950/30",
-          border: "hover:border-lime-400 dark:hover:border-lime-500",
-        },
-      ],
+      href: "/tools",
+      label: "Tools",
+      desc: "Timer and 1RM calculator",
+      icon: Wrench,
+      accent: "text-lime-600 dark:text-lime-400",
+      bg: "bg-lime-50 dark:bg-lime-950/30",
+      border: "hover:border-lime-400 dark:hover:border-lime-500",
     },
   ];
 
@@ -135,35 +121,28 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Quick Actions — same groups, order, and destinations as the header toolbar */}
+      {/* Quick Actions — same destinations as the header toolbar */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
           Quick Actions
         </h2>
-        {quickActionGroups.map(({ title, actions }) => (
-          <div key={title}>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              {title}
-            </h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {actions.map(({ href, label, desc, icon: Icon, accent, bg, border }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`flex items-center gap-3 p-4 rounded-xl bg-card border border-border ${border} transition-all hover:shadow-sm`}
-                >
-                  <div className={`p-2.5 rounded-lg ${bg} shrink-0`}>
-                    <Icon className={`w-5 h-5 ${accent}`} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-foreground text-sm">{label}</p>
-                    <p className="text-xs text-muted-foreground truncate">{desc}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {quickActions.map(({ href, label, desc, icon: Icon, accent, bg, border }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-3 p-4 rounded-xl bg-card border border-border ${border} transition-all hover:shadow-sm`}
+            >
+              <div className={`p-2.5 rounded-lg ${bg} shrink-0`}>
+                <Icon className={`w-5 h-5 ${accent}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground text-sm">{label}</p>
+                <p className="text-xs text-muted-foreground truncate">{desc}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Recent Workouts */}
@@ -190,7 +169,7 @@ export default async function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate text-sm">{s.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(s.workoutDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      {formatWorkoutCalendarDate(s.workoutDate, "short")}
                       {s.bestResultDisplay && ` · ${s.bestResultDisplay}`}
                       {s.rxOrScaled && ` · ${s.rxOrScaled}`}
                     </p>

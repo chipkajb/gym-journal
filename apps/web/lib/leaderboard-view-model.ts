@@ -30,11 +30,6 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
   const thisMonthSessions = allSessions.filter(s => s.workoutDate >= startOfMonth);
   const thisYearSessions = allSessions.filter(s => s.workoutDate >= startOfYear);
   const rolling30Count = allSessions.filter(s => s.workoutDate >= rolling30Cutoff).length;
-  const classifiedSessions = allSessions.filter(isRxOrScaledChoice);
-  const rxClassifiedCount = classifiedSessions.filter(s => s.rxOrScaled === "RX").length;
-  const nClassified = classifiedSessions.length;
-  const rxRate = nClassified > 0 ? Math.round((rxClassifiedCount / nClassified) * 100) : 0;
-  const scaledRate = nClassified > 0 ? 100 - rxRate : 0;
   const prSessions = allSessions.filter(s => s.isPr);
   const streaks = computeWorkoutStreaks(allSessions.map(s => s.workoutDate));
 
@@ -109,8 +104,6 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
     thisMonthCount: thisMonthSessions.length,
     thisYearCount: thisYearSessions.length,
     prCount: prSessions.length,
-    rxRate,
-    scaledRate,
     uniqueWorkouts,
     bestMonthLabel,
     bestMonthCount,
@@ -126,11 +119,17 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
     scoreType: s.scoreType,
   }));
 
+  const sessionPrRows = allSessions.map(s => ({
+    workoutDate: s.workoutDate.toISOString(),
+    isPr: s.isPr,
+  }));
+
   return {
     stats,
     healthSessions,
     monthlyData,
     dayOfWeekData,
     recentPrs,
+    sessionPrRows,
   };
 }

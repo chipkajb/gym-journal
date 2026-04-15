@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { recomputePrsForWorkout } from "@/lib/pr-utils";
+import {
+  buildPrGroupWhere,
+  isPrEligible,
+  recomputePrsForWorkout,
+  shouldCelebrateStrictNewPr,
+} from "@/lib/pr-utils";
+import { parseWorkoutDateInput } from "@/lib/calendar-date";
 import { SCORE_TYPES } from "@/lib/score-types";
 import { z } from "zod";
 
@@ -84,11 +90,27 @@ export async function POST(request: Request) {
     }
     const data = parsed.data;
     const workoutDate = data.workoutDate
-      ? new Date(data.workoutDate)
-      : new Date();
+      ? parseWorkoutDateInput(data.workoutDate)
+      : parseWorkoutDateInput(new Date().toISOString().slice(0, 10));
     const templateId = data.templateId ?? null;
     const scoreType = data.scoreType;
     const bestResultRaw = data.bestResultRaw ?? null;
+
+    const priorRows = await prisma.workoutSession.findMany({
+      where: buildPrGroupWhere(session.user.id, scoreType, templateId, data.title),
+      select: { bestResultRaw: true, rxOrScaled: true },
+    });
+    const priorEligible = priorRows.filter(
+      (r) => r.bestResultRaw !== null && isPrEligible(scoreType, r.rxOrScaled)
+    );
+    let priorBestAmongEligible: number | null = null;
+    if (priorEligible.length > 0) {
+      const isTime = scoreType === "Time";
+      priorBestAmongEligible = priorEligible.reduce((acc, r) => {
+        const v = r.bestResultRaw!;
+        return isTime ? Math.min(acc, v) : Math.max(acc, v);
+      }, priorEligible[0]!.bestResultRaw!);
+    }
 
     // Create the session with isPr=false; recomputePrsForWorkout will correct it.
     if (!data.description?.trim()) {
@@ -139,8 +161,16 @@ export async function POST(request: Request) {
     const updated = await prisma.workoutSession.findUnique({
       where: { id: workoutSession.id },
     });
+    const final = updated ?? workoutSession;
+    const celebratePr = shouldCelebrateStrictNewPr({
+      scoreType,
+      sessionIsPr: final.isPr,
+      bestResultRaw: final.bestResultRaw,
+      rxOrScaled: final.rxOrScaled,
+      priorBestAmongEligible,
+    });
 
-    return NextResponse.json(updated ?? workoutSession);
+    return NextResponse.json({ ...final, celebratePr });
   } catch (e) {
     console.error("Session create error:", e);
     return NextResponse.json(

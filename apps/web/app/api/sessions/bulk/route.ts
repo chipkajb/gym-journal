@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseWorkoutDateInput } from "@/lib/calendar-date";
 import { z } from "zod";
 
 const bulkUpdateSchema = z.object({
@@ -63,7 +64,7 @@ export async function PATCH(request: Request) {
             ...(u.notes !== undefined && { notes: u.notes }),
             ...(u.rxOrScaled !== undefined && { rxOrScaled: u.rxOrScaled }),
             ...(u.workoutDate !== undefined && {
-              workoutDate: new Date(u.workoutDate),
+              workoutDate: parseWorkoutDateInput(u.workoutDate),
             }),
             ...(u.bestResultDisplay !== undefined && {
               bestResultDisplay: u.bestResultDisplay,

@@ -2,7 +2,11 @@
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { format, parseISO, subMonths, subYears } from "date-fns";
+import { subMonths, subYears } from "date-fns";
+import {
+  formatWorkoutCalendarDate,
+  formatWorkoutCalendarMonthDay,
+} from "@/lib/calendar-date";
 import {
   Lightbulb,
   Trophy,
@@ -313,7 +317,7 @@ export function AnalyticsPageClient({
     const base = filteredResults
       .filter((p) => p.bestResultRaw != null)
       .map((p) => ({
-        date: format(parseISO(p.workoutDate), "MMM d"),
+        date: formatWorkoutCalendarMonthDay(p.workoutDate),
         fullDate: p.workoutDate,
         result: p.bestResultRaw as number,
         display: p.bestResultDisplay ?? String(p.bestResultRaw),
@@ -360,11 +364,16 @@ export function AnalyticsPageClient({
           {isHubWorkouts ? <TrendingUp className="w-6 h-6 shrink-0 text-blue-500" /> : null}
           {isHubWorkouts ? "Workouts & PRs" : "Training insights"}
         </HeadingTag>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          {isHubWorkouts
-            ? "Progress by workout, full PR library, and training frequency. Totals and streaks live on the Overview tab; smartwatch charts on Health trends."
-            : "Personal records, progress over time, workout trends, and smartwatch metrics."}
-        </p>
+        {isHubWorkouts ? (
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Progress by workout, full PR library, and training frequency. Totals and streaks live on the Overview
+            tab; smartwatch charts on Health trends.
+          </p>
+        ) : (
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Personal records, progress over time, workout trends, and smartwatch metrics.
+          </p>
+        )}
       </div>
 
       {!isHubWorkouts && (
@@ -472,9 +481,9 @@ export function AnalyticsPageClient({
                       }}
                       labelFormatter={(_, payload) =>
                         payload?.[0]?.payload?.fullDate
-                          ? format(
-                              parseISO(payload[0].payload.fullDate),
-                              "PPP"
+                          ? formatWorkoutCalendarDate(
+                              payload[0].payload.fullDate as string,
+                              "long"
                             )
                           : ""
                       }
@@ -568,7 +577,7 @@ export function AnalyticsPageClient({
                         className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                       >
                         <td className="px-4 py-2 text-gray-900 dark:text-white whitespace-nowrap">
-                          {format(parseISO(s.workoutDate), "MMM d, yyyy")}
+                          {formatWorkoutCalendarDate(s.workoutDate, "short")}
                         </td>
                         <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
                           <span className="inline-flex items-center gap-1.5">
@@ -689,7 +698,7 @@ export function AnalyticsPageClient({
 
                   {/* Date */}
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    {format(parseISO(pr.workoutDate), "MMM d, yyyy")}
+                    {formatWorkoutCalendarDate(pr.workoutDate, "short")}
                   </p>
 
                   {/* Actions */}

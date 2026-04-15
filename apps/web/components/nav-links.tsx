@@ -50,8 +50,8 @@ export function NavLinks() {
 
       <Link
         href="/analytics"
-        aria-label="Training stats"
-        title="Training stats"
+        aria-label="Stats"
+        title="Stats"
         className={`flex items-center justify-center px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
           analyticsActive
             ? "bg-primary text-primary-foreground"

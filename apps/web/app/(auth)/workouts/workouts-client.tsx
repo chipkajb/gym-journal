@@ -3,7 +3,7 @@
 import { useState, useMemo, type ElementType } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { format } from "date-fns";
+import { formatWorkoutCalendarDate } from "@/lib/calendar-date";
 import { Plus, Dumbbell, Search, List, Calendar, Table, Pencil } from "lucide-react";
 import { HistoryCalendar } from "@/components/features/history/history-calendar";
 import { HistoryTableView } from "@/components/features/history/history-table-view";
@@ -150,7 +150,7 @@ export function WorkoutsPageClient({
                             {s.title}
                           </p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {format(new Date(s.workoutDate), "MMM d, yyyy")}
+                            {formatWorkoutCalendarDate(s.workoutDate, "short")}
                             {s.bestResultDisplay && (
                               <> · {s.bestResultDisplay}</>
                             )}

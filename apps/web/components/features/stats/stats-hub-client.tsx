@@ -47,16 +47,13 @@ export function StatsHubClient({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Training stats</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Three views: momentum and volume, per-workout progress and PRs, and smartwatch trends over time.
-        </p>
+        <h1 className="text-2xl font-bold text-foreground">Stats</h1>
       </div>
 
       <div
         role="tablist"
-        aria-label="Training stats sections"
-        className="flex flex-wrap gap-2 border-b border-border pb-2"
+        aria-label="Stats sections"
+        className="flex flex-nowrap gap-1 sm:gap-2 overflow-x-auto border-b border-border pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <TabButton
           id="tab-overview"
@@ -70,14 +67,14 @@ export function StatsHubClient({
           selected={view === "workouts"}
           onClick={() => setView("workouts")}
           icon={Lightbulb}
-          label="Workouts & PRs"
+          label="Workouts"
         />
         <TabButton
           id="tab-health"
           selected={view === "health"}
           onClick={() => setView("health")}
           icon={Heart}
-          label="Health trends"
+          label="Health"
         />
       </div>
 
@@ -134,13 +131,13 @@ function TabButton({
       role="tab"
       aria-selected={selected}
       onClick={onClick}
-      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
+      className={`inline-flex shrink-0 items-center gap-1 sm:gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border transition-colors whitespace-nowrap ${
         selected
           ? "border-primary bg-primary text-primary-foreground"
           : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent"
       }`}
     >
-      <Icon className="w-4 h-4 shrink-0" />
+      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
       {label}
     </button>
   );

@@ -1,6 +1,6 @@
 /**
- * Streaks use UTC calendar days (YYYY-MM-DD from ISO) so server timezone does not
- * change results between local dev and production.
+ * Streaks use UTC calendar days from stored workout instants (calendar dates are
+ * stored as UTC noon per workout day — see calendar-date.ts).
  *
  * Current streak: count consecutive workout days ending at today if you logged today,
  * otherwise ending at yesterday (so missing "today" alone does not break the streak).

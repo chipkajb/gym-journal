@@ -33,13 +33,12 @@ export function ToolsHubClient() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Tools</h1>
-        <p className="text-muted-foreground text-sm mt-1">Timer and strength calculators in one place.</p>
       </div>
 
       <div
         role="tablist"
         aria-label="Tools"
-        className="flex flex-wrap gap-2 border-b border-border pb-2"
+        className="flex flex-nowrap gap-1 sm:gap-2 overflow-x-auto border-b border-border pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <button
           id="tab-tools-timer"
@@ -47,13 +46,13 @@ export function ToolsHubClient() {
           role="tab"
           aria-selected={tab === "timer"}
           onClick={() => setTab("timer")}
-          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
+          className={`inline-flex shrink-0 items-center gap-1 sm:gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border transition-colors whitespace-nowrap ${
             tab === "timer"
               ? "border-primary bg-primary text-primary-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
-          <Timer className="w-4 h-4 shrink-0" />
+          <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
           Timer
         </button>
         <button
@@ -62,13 +61,13 @@ export function ToolsHubClient() {
           role="tab"
           aria-selected={tab === "1rm"}
           onClick={() => setTab("1rm")}
-          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
+          className={`inline-flex shrink-0 items-center gap-1 sm:gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border transition-colors whitespace-nowrap ${
             tab === "1rm"
               ? "border-primary bg-primary text-primary-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
-          <Calculator className="w-4 h-4 shrink-0" />
+          <Calculator className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
           1RM estimate
         </button>
       </div>

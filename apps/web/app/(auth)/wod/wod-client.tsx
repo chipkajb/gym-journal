@@ -18,6 +18,7 @@ import {
 import { WorkoutHistoryPanel } from "@/components/features/workouts/workout-history-panel";
 import type { HistorySession } from "@/components/features/workouts/workout-history-panel";
 import { roundOneRepMax } from "@/lib/workout-utils";
+import { formatWorkoutCalendarDate } from "@/lib/calendar-date";
 
 type Session = {
   id: string;
@@ -465,10 +466,7 @@ export function WodClient({
                         </span>
                       </div>
                       <p className="font-semibold text-foreground text-sm">
-                        {new Date(lastSession.workoutDate).toLocaleDateString(
-                          "en-US",
-                          { month: "short", day: "numeric", year: "numeric" }
-                        )}
+                        {formatWorkoutCalendarDate(lastSession.workoutDate, "short")}
                       </p>
                     </div>
                   )}

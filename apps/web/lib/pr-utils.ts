@@ -6,7 +6,7 @@ import { prisma } from "./prisma";
  * - Load: no RX/Scaled field — all sessions with a numeric score compete.
  * - Other score types: only RX (scaled never earns PR).
  */
-function isPrEligible(scoreType: string, rxOrScaled: string | null): boolean {
+export function isPrEligible(scoreType: string, rxOrScaled: string | null): boolean {
   if (scoreType === "Load") return true;
   return rxOrScaled === "RX";
 }
@@ -15,7 +15,7 @@ function isPrEligible(scoreType: string, rxOrScaled: string | null): boolean {
  * Where clause for all sessions that compete for the same PR line
  * (template-linked + same-title free-form + free-form title matching a template name).
  */
-function buildPrGroupWhere(
+export function buildPrGroupWhere(
   userId: string,
   scoreType: string,
   workoutTemplateId: string | null,
@@ -124,4 +124,42 @@ export async function recomputePrsForWorkout(params: {
       )
     );
   }
+}
+
+const EPS = 1e-6;
+
+/**
+ * True if the new result strictly beats the prior best (not a tie).
+ * Time: lower is better. Other score types: higher is better.
+ */
+export function strictlyBeatsPriorBest(
+  scoreType: string,
+  priorBest: number,
+  newRaw: number
+): boolean {
+  if (scoreType === "Time") {
+    return newRaw < priorBest - EPS;
+  }
+  return newRaw > priorBest + EPS;
+}
+
+/**
+ * Whether logging this session deserves a "new PR" celebration (first PR in group,
+ * or strictly better than any prior eligible result — not a tie).
+ */
+export function shouldCelebrateStrictNewPr(params: {
+  scoreType: string;
+  sessionIsPr: boolean;
+  bestResultRaw: number | null;
+  rxOrScaled: string | null;
+  priorBestAmongEligible: number | null;
+}): boolean {
+  const { scoreType, sessionIsPr, bestResultRaw, rxOrScaled, priorBestAmongEligible } = params;
+  if (!sessionIsPr || bestResultRaw === null || !isPrEligible(scoreType, rxOrScaled)) {
+    return false;
+  }
+  if (priorBestAmongEligible === null) {
+    return true;
+  }
+  return strictlyBeatsPriorBest(scoreType, priorBestAmongEligible, bestResultRaw);
 }

@@ -8,7 +8,6 @@ import {
   Trophy,
   Flame,
   Zap,
-  Target,
   TrendingUp,
   Calendar,
   Medal,
@@ -25,8 +24,6 @@ type Stats = {
   thisMonthCount: number;
   thisYearCount: number;
   prCount: number;
-  rxRate: number;
-  scaledRate: number;
   uniqueWorkouts: number;
   bestMonthLabel: string;
   bestMonthCount: number;
@@ -43,6 +40,24 @@ type HealthSessionRow = {
 };
 
 type HealthPreset = "7d" | "30d" | "1y" | "all" | "custom";
+
+type PrWindowPreset = "7d" | "30d" | "90d" | "1y";
+
+function prWindowRange(preset: PrWindowPreset): { from: Date; to: Date } {
+  const to = endOfDay(new Date());
+  switch (preset) {
+    case "7d":
+      return { from: startOfDay(subDays(to, 6)), to };
+    case "30d":
+      return { from: startOfDay(subDays(to, 29)), to };
+    case "90d":
+      return { from: startOfDay(subDays(to, 89)), to };
+    case "1y":
+      return { from: startOfDay(subYears(to, 1)), to };
+    default:
+      return { from: startOfDay(subDays(to, 29)), to };
+  }
+}
 
 function healthPresetRange(
   preset: HealthPreset,
@@ -136,6 +151,7 @@ export function LeaderboardsClient({
   monthlyData,
   dayOfWeekData,
   recentPrs,
+  sessionPrRows,
   pageTitle = "Leaderboard",
   pageDescription = "Your personal achievements and statistics",
   recentPrsMoreHref = "/analytics?view=workouts",
@@ -146,6 +162,7 @@ export function LeaderboardsClient({
   monthlyData: MonthlyData;
   dayOfWeekData: DayData;
   recentPrs: PR[];
+  sessionPrRows: { workoutDate: string; isPr: boolean }[];
   pageTitle?: string;
   pageDescription?: string;
   /** "View all" link for the recent PRs teaser */
@@ -154,6 +171,7 @@ export function LeaderboardsClient({
   headingLevel?: "page" | "section";
 }) {
   const [healthPreset, setHealthPreset] = useState<HealthPreset>("30d");
+  const [prWindowPreset, setPrWindowPreset] = useState<PrWindowPreset>("30d");
   const [customFrom, setCustomFrom] = useState(() =>
     format(startOfDay(subDays(new Date(), 29)), "yyyy-MM-dd")
   );
@@ -176,6 +194,15 @@ export function LeaderboardsClient({
     () => aggregateHealthStats(filteredHealthSessions),
     [filteredHealthSessions]
   );
+
+  const prsInWindow = useMemo(() => {
+    const { from, to } = prWindowRange(prWindowPreset);
+    return sessionPrRows.filter(s => {
+      if (!s.isPr) return false;
+      const d = new Date(s.workoutDate);
+      return d >= from && d <= to;
+    }).length;
+  }, [sessionPrRows, prWindowPreset]);
 
   const hasAnyHealthEver = useMemo(
     () =>
@@ -225,16 +252,6 @@ export function LeaderboardsClient({
       color: "text-emerald-500",
       bg: "bg-emerald-50 dark:bg-emerald-950/30",
       note: "All time",
-    },
-    {
-      label: "RX vs scaled",
-      value: `${stats.rxRate}% RX workouts`,
-      unit: "",
-      valueSubline: `${stats.scaledRate}% scaled workouts`,
-      icon: Target,
-      color: "text-blue-500",
-      bg: "bg-blue-50 dark:bg-blue-950/30",
-      note: "",
     },
     {
       label: "This Month",
@@ -290,7 +307,9 @@ export function LeaderboardsClient({
     <div className="space-y-8">
       <div>
         <HeadingTag className={headingClass}>{pageTitle}</HeadingTag>
-        <p className="text-muted-foreground text-sm mt-1">{pageDescription}</p>
+        {pageDescription ? (
+          <p className="text-muted-foreground text-sm mt-1">{pageDescription}</p>
+        ) : null}
       </div>
 
       {/* Best Month Highlight */}
@@ -329,10 +348,39 @@ export function LeaderboardsClient({
         ))}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        <span className="font-semibold text-foreground">{stats.rolling30Count}</span> sessions logged in the
-        last 30 rolling days
-      </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground">
+        <p>
+          <span className="font-semibold text-foreground">{stats.rolling30Count}</span> sessions in the last
+          30 rolling days
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-foreground font-medium">PRs in selected window</span>
+          <span className="font-semibold text-foreground tabular-nums">{prsInWindow}</span>
+          <div className="flex flex-wrap gap-1">
+            {(
+              [
+                ["7d", "7d"],
+                ["30d", "30d"],
+                ["90d", "90d"],
+                ["1y", "1y"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setPrWindowPreset(key)}
+                className={`px-2 py-0.5 rounded-md text-xs font-medium border transition-colors ${
+                  prWindowPreset === key
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:bg-accent"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Health & Performance Stats (time window) */}
       {hasAnyHealthEver && (

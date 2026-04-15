@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { format, parseISO } from "date-fns";
+import {
+  formatWorkoutCalendarDate,
+  formatWorkoutCalendarMonthDay,
+} from "@/lib/calendar-date";
 import { Trophy, ChevronDown, ChevronUp } from "lucide-react";
 import { roundOneRepMax } from "@/lib/workout-utils";
 import {
@@ -67,7 +70,7 @@ function HistoryChart({ sessions }: { sessions: HistorySession[] }) {
     .filter((s) => s.bestResultRaw != null)
     .reverse() // oldest → newest left to right
     .map((s) => ({
-      date: format(parseISO(s.workoutDate), "MMM d"),
+      date: formatWorkoutCalendarMonthDay(s.workoutDate),
       fullDate: s.workoutDate,
       result: s.bestResultRaw as number,
       display: s.bestResultDisplay ?? String(s.bestResultRaw),
@@ -121,7 +124,7 @@ function HistoryChart({ sessions }: { sessions: HistorySession[] }) {
               ]}
               labelFormatter={(_, payload) =>
                 payload?.[0]?.payload?.fullDate
-                  ? format(parseISO(payload[0].payload.fullDate as string), "PPP")
+                  ? formatWorkoutCalendarDate(payload[0].payload.fullDate as string, "long")
                   : ""
               }
             />
@@ -156,7 +159,7 @@ function SessionRow({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const dateLabel = format(new Date(session.workoutDate), "MMM d, yyyy");
+  const dateLabel = formatWorkoutCalendarDate(session.workoutDate, "short");
 
   const content = (
     <div className="flex items-start justify-between gap-2 w-full">

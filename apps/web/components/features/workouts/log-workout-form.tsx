@@ -19,6 +19,7 @@ import {
   formatLoadSetsForNotes,
 } from "@/lib/workout-utils";
 import { SCORE_TYPES, type ScoreType, isValidScoreType } from "@/lib/score-types";
+import { localCalendarYmd } from "@/lib/calendar-date";
 
 type TemplateOption = {
   id: string;
@@ -146,9 +147,7 @@ export function LogWorkoutForm({ templates }: Props) {
   );
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [workoutDate, setWorkoutDate] = useState(
-    () => new Date().toISOString().slice(0, 10)
-  );
+  const [workoutDate, setWorkoutDate] = useState(() => localCalendarYmd());
   // Display result (what the user types)
   const [bestResultDisplay, setBestResultDisplay] = useState("");
   const [loadSets, setLoadSets] = useState<LoadSetRow[]>([{ weight: "", reps: "1" }]);
@@ -337,7 +336,7 @@ export function LogWorkoutForm({ templates }: Props) {
       const payload = {
         title: titleToUse,
         description: description.trim() || null,
-        workoutDate: new Date(workoutDate).toISOString(),
+        workoutDate,
         bestResultDisplay: bestResultDisplay.trim() || null,
         bestResultRaw,
         scoreType,
@@ -370,7 +369,8 @@ export function LogWorkoutForm({ templates }: Props) {
         setLoading(false);
         return;
       }
-      router.push(`/workouts/${raw.id}`);
+      const celebrate = raw.celebratePr === true;
+      router.push(`/workouts/${raw.id}${celebrate ? "?celebrate=pr" : ""}`);
       router.refresh();
     } catch {
       setError("Something went wrong");

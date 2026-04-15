@@ -221,7 +221,7 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim() || null,
-          workoutDate: new Date(workoutDate).toISOString(),
+          workoutDate,
           bestResultDisplay: bestResultDisplay.trim() || null,
           bestResultRaw,
           scoreType,

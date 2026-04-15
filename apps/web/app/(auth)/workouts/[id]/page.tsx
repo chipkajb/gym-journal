@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ChevronLeft, Flame, Heart, Clock, History } from "lucide-react";
-import { format } from "date-fns";
 import { WorkoutSessionActions } from "@/components/features/workouts/workout-session-actions";
 import { WorkoutHistoryPanel } from "@/components/features/workouts/workout-history-panel";
+import { WorkoutPrCelebration } from "@/components/features/workouts/workout-pr-celebration";
+import { formatWorkoutCalendarDate } from "@/lib/calendar-date";
 import { roundOneRepMax } from "@/lib/workout-utils";
 
 function formatDuration(seconds: number): string {
@@ -75,6 +77,12 @@ export default async function WorkoutSessionPage({
       : null;
   return (
     <div className="space-y-6 max-w-2xl">
+      <Suspense fallback={null}>
+        <WorkoutPrCelebration
+          workoutTitle={workoutSession.title}
+          bestResultDisplay={workoutSession.bestResultDisplay}
+        />
+      </Suspense>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link
@@ -89,7 +97,7 @@ export default async function WorkoutSessionPage({
               {workoutSession.title}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {format(new Date(workoutSession.workoutDate), "MMMM d, yyyy")}
+              {formatWorkoutCalendarDate(workoutSession.workoutDate, "long")}
               {workoutSession.rxOrScaled && ` · ${workoutSession.rxOrScaled}`}
               {workoutSession.isPr && " · 🏆 PR"}
             </p>

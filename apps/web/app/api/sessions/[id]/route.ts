@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recomputePrsForWorkout } from "@/lib/pr-utils";
+import { parseWorkoutDateInput } from "@/lib/calendar-date";
 import { SCORE_TYPES } from "@/lib/score-types";
 import { z } from "zod";
 
@@ -120,7 +121,7 @@ export async function PATCH(
         ...(data.title !== undefined && { title: data.title }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.workoutDate !== undefined && {
-          workoutDate: new Date(data.workoutDate),
+          workoutDate: parseWorkoutDateInput(data.workoutDate),
         }),
         ...(data.bestResultRaw !== undefined && { bestResultRaw: data.bestResultRaw }),
         ...(data.bestResultDisplay !== undefined && {
