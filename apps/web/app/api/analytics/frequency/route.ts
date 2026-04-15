@@ -81,11 +81,27 @@ export async function GET(request: Request) {
         }
       }
     } else {
-      // "all time" — only include periods that have data (no zero-fill needed)
-      for (const key of buckets.keys()) {
-        allKeys.push(key);
+      // "all time" — fill every week/month from first logged session through now so empty periods show as zero
+      if (sessions.length === 0) {
+        // no history: nothing to chart
+      } else {
+        const earliest = new Date(sessions[0]!.workoutDate);
+        if (groupBy === "week") {
+          let cursor = startOfWeek(earliest, { weekStartsOn: 1 });
+          const end = startOfWeek(startOfDay(now), { weekStartsOn: 1 });
+          while (cursor <= end) {
+            allKeys.push(format(cursor, "yyyy-MM-dd"));
+            cursor = addWeeks(cursor, 1);
+          }
+        } else {
+          let cursor = startOfMonth(earliest);
+          const end = startOfMonth(now);
+          while (cursor <= end) {
+            allKeys.push(format(cursor, "yyyy-MM"));
+            cursor = addMonths(cursor, 1);
+          }
+        }
       }
-      allKeys.sort();
     }
 
     const data = allKeys.map((period) => {

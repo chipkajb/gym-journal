@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format, subDays, subYears, startOfDay, endOfDay } from "date-fns";
-import { Trophy, Flame, Zap, Target, TrendingUp, Calendar, Medal, Star, BarChart2, Heart, Clock } from "lucide-react";
+import { Trophy, Flame, Zap, Target, TrendingUp, Calendar, Medal, Star, BarChart2, Heart } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 type Stats = {
@@ -14,6 +14,7 @@ type Stats = {
   thisYearCount: number;
   prCount: number;
   rxRate: number;
+  scaledRate: number;
   uniqueWorkouts: number;
   bestMonthLabel: string;
   bestMonthCount: number;
@@ -55,11 +56,17 @@ function healthPresetRange(
 function aggregateHealthStats(sessions: HealthSessionRow[]) {
   const withCalories = sessions.filter(s => s.calories != null && s.calories > 0);
   const totalCalories = withCalories.reduce((sum, s) => sum + (s.calories ?? 0), 0);
+  const avgCaloriesPerSession =
+    withCalories.length > 0 ? Math.round(totalCalories / withCalories.length) : null;
   const maxCaloriesInSession =
     withCalories.length > 0 ? Math.max(...withCalories.map(s => s.calories ?? 0)) : null;
-  const withMaxHR = sessions.filter(s => s.maxHeartRate != null);
+  const withMaxHR = sessions.filter(s => s.maxHeartRate != null && s.maxHeartRate > 0);
   const allTimeMaxHR =
     withMaxHR.length > 0 ? Math.max(...withMaxHR.map(s => s.maxHeartRate ?? 0)) : null;
+  const avgPeakHrPerSession =
+    withMaxHR.length > 0
+      ? Math.round(withMaxHR.reduce((sum, s) => sum + (s.maxHeartRate ?? 0), 0) / withMaxHR.length)
+      : null;
   const withAvgHR = sessions.filter(s => s.avgHeartRate != null);
   const avgHROverall =
     withAvgHR.length > 0
@@ -70,13 +77,24 @@ function aggregateHealthStats(sessions: HealthSessionRow[]) {
     withTotalDuration.length > 0
       ? Math.round(withTotalDuration.reduce((sum, s) => sum + (s.totalDurationSeconds ?? 0), 0) / 60)
       : null;
+  const avgMinutesPerSession =
+    withTotalDuration.length > 0
+      ? Math.round(
+          withTotalDuration.reduce((sum, s) => sum + (s.totalDurationSeconds ?? 0), 0) /
+            withTotalDuration.length /
+            60
+        )
+      : null;
 
   return {
     totalCalories,
+    avgCaloriesPerSession,
     maxCaloriesInSession,
     allTimeMaxHR: allTimeMaxHR != null && allTimeMaxHR > 0 ? allTimeMaxHR : null,
+    avgPeakHrPerSession,
     avgHROverall,
     totalMinutes: totalMinutes != null && totalMinutes > 0 ? totalMinutes : null,
+    avgMinutesPerSession,
   };
 }
 
@@ -175,13 +193,13 @@ export function LeaderboardsClient({
       note: "All time",
     },
     {
-      label: "RX Rate",
-      value: `${stats.rxRate}`,
-      unit: "%",
+      label: "RX / Scaled",
+      value: `${stats.rxRate}% / ${stats.scaledRate}%`,
+      unit: "",
       icon: Target,
       color: "text-blue-500",
       bg: "bg-blue-50 dark:bg-blue-950/30",
-      note: "Workouts at RX",
+      note: "Non-load sessions where RX or Scaled was logged (unset excluded)",
     },
     {
       label: "This Month",
@@ -337,6 +355,11 @@ export function LeaderboardsClient({
                   <p className="text-xs text-muted-foreground">Total Calories Burned</p>
                   <p className="text-xl font-bold text-orange-500">{healthStats.totalCalories.toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">kcal in range</p>
+                  {healthStats.avgCaloriesPerSession != null && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ~{healthStats.avgCaloriesPerSession.toLocaleString()} kcal avg per session with data
+                    </p>
+                  )}
                 </div>
               )}
               {healthStats.maxCaloriesInSession != null && healthStats.maxCaloriesInSession > 0 && (
@@ -350,14 +373,19 @@ export function LeaderboardsClient({
                 <div>
                   <p className="text-xs text-muted-foreground">Peak Heart Rate</p>
                   <p className="text-xl font-bold text-red-500">{healthStats.allTimeMaxHR}</p>
-                  <p className="text-xs text-muted-foreground">bpm in range</p>
+                  <p className="text-xs text-muted-foreground">bpm max in range</p>
+                  {healthStats.avgPeakHrPerSession != null && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ~{healthStats.avgPeakHrPerSession} bpm avg peak per session with data
+                    </p>
+                  )}
                 </div>
               )}
               {healthStats.avgHROverall != null && (
                 <div>
                   <p className="text-xs text-muted-foreground">Avg Heart Rate</p>
                   <p className="text-xl font-bold text-pink-500">{healthStats.avgHROverall}</p>
-                  <p className="text-xs text-muted-foreground">bpm across workouts</p>
+                  <p className="text-xs text-muted-foreground">bpm mean per logged session avg</p>
                 </div>
               )}
               {healthStats.totalMinutes != null && healthStats.totalMinutes > 0 && (
@@ -365,6 +393,11 @@ export function LeaderboardsClient({
                   <p className="text-xs text-muted-foreground">Total Time Training</p>
                   <p className="text-xl font-bold text-blue-500">{formatMinutes(healthStats.totalMinutes)}</p>
                   <p className="text-xs text-muted-foreground">from logged session totals</p>
+                  {healthStats.avgMinutesPerSession != null && healthStats.avgMinutesPerSession > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ~{formatMinutes(healthStats.avgMinutesPerSession)} avg per session with duration
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -391,14 +424,14 @@ export function LeaderboardsClient({
             <Tooltip
               contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
             />
-            <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="total" name="RX or Scaled" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
             <Bar dataKey="rx" name="RX" fill="#10b981" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
         <div className="flex gap-4 mt-2 justify-end">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm bg-primary" />
-            <span className="text-xs text-muted-foreground">Total</span>
+            <span className="text-xs text-muted-foreground">RX or Scaled</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm bg-emerald-500" />

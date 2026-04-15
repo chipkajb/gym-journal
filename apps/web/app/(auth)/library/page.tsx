@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Plus, BookOpen, List, LayoutGrid } from "lucide-react";
+import { Plus, BookOpen } from "lucide-react";
 import { LibraryCardGrid } from "@/components/features/library/library-card-grid";
 
 export default async function LibraryPage() {
@@ -38,13 +38,6 @@ export default async function LibraryPage() {
         </h1>
         <div className="flex gap-2">
           <Link
-            href="/library/table"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-          >
-            <List className="w-4 h-4" />
-            Table view
-          </Link>
-          <Link
             href="/library/templates/new"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
           >
@@ -70,10 +63,6 @@ export default async function LibraryPage() {
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <LayoutGrid className="w-4 h-4" />
-            Card view
-          </div>
           <LibraryCardGrid
             templates={templates.map((t) => ({
               id: t.id,

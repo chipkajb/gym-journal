@@ -3,6 +3,13 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { LeaderboardsClient } from "./leaderboards-client";
 
+/** Non-load sessions where RX or Scaled was explicitly chosen (unset rows excluded). */
+function isRxOrScaledChoice(s: { scoreType: string; rxOrScaled: string | null }): boolean {
+  if (s.scoreType === "Load") return false;
+  const v = s.rxOrScaled;
+  return v === "RX" || v === "SCALED" || v === "Scaled";
+}
+
 function calcStreak(dates: Date[]): { current: number; longest: number } {
   if (dates.length === 0) return { current: 0, longest: 0 };
   const today = new Date();
@@ -63,8 +70,11 @@ export default async function LeaderboardsPage() {
 
   const thisMonthSessions = allSessions.filter(s => s.workoutDate >= startOfMonth);
   const thisYearSessions = allSessions.filter(s => s.workoutDate >= startOfYear);
-  const rxSessions = allSessions.filter(s => s.rxOrScaled === "RX");
-  const rxRate = allSessions.length > 0 ? Math.round((rxSessions.length / allSessions.length) * 100) : 0;
+  const classifiedSessions = allSessions.filter(isRxOrScaledChoice);
+  const rxClassifiedCount = classifiedSessions.filter(s => s.rxOrScaled === "RX").length;
+  const nClassified = classifiedSessions.length;
+  const rxRate = nClassified > 0 ? Math.round((rxClassifiedCount / nClassified) * 100) : 0;
+  const scaledRate = nClassified > 0 ? 100 - rxRate : 0;
   const prSessions = allSessions.filter(s => s.isPr);
   const streaks = calcStreak(allSessions.map(s => s.workoutDate));
 
@@ -78,7 +88,10 @@ export default async function LeaderboardsPage() {
   allSessions.forEach(s => {
     const d = new Date(s.workoutDate);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    if (monthlyMap[key]) { monthlyMap[key]!.total++; if (s.rxOrScaled === "RX") monthlyMap[key]!.rx++; }
+    if (monthlyMap[key] && isRxOrScaledChoice(s)) {
+      monthlyMap[key]!.total++;
+      if (s.rxOrScaled === "RX") monthlyMap[key]!.rx++;
+    }
   });
   const monthlyData = Object.entries(monthlyMap)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -131,6 +144,7 @@ export default async function LeaderboardsPage() {
     thisYearCount: thisYearSessions.length,
     prCount: prSessions.length,
     rxRate,
+    scaledRate,
     uniqueWorkouts,
     bestMonthLabel,
     bestMonthCount,
