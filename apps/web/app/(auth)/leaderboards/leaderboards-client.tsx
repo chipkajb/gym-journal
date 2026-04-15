@@ -28,9 +28,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 type Stats = {
   currentStreak: number;
   longestStreak: number;
-  totalWorkouts: number;
-  /** Share of RX among sessions with RX or Scaled logged (null if none). */
-  rxPercentage: number | null;
 };
 
 type BestMonthByYearMap = Record<number, { month: number; count: number }>;
@@ -42,8 +39,6 @@ type HealthSessionRow = {
   avgHeartRate: number | null;
   totalDurationSeconds: number | null;
 };
-
-type HealthPreset = "7d" | "30d" | "1y" | "all" | "custom";
 
 type SnapshotRangePreset = "7d" | "30d" | "90d" | "1y" | "all";
 
@@ -60,29 +55,6 @@ function snapshotRange(preset: SnapshotRangePreset): { from: Date; to: Date } {
       return { from: startOfDay(subYears(to, 1)), to };
     case "all":
       return { from: startOfDay(subYears(to, 100)), to };
-  }
-}
-
-function healthPresetRange(
-  preset: HealthPreset,
-  customFrom: string,
-  customTo: string
-): { from: Date; to: Date } {
-  const to = startOfDay(new Date());
-  if (preset === "custom" && customFrom && customTo) {
-    return { from: startOfDay(new Date(customFrom)), to: startOfDay(new Date(customTo)) };
-  }
-  switch (preset) {
-    case "7d":
-      return { from: startOfDay(subDays(to, 6)), to };
-    case "30d":
-      return { from: startOfDay(subDays(to, 29)), to };
-    case "1y":
-      return { from: startOfDay(subYears(to, 1)), to };
-    case "all":
-      return { from: startOfDay(subYears(to, 25)), to };
-    default:
-      return { from: startOfDay(subDays(to, 29)), to };
   }
 }
 
@@ -165,22 +137,24 @@ const SNAPSHOT_RANGE_KEYS = [
   ["30d", "30d"],
   ["90d", "90d"],
   ["1y", "1y"],
-  ["all", "All time"],
+  ["all", "All"],
 ] as const satisfies readonly (readonly [SnapshotRangePreset, string])[];
 
 function PeriodRangeControl({
   value,
   onChange,
   controlsId,
+  ariaLabel = "Period",
 }: {
   value: SnapshotRangePreset;
   onChange: (next: SnapshotRangePreset) => void;
   controlsId: string;
+  ariaLabel?: string;
 }) {
   return (
     <div
       role="radiogroup"
-      aria-label="Period"
+      aria-label={ariaLabel}
       aria-controls={controlsId}
       className="grid w-full grid-cols-5 gap-0.5 rounded-xl border border-border bg-muted/40 p-1 shadow-inner"
     >
@@ -244,21 +218,14 @@ export function LeaderboardsClient({
   /** Use "section" when nested under another page title (e.g. stats hub). */
   headingLevel?: "page" | "section";
 }) {
-  const [healthPreset, setHealthPreset] = useState<HealthPreset>("30d");
+  const [healthPreset, setHealthPreset] = useState<SnapshotRangePreset>("30d");
   const [snapshotRangePreset, setSnapshotRangePreset] = useState<SnapshotRangePreset>("30d");
   const [bestMonthYear, setBestMonthYear] = useState<number>(() => {
     const y = new Date().getFullYear();
     return availableYears.includes(y) ? y : availableYears[0] ?? y;
   });
-  const [customFrom, setCustomFrom] = useState(() =>
-    format(startOfDay(subDays(new Date(), 29)), "yyyy-MM-dd")
-  );
-  const [customTo, setCustomTo] = useState(() => format(startOfDay(new Date()), "yyyy-MM-dd"));
 
-  const { from, to } = useMemo(
-    () => healthPresetRange(healthPreset, customFrom, customTo),
-    [healthPreset, customFrom, customTo]
-  );
+  const { from, to } = useMemo(() => snapshotRange(healthPreset), [healthPreset]);
 
   const filteredHealthSessions = useMemo(() => {
     const end = endOfDay(to);
@@ -474,7 +441,6 @@ export function LeaderboardsClient({
                 <span className="text-sm font-normal text-muted-foreground ml-1">sessions</span>
               </p>
               <p className="text-xs font-medium text-foreground mt-0.5">Workouts</p>
-              <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.totalWorkouts}</p>
             </div>
             <div className="bg-card p-4">
               <div className="inline-flex p-2 rounded-lg bg-cyan-50 dark:bg-cyan-950/30 mb-3 w-fit">
@@ -497,9 +463,6 @@ export function LeaderboardsClient({
                 ) : null}
               </p>
               <p className="text-xs font-medium text-foreground mt-0.5">RX rate</p>
-              {stats.rxPercentage != null ? (
-                <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.rxPercentage}%</p>
-              ) : null}
             </div>
             <div className="bg-card p-4">
               <div className="inline-flex p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 mb-3 w-fit">
@@ -518,60 +481,25 @@ export function LeaderboardsClient({
       {/* Health & Performance Stats (time window) */}
       {hasAnyHealthEver && (
         <div className="p-5 rounded-xl bg-card border border-border space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Heart className="w-4 h-4 text-muted-foreground" />
-              <h2 className="font-semibold text-foreground">Health</h2>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {(
-                [
-                  ["7d", "Last 7 days"],
-                  ["30d", "Last month"],
-                  ["1y", "Last year"],
-                  ["all", "All"],
-                  ["custom", "Custom"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setHealthPreset(key)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                    healthPreset === key
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border text-muted-foreground hover:bg-accent"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-2">
+            <Heart className="w-4 h-4 text-muted-foreground" />
+            <h2 id="health-heading" className="font-semibold text-foreground">
+              Health
+            </h2>
           </div>
+          <PeriodRangeControl
+            value={healthPreset}
+            onChange={setHealthPreset}
+            controlsId="health-metrics-range"
+            ariaLabel="Health period"
+          />
 
-          {healthPreset === "custom" && (
-            <div className="flex flex-wrap items-end gap-3 text-sm">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">From</label>
-                <input
-                  type="date"
-                  value={customFrom}
-                  onChange={e => setCustomFrom(e.target.value)}
-                  className="px-2 py-1 border border-border rounded-lg bg-background text-foreground"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">To</label>
-                <input
-                  type="date"
-                  value={customTo}
-                  onChange={e => setCustomTo(e.target.value)}
-                  className="px-2 py-1 border border-border rounded-lg bg-background text-foreground"
-                />
-              </div>
-            </div>
-          )}
-
+          <div
+            id="health-metrics-range"
+            className="space-y-4"
+            role="region"
+            aria-labelledby="health-heading"
+          >
           <p className="text-xs text-muted-foreground">
             {healthPreset === "all"
               ? "All sessions with health data."
@@ -649,6 +577,7 @@ export function LeaderboardsClient({
               Nothing in this range. Widen the window or log calories, HR, or duration on workouts.
             </p>
           )}
+          </div>
         </div>
       )}
 
