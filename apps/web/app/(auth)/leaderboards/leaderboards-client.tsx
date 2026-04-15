@@ -15,6 +15,7 @@ import {
   Heart,
   Percent,
   Activity,
+  SlidersHorizontal,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -164,33 +165,41 @@ const SNAPSHOT_RANGE_KEYS = [
   ["1y", "1y"],
 ] as const;
 
-function RangeChips({
+function PeriodRangeControl({
   value,
   onChange,
-  idPrefix,
+  controlsId,
 }: {
   value: SnapshotRangePreset;
   onChange: (next: SnapshotRangePreset) => void;
-  /** Unique id prefix for aria-labelledby (e.g. rx-range, pr-range). */
-  idPrefix: string;
+  controlsId: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-1 mt-2" role="group" aria-label="Date range">
-      {SNAPSHOT_RANGE_KEYS.map(([key, label]) => (
-        <button
-          key={key}
-          id={`${idPrefix}-${key}`}
-          type="button"
-          onClick={() => onChange(key)}
-          className={`px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-medium border transition-colors ${
-            value === key
-              ? "bg-primary text-primary-foreground border-primary"
-              : "border-border text-muted-foreground hover:bg-accent"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
+    <div
+      role="radiogroup"
+      aria-label="Period"
+      aria-controls={controlsId}
+      className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-background/80 p-0.5 shadow-sm"
+    >
+      {SNAPSHOT_RANGE_KEYS.map(([key, label]) => {
+        const selected = value === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(key)}
+            className={`min-w-[2.75rem] rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              selected
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -330,16 +339,16 @@ export function LeaderboardsClient({
       bg: "bg-cyan-50 dark:bg-cyan-950/30",
       note: "Rolling 8 weeks",
     },
+    {
+      label: "Total PRs",
+      value: `${stats.prCount}`,
+      unit: "records",
+      icon: Trophy,
+      color: "text-emerald-500",
+      bg: "bg-emerald-50 dark:bg-emerald-950/30",
+      note: "All time",
+    },
   ];
-
-  const totalPrTile = {
-    label: "Total PRs",
-    value: `${stats.prCount}`,
-    unit: "records",
-    color: "text-emerald-500",
-    bg: "bg-emerald-50 dark:bg-emerald-950/30",
-    note: "All time",
-  } as const;
 
   const hasHealthStats =
     healthStats.totalCalories > 0 ||
@@ -378,94 +387,102 @@ export function LeaderboardsClient({
         </div>
       )}
 
-      {/* Stats Grid — RX + PR chips share one range (sessions & unique WODs follow it too) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {headStats.map(({ label, value, unit, icon: Icon, color, bg, note }) => (
-          <div key={label} className="p-4 rounded-xl bg-card border border-border">
-            <div className={`inline-flex p-2 rounded-lg ${bg} mb-3`}>
-              <Icon className={`w-4 h-4 ${color}`} />
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {headStats.map(({ label, value, unit, icon: Icon, color, bg, note }) => (
+            <div key={label} className="p-4 rounded-xl bg-card border border-border">
+              <div className={`inline-flex p-2 rounded-lg ${bg} mb-3`}>
+                <Icon className={`w-4 h-4 ${color}`} />
+              </div>
+              <p className="text-2xl font-bold text-foreground">
+                {value}
+                {unit ? <span className="text-sm font-normal text-muted-foreground ml-1">{unit}</span> : null}
+              </p>
+              <p className="text-xs font-medium text-foreground mt-0.5">{label}</p>
+              {note ? <p className="text-xs text-muted-foreground mt-0.5">{note}</p> : null}
             </div>
-            <p className="text-2xl font-bold text-foreground">
-              {value}
-              {unit ? <span className="text-sm font-normal text-muted-foreground ml-1">{unit}</span> : null}
-            </p>
-            <p className="text-xs font-medium text-foreground mt-0.5">{label}</p>
-            {note ? <p className="text-xs text-muted-foreground mt-0.5">{note}</p> : null}
-          </div>
-        ))}
-
-        <div className="p-4 rounded-xl bg-card border border-border">
-          <div className="inline-flex p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 mb-3 w-fit">
-            <Zap className="w-4 h-4 text-indigo-500" />
-          </div>
-          <p className="text-2xl font-bold text-foreground tabular-nums">
-            {sessionsInWindow}
-            <span className="text-sm font-normal text-muted-foreground ml-1">sessions</span>
-          </p>
-          <p className="text-xs font-medium text-foreground mt-0.5">Workouts</p>
-          <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.totalWorkouts}</p>
+          ))}
         </div>
 
-        <div className="p-4 rounded-xl bg-card border border-border">
-          <div className="inline-flex p-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 mb-3">
-            <Medal className="w-4 h-4 text-rose-500" />
+        <section
+          className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden ring-1 ring-border/60"
+          aria-labelledby="period-snapshot-heading"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3.5 border-b border-border bg-muted/30">
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-background shadow-sm"
+                aria-hidden
+              >
+                <SlidersHorizontal className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
+              </div>
+              <div className="min-w-0">
+                <h3 id="period-snapshot-heading" className="text-sm font-semibold text-foreground tracking-tight">
+                  Period snapshot
+                </h3>
+              </div>
+            </div>
+            <PeriodRangeControl
+              value={snapshotRangePreset}
+              onChange={setSnapshotRangePreset}
+              controlsId="period-snapshot-metrics"
+            />
           </div>
-          <p className="text-2xl font-bold text-foreground tabular-nums">
-            {uniqueInWindow}
-            <span className="text-sm font-normal text-muted-foreground ml-1">unique</span>
-          </p>
-          <p className="text-xs font-medium text-foreground mt-0.5">Unique WODs</p>
-          <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.uniqueWorkouts}</p>
-        </div>
-
-        <div className="p-4 rounded-xl bg-card border border-border">
-          <div className={`inline-flex p-2 rounded-lg ${totalPrTile.bg} mb-3`}>
-            <Trophy className={`w-4 h-4 ${totalPrTile.color}`} />
+          <div
+            id="period-snapshot-metrics"
+            className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border p-px"
+            role="group"
+            aria-labelledby="period-snapshot-heading"
+          >
+            <div className="bg-card p-4">
+              <div className="inline-flex p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 mb-3 w-fit">
+                <Zap className="w-4 h-4 text-indigo-500" />
+              </div>
+              <p className="text-2xl font-bold text-foreground tabular-nums">
+                {sessionsInWindow}
+                <span className="text-sm font-normal text-muted-foreground ml-1">sessions</span>
+              </p>
+              <p className="text-xs font-medium text-foreground mt-0.5">Workouts</p>
+              <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.totalWorkouts}</p>
+            </div>
+            <div className="bg-card p-4">
+              <div className="inline-flex p-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 mb-3 w-fit">
+                <Medal className="w-4 h-4 text-rose-500" />
+              </div>
+              <p className="text-2xl font-bold text-foreground tabular-nums">
+                {uniqueInWindow}
+                <span className="text-sm font-normal text-muted-foreground ml-1">unique</span>
+              </p>
+              <p className="text-xs font-medium text-foreground mt-0.5">Unique WODs</p>
+              <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.uniqueWorkouts}</p>
+            </div>
+            <div className="bg-card p-4">
+              <div className="inline-flex p-2 rounded-lg bg-teal-50 dark:bg-teal-950/30 mb-3 w-fit">
+                <Percent className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              </div>
+              <p className="text-2xl font-bold text-foreground">
+                {rxPctInWindow != null ? rxPctInWindow : "—"}
+                {rxPctInWindow != null ? (
+                  <span className="text-sm font-normal text-muted-foreground ml-1">%</span>
+                ) : null}
+              </p>
+              <p className="text-xs font-medium text-foreground mt-0.5">RX rate</p>
+              {stats.rxPercentage != null ? (
+                <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.rxPercentage}%</p>
+              ) : null}
+            </div>
+            <div className="bg-card p-4">
+              <div className="inline-flex p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 mb-3 w-fit">
+                <Trophy className="w-4 h-4 text-emerald-500" />
+              </div>
+              <p className="text-2xl font-bold text-foreground tabular-nums">
+                {prsInWindow}
+                <span className="text-sm font-normal text-muted-foreground ml-1">PRs</span>
+              </p>
+              <p className="text-xs font-medium text-foreground mt-0.5">PRs in period</p>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-foreground">
-            {totalPrTile.value}
-            <span className="text-sm font-normal text-muted-foreground ml-1">{totalPrTile.unit}</span>
-          </p>
-          <p className="text-xs font-medium text-foreground mt-0.5">{totalPrTile.label}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{totalPrTile.note}</p>
-        </div>
-
-        <div className="p-4 rounded-xl bg-card border border-border flex flex-col">
-          <div className="inline-flex p-2 rounded-lg bg-teal-50 dark:bg-teal-950/30 mb-3 w-fit">
-            <Percent className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-          </div>
-          <p className="text-2xl font-bold text-foreground">
-            {rxPctInWindow != null ? rxPctInWindow : "—"}
-            {rxPctInWindow != null ? (
-              <span className="text-sm font-normal text-muted-foreground ml-1">%</span>
-            ) : null}
-          </p>
-          <p className="text-xs font-medium text-foreground mt-0.5">RX rate</p>
-          {stats.rxPercentage != null ? (
-            <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.rxPercentage}%</p>
-          ) : null}
-          <RangeChips
-            value={snapshotRangePreset}
-            onChange={setSnapshotRangePreset}
-            idPrefix="rx-snapshot-range"
-          />
-        </div>
-
-        <div className="p-4 rounded-xl bg-card border border-border flex flex-col">
-          <div className="inline-flex p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 mb-3 w-fit">
-            <Trophy className="w-4 h-4 text-emerald-500" />
-          </div>
-          <p className="text-2xl font-bold text-foreground tabular-nums">
-            {prsInWindow}
-            <span className="text-sm font-normal text-muted-foreground ml-1">PRs</span>
-          </p>
-          <p className="text-xs font-medium text-foreground mt-0.5">PRs in window</p>
-          <RangeChips
-            value={snapshotRangePreset}
-            onChange={setSnapshotRangePreset}
-            idPrefix="pr-snapshot-range"
-          />
-        </div>
+        </section>
       </div>
 
       {/* Health & Performance Stats (time window) */}
