@@ -1,4 +1,3 @@
-import { subDays } from "date-fns";
 import { computeWorkoutStreaks } from "@/lib/workout-streak";
 
 /** Non-load sessions where RX or Scaled was explicitly chosen (unset rows excluded). */
@@ -28,11 +27,6 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
 
   const rolling30Count = allSessions.filter(s => s.workoutDate >= rolling30Cutoff).length;
 
-  /** Sessions in the last 56 days (8 calendar weeks), inclusive of today. */
-  const eightWeekStart = subDays(now, 55);
-  eightWeekStart.setHours(0, 0, 0, 0);
-  const sessionsLast8Weeks = allSessions.filter(s => s.workoutDate >= eightWeekStart).length;
-  const rollingWorkoutsPerWeek = sessionsLast8Weeks / 8;
   const prSessions = allSessions.filter(s => s.isPr);
   const streaks = computeWorkoutStreaks(allSessions.map(s => s.workoutDate));
 
@@ -62,25 +56,42 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
       };
     });
 
-  const allTimeMonthlyMap: Record<string, number> = {};
+  const currentCalendarYear = now.getFullYear();
+  let earliestSessionYear = currentCalendarYear;
+  if (allSessions.length > 0) {
+    earliestSessionYear = Math.min(
+      ...allSessions.map(s => new Date(s.workoutDate).getFullYear())
+    );
+  }
+  const availableYears: number[] = [];
+  for (let y = currentCalendarYear; y >= earliestSessionYear; y--) {
+    availableYears.push(y);
+  }
+
+  const sessionCountByYearMonth: Record<number, Record<number, number>> = {};
   allSessions.forEach(s => {
     const d = new Date(s.workoutDate);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    allTimeMonthlyMap[key] = (allTimeMonthlyMap[key] ?? 0) + 1;
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    if (!sessionCountByYearMonth[y]) sessionCountByYearMonth[y] = {};
+    sessionCountByYearMonth[y][m] = (sessionCountByYearMonth[y][m] ?? 0) + 1;
   });
-  let bestMonthKey = "";
-  let bestMonthCount = 0;
-  for (const [key, count] of Object.entries(allTimeMonthlyMap)) {
-    if (count > bestMonthCount) {
-      bestMonthCount = count;
-      bestMonthKey = key;
+
+  const bestMonthByYear: Record<number, { month: number; count: number }> = {};
+  for (let y = earliestSessionYear; y <= currentCalendarYear; y++) {
+    const byMonth = sessionCountByYearMonth[y];
+    let bestMonth = 1;
+    let bestCount = 0;
+    if (byMonth) {
+      for (let m = 1; m <= 12; m++) {
+        const c = byMonth[m] ?? 0;
+        if (c > bestCount) {
+          bestCount = c;
+          bestMonth = m;
+        }
+      }
     }
-  }
-  let bestMonthLabel = "—";
-  if (bestMonthKey) {
-    const [year, month] = bestMonthKey.split("-");
-    const d = new Date(parseInt(year!, 10), parseInt(month!, 10) - 1, 1);
-    bestMonthLabel = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    bestMonthByYear[y] = { month: bestMonth, count: bestCount };
   }
 
   const dayOfWeekCounts = new Array(7).fill(0);
@@ -89,8 +100,6 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
   });
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const dayOfWeekData = dayNames.map((name, i) => ({ day: name, count: dayOfWeekCounts[i] }));
-
-  const uniqueWorkouts = new Set(allSessions.map(s => s.title)).size;
 
   let rxLoggedCount = 0;
   let rxOrScaledLoggedCount = 0;
@@ -115,12 +124,8 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
     longestStreak: streaks.longest,
     totalWorkouts: allSessions.length,
     prCount: prSessions.length,
-    uniqueWorkouts,
-    bestMonthLabel,
-    bestMonthCount,
     rolling30Count,
     rxPercentage,
-    rollingWorkoutsPerWeek,
   };
 
   const recentPrs = prSessions.slice(0, 10).map(s => ({
@@ -147,5 +152,7 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
     dayOfWeekData,
     recentPrs,
     sessionSnapshots,
+    bestMonthByYear,
+    availableYears,
   };
 }

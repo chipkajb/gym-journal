@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { format, subDays, subYears, startOfDay, endOfDay } from "date-fns";
+import {
+  differenceInCalendarDays,
+  format,
+  subDays,
+  subYears,
+  startOfDay,
+  endOfDay,
+} from "date-fns";
 import {
   type LucideIcon,
   Trophy,
   Flame,
   Zap,
   Calendar,
-  Medal,
   Star,
   BarChart2,
   Heart,
@@ -23,15 +29,11 @@ type Stats = {
   currentStreak: number;
   longestStreak: number;
   totalWorkouts: number;
-  prCount: number;
-  uniqueWorkouts: number;
-  bestMonthLabel: string;
-  bestMonthCount: number;
   /** Share of RX among sessions with RX or Scaled logged (null if none). */
   rxPercentage: number | null;
-  /** Average sessions per week over the last 8 calendar weeks. */
-  rollingWorkoutsPerWeek: number;
 };
+
+type BestMonthByYearMap = Record<number, { month: number; count: number }>;
 
 type HealthSessionRow = {
   workoutDate: string;
@@ -179,7 +181,7 @@ function PeriodRangeControl({
       role="radiogroup"
       aria-label="Period"
       aria-controls={controlsId}
-      className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-background/80 p-0.5 shadow-sm"
+      className="grid w-full grid-cols-4 gap-0.5 rounded-xl border border-border bg-muted/40 p-1 shadow-inner"
     >
       {SNAPSHOT_RANGE_KEYS.map(([key, label]) => {
         const selected = value === key;
@@ -190,10 +192,10 @@ function PeriodRangeControl({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(key)}
-            className={`min-w-[2.75rem] rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+            className={`min-h-[2.25rem] w-full rounded-lg px-2 py-2 text-center text-xs font-semibold tabular-nums transition-colors sm:min-h-[2.5rem] sm:text-sm ${
               selected
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+                : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
             }`}
           >
             {label}
@@ -219,6 +221,8 @@ export function LeaderboardsClient({
   dayOfWeekData,
   recentPrs,
   sessionSnapshots,
+  bestMonthByYear,
+  availableYears,
   pageTitle = "Leaderboard",
   pageDescription = "Your personal achievements and statistics",
   recentPrsMoreHref = "/analytics?view=workouts",
@@ -230,6 +234,8 @@ export function LeaderboardsClient({
   dayOfWeekData: DayData;
   recentPrs: PR[];
   sessionSnapshots: SessionSnapshotRow[];
+  bestMonthByYear: BestMonthByYearMap;
+  availableYears: number[];
   pageTitle?: string;
   pageDescription?: string;
   /** "View all" link for the recent PRs teaser */
@@ -239,6 +245,10 @@ export function LeaderboardsClient({
 }) {
   const [healthPreset, setHealthPreset] = useState<HealthPreset>("30d");
   const [snapshotRangePreset, setSnapshotRangePreset] = useState<SnapshotRangePreset>("30d");
+  const [bestMonthYear, setBestMonthYear] = useState<number>(() => {
+    const y = new Date().getFullYear();
+    return availableYears.includes(y) ? y : availableYears[0] ?? y;
+  });
   const [customFrom, setCustomFrom] = useState(() =>
     format(startOfDay(subDays(new Date(), 29)), "yyyy-MM-dd")
   );
@@ -270,12 +280,16 @@ export function LeaderboardsClient({
     });
   }, [sessionSnapshots, snapshotRangePreset]);
 
-  const { prsInWindow, sessionsInWindow, uniqueInWindow, rxPctInWindow } = useMemo(() => {
+  const snapshotRangeDaySpan = useMemo(() => {
+    const { from, to } = snapshotRange(snapshotRangePreset);
+    return Math.max(1, differenceInCalendarDays(to, from) + 1);
+  }, [snapshotRangePreset]);
+
+  const { prsInWindow, sessionsInWindow, sessionsPerWeekInWindow, rxPctInWindow } = useMemo(() => {
     const prs = inSnapshotRangeRows.filter(s => s.isPr).length;
     const sessions = inSnapshotRangeRows.length;
-    const uniq = new Set(
-      inSnapshotRangeRows.map(s => s.title).filter((t): t is string => Boolean(t && t.trim()))
-    ).size;
+    const weeksInRange = snapshotRangeDaySpan / 7;
+    const sessionsPerWeekInWindow = sessions / weeksInRange;
     let rx = 0;
     let rxDenom = 0;
     for (const s of inSnapshotRangeRows) {
@@ -287,10 +301,10 @@ export function LeaderboardsClient({
     return {
       prsInWindow: prs,
       sessionsInWindow: sessions,
-      uniqueInWindow: uniq,
+      sessionsPerWeekInWindow,
       rxPctInWindow: rxPct,
     };
-  }, [inSnapshotRangeRows]);
+  }, [inSnapshotRangeRows, snapshotRangeDaySpan]);
 
   const hasAnyHealthEver = useMemo(
     () =>
@@ -330,25 +344,15 @@ export function LeaderboardsClient({
       bg: "bg-amber-50 dark:bg-amber-950/30",
       note: "Personal best",
     },
-    {
-      label: "Workouts / week",
-      value: formatRollingPerWeek(stats.rollingWorkoutsPerWeek),
-      unit: "/ wk",
-      icon: Activity,
-      color: "text-cyan-600 dark:text-cyan-400",
-      bg: "bg-cyan-50 dark:bg-cyan-950/30",
-      note: "Rolling 8 weeks",
-    },
-    {
-      label: "Total PRs",
-      value: `${stats.prCount}`,
-      unit: "records",
-      icon: Trophy,
-      color: "text-emerald-500",
-      bg: "bg-emerald-50 dark:bg-emerald-950/30",
-      note: "All time",
-    },
   ];
+
+  const bestForSelectedYear = bestMonthByYear[bestMonthYear];
+  const bestMonthName =
+    bestForSelectedYear && bestForSelectedYear.count > 0
+      ? new Date(bestMonthYear, bestForSelectedYear.month - 1, 1).toLocaleDateString("en-US", {
+          month: "long",
+        })
+      : null;
 
   const hasHealthStats =
     healthStats.totalCalories > 0 ||
@@ -371,24 +375,50 @@ export function LeaderboardsClient({
         ) : null}
       </div>
 
-      {/* Best Month Highlight */}
-      {stats.bestMonthCount > 0 && (
+      {availableYears.length > 0 && (
         <div className="p-5 rounded-xl bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/20">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/20 rounded-xl">
-              <Trophy className="w-6 h-6 text-primary" />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="p-3 bg-primary/20 rounded-xl shrink-0">
+                <Trophy className="w-6 h-6 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground font-medium">Best month</p>
+                {bestMonthName && bestForSelectedYear ? (
+                  <>
+                    <p className="text-xl font-bold text-foreground">{bestMonthName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {bestForSelectedYear.count} workout{bestForSelectedYear.count === 1 ? "" : "s"}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-0.5">No workouts logged this year</p>
+                )}
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">Best Month Ever</p>
-              <p className="text-xl font-bold text-foreground">{stats.bestMonthLabel}</p>
-              <p className="text-sm text-muted-foreground">{stats.bestMonthCount} workouts in one month</p>
+            <div className="flex items-center gap-2 shrink-0 sm:pl-2">
+              <label htmlFor="best-month-year" className="sr-only">
+                Year
+              </label>
+              <select
+                id="best-month-year"
+                value={bestMonthYear}
+                onChange={e => setBestMonthYear(Number(e.target.value))}
+                className="h-9 min-w-[5.5rem] rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {availableYears.map(y => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
       )}
 
       <div className="space-y-5">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {headStats.map(({ label, value, unit, icon: Icon, color, bg, note }) => (
             <div key={label} className="p-4 rounded-xl bg-card border border-border">
               <div className={`inline-flex p-2 rounded-lg ${bg} mb-3`}>
@@ -408,7 +438,7 @@ export function LeaderboardsClient({
           className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden ring-1 ring-border/60"
           aria-labelledby="period-snapshot-heading"
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3.5 border-b border-border bg-muted/30">
+          <div className="flex flex-col gap-3 px-4 py-3.5 border-b border-border bg-muted/30">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-background shadow-sm"
@@ -446,15 +476,14 @@ export function LeaderboardsClient({
               <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.totalWorkouts}</p>
             </div>
             <div className="bg-card p-4">
-              <div className="inline-flex p-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 mb-3 w-fit">
-                <Medal className="w-4 h-4 text-rose-500" />
+              <div className="inline-flex p-2 rounded-lg bg-cyan-50 dark:bg-cyan-950/30 mb-3 w-fit">
+                <Activity className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
               </div>
               <p className="text-2xl font-bold text-foreground tabular-nums">
-                {uniqueInWindow}
-                <span className="text-sm font-normal text-muted-foreground ml-1">unique</span>
+                {formatRollingPerWeek(sessionsPerWeekInWindow)}
+                <span className="text-sm font-normal text-muted-foreground ml-1">/ wk</span>
               </p>
-              <p className="text-xs font-medium text-foreground mt-0.5">Unique WODs</p>
-              <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.uniqueWorkouts}</p>
+              <p className="text-xs font-medium text-foreground mt-0.5">Sessions / week</p>
             </div>
             <div className="bg-card p-4">
               <div className="inline-flex p-2 rounded-lg bg-teal-50 dark:bg-teal-950/30 mb-3 w-fit">
