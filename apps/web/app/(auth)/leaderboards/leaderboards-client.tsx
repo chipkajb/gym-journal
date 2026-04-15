@@ -15,6 +15,7 @@ import {
   BarChart2,
   Heart,
   Percent,
+  Activity,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -32,6 +33,8 @@ type Stats = {
   rolling30Count: number;
   /** Share of RX among sessions with RX or Scaled logged (null if none). */
   rxPercentage: number | null;
+  /** Average sessions per week over the last 8 calendar weeks. */
+  rollingWorkoutsPerWeek: number;
 };
 
 type HealthSessionRow = {
@@ -148,6 +151,11 @@ function formatMinutes(minutes: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+function formatRollingPerWeek(n: number): string {
+  const rounded = Math.round(n * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
+}
+
 export function LeaderboardsClient({
   stats,
   healthSessions,
@@ -230,22 +238,67 @@ export function LeaderboardsClient({
     valueSubline?: string;
   }[] = [
     {
-      label: "Current Streak",
+      label: "Current streak",
       value: `${stats.currentStreak}`,
       unit: "days",
       icon: Flame,
       color: "text-orange-500",
       bg: "bg-orange-50 dark:bg-orange-950/30",
-      note: stats.currentStreak > 0 ? "Keep it going! 🔥" : "Start your streak today",
+      note: stats.currentStreak > 0 ? "Keep it going! 🔥" : "Start today",
     },
     {
-      label: "Longest Streak",
+      label: "Longest streak",
       value: `${stats.longestStreak}`,
       unit: "days",
       icon: Star,
       color: "text-amber-500",
       bg: "bg-amber-50 dark:bg-amber-950/30",
       note: "Personal best",
+    },
+    {
+      label: "Workouts / week",
+      value: formatRollingPerWeek(stats.rollingWorkoutsPerWeek),
+      unit: "/ wk",
+      icon: Activity,
+      color: "text-cyan-600 dark:text-cyan-400",
+      bg: "bg-cyan-50 dark:bg-cyan-950/30",
+      note: "Rolling 8 weeks",
+    },
+    {
+      label: "Total workouts",
+      value: `${stats.totalWorkouts}`,
+      unit: "sessions",
+      icon: Zap,
+      color: "text-indigo-500",
+      bg: "bg-indigo-50 dark:bg-indigo-950/30",
+      note: "All time",
+    },
+    {
+      label: "This month",
+      value: `${stats.thisMonthCount}`,
+      unit: "workouts",
+      icon: Calendar,
+      color: "text-violet-500",
+      bg: "bg-violet-50 dark:bg-violet-950/30",
+      note: "Calendar month",
+    },
+    {
+      label: "This year",
+      value: `${stats.thisYearCount}`,
+      unit: "workouts",
+      icon: LineChart,
+      color: "text-sky-500",
+      bg: "bg-sky-50 dark:bg-sky-950/30",
+      note: `${Math.round(stats.thisYearCount / (new Date().getMonth() + 1))} avg/month`,
+    },
+    {
+      label: "Unique WODs",
+      value: `${stats.uniqueWorkouts}`,
+      unit: "workouts",
+      icon: Medal,
+      color: "text-rose-500",
+      bg: "bg-rose-50 dark:bg-rose-950/30",
+      note: "All time",
     },
     {
       label: "Total PRs",
@@ -255,42 +308,6 @@ export function LeaderboardsClient({
       color: "text-emerald-500",
       bg: "bg-emerald-50 dark:bg-emerald-950/30",
       note: "All time",
-    },
-    {
-      label: "This Month",
-      value: `${stats.thisMonthCount}`,
-      unit: "workouts",
-      icon: Calendar,
-      color: "text-violet-500",
-      bg: "bg-violet-50 dark:bg-violet-950/30",
-      note: "Current month",
-    },
-    {
-      label: "This Year",
-      value: `${stats.thisYearCount}`,
-      unit: "workouts",
-      icon: LineChart,
-      color: "text-sky-500",
-      bg: "bg-sky-50 dark:bg-sky-950/30",
-      note: `${Math.round(stats.thisYearCount / (new Date().getMonth() + 1))} avg/month`,
-    },
-    {
-      label: "Total Workouts",
-      value: `${stats.totalWorkouts}`,
-      unit: "sessions",
-      icon: Zap,
-      color: "text-indigo-500",
-      bg: "bg-indigo-50 dark:bg-indigo-950/30",
-      note: "All time",
-    },
-    {
-      label: "Unique WODs",
-      value: `${stats.uniqueWorkouts}`,
-      unit: "workouts",
-      icon: Medal,
-      color: "text-rose-500",
-      bg: "bg-rose-50 dark:bg-rose-950/30",
-      note: "Different workouts done",
     },
     {
       label: "RX rate",
@@ -359,43 +376,37 @@ export function LeaderboardsClient({
           </div>
         ))}
 
-        <div className="col-span-2 md:col-span-4 p-4 rounded-xl bg-card border border-border">
-          <div className="flex flex-col gap-3 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="inline-flex p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 shrink-0">
-                <Trophy className="w-4 h-4 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground tabular-nums">
-                  {prsInWindow}
-                  <span className="text-sm font-normal text-muted-foreground ml-1.5">PRs</span>
-                </p>
-                <p className="text-xs font-medium text-foreground mt-0.5">In selected window</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1 min-[480px]:justify-end shrink-0">
-              {(
-                [
-                  ["7d", "7d"],
-                  ["30d", "30d"],
-                  ["90d", "90d"],
-                  ["1y", "1y"],
-                ] as const
-              ).map(([key, winLabel]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setPrWindowPreset(key)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                    prWindowPreset === key
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border text-muted-foreground hover:bg-accent"
-                  }`}
-                >
-                  {winLabel}
-                </button>
-              ))}
-            </div>
+        <div className="p-4 rounded-xl bg-card border border-border flex flex-col">
+          <div className="inline-flex p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 mb-3 w-fit">
+            <Trophy className="w-4 h-4 text-emerald-500" />
+          </div>
+          <p className="text-2xl font-bold text-foreground tabular-nums">
+            {prsInWindow}
+            <span className="text-sm font-normal text-muted-foreground ml-1">PRs</span>
+          </p>
+          <p className="text-xs font-medium text-foreground mt-0.5">PRs in window</p>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {(
+              [
+                ["7d", "7d"],
+                ["30d", "30d"],
+                ["90d", "90d"],
+                ["1y", "1y"],
+              ] as const
+            ).map(([key, winLabel]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setPrWindowPreset(key)}
+                className={`px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-medium border transition-colors ${
+                  prWindowPreset === key
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:bg-accent"
+                }`}
+              >
+                {winLabel}
+              </button>
+            ))}
           </div>
         </div>
       </div>

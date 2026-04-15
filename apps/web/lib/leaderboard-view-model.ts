@@ -1,3 +1,4 @@
+import { subDays } from "date-fns";
 import { computeWorkoutStreaks } from "@/lib/workout-streak";
 
 /** Non-load sessions where RX or Scaled was explicitly chosen (unset rows excluded). */
@@ -30,6 +31,12 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
   const thisMonthSessions = allSessions.filter(s => s.workoutDate >= startOfMonth);
   const thisYearSessions = allSessions.filter(s => s.workoutDate >= startOfYear);
   const rolling30Count = allSessions.filter(s => s.workoutDate >= rolling30Cutoff).length;
+
+  /** Sessions in the last 56 days (8 calendar weeks), inclusive of today. */
+  const eightWeekStart = subDays(now, 55);
+  eightWeekStart.setHours(0, 0, 0, 0);
+  const sessionsLast8Weeks = allSessions.filter(s => s.workoutDate >= eightWeekStart).length;
+  const rollingWorkoutsPerWeek = sessionsLast8Weeks / 8;
   const prSessions = allSessions.filter(s => s.isPr);
   const streaks = computeWorkoutStreaks(allSessions.map(s => s.workoutDate));
 
@@ -119,6 +126,7 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
     bestMonthCount,
     rolling30Count,
     rxPercentage,
+    rollingWorkoutsPerWeek,
   };
 
   const recentPrs = prSessions.slice(0, 10).map(s => ({
