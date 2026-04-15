@@ -24,12 +24,8 @@ export type LeaderboardSessionInput = {
 
 export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput[]) {
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
   const rolling30Cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const thisMonthSessions = allSessions.filter(s => s.workoutDate >= startOfMonth);
-  const thisYearSessions = allSessions.filter(s => s.workoutDate >= startOfYear);
   const rolling30Count = allSessions.filter(s => s.workoutDate >= rolling30Cutoff).length;
 
   /** Sessions in the last 56 days (8 calendar weeks), inclusive of today. */
@@ -118,8 +114,6 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
     currentStreak: streaks.current,
     longestStreak: streaks.longest,
     totalWorkouts: allSessions.length,
-    thisMonthCount: thisMonthSessions.length,
-    thisYearCount: thisYearSessions.length,
     prCount: prSessions.length,
     uniqueWorkouts,
     bestMonthLabel,
@@ -138,8 +132,11 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
     scoreType: s.scoreType,
   }));
 
-  const sessionPrRows = allSessions.map(s => ({
+  const sessionSnapshots = allSessions.map(s => ({
     workoutDate: s.workoutDate.toISOString(),
+    title: s.title,
+    scoreType: s.scoreType,
+    rxOrScaled: s.rxOrScaled,
     isPr: s.isPr,
   }));
 
@@ -149,6 +146,6 @@ export function buildLeaderboardClientProps(allSessions: LeaderboardSessionInput
     monthlyData,
     dayOfWeekData,
     recentPrs,
-    sessionPrRows,
+    sessionSnapshots,
   };
 }

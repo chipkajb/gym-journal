@@ -8,7 +8,6 @@ import {
   Trophy,
   Flame,
   Zap,
-  LineChart,
   Calendar,
   Medal,
   Star,
@@ -23,14 +22,10 @@ type Stats = {
   currentStreak: number;
   longestStreak: number;
   totalWorkouts: number;
-  thisMonthCount: number;
-  thisYearCount: number;
   prCount: number;
   uniqueWorkouts: number;
   bestMonthLabel: string;
   bestMonthCount: number;
-  /** Rolling window: sessions with workoutDate in the last 30 days. */
-  rolling30Count: number;
   /** Share of RX among sessions with RX or Scaled logged (null if none). */
   rxPercentage: number | null;
   /** Average sessions per week over the last 8 calendar weeks. */
@@ -47,9 +42,9 @@ type HealthSessionRow = {
 
 type HealthPreset = "7d" | "30d" | "1y" | "all" | "custom";
 
-type PrWindowPreset = "7d" | "30d" | "90d" | "1y";
+type SnapshotRangePreset = "7d" | "30d" | "90d" | "1y";
 
-function prWindowRange(preset: PrWindowPreset): { from: Date; to: Date } {
+function snapshotRange(preset: SnapshotRangePreset): { from: Date; to: Date } {
   const to = endOfDay(new Date());
   switch (preset) {
     case "7d":
@@ -156,13 +151,65 @@ function formatRollingPerWeek(n: number): string {
   return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
 }
 
+function isRxOrScaledChoice(s: { scoreType: string; rxOrScaled: string | null }): boolean {
+  if (s.scoreType === "Load") return false;
+  const v = s.rxOrScaled;
+  return v === "RX" || v === "SCALED" || v === "Scaled";
+}
+
+const SNAPSHOT_RANGE_KEYS = [
+  ["7d", "7d"],
+  ["30d", "30d"],
+  ["90d", "90d"],
+  ["1y", "1y"],
+] as const;
+
+function RangeChips({
+  value,
+  onChange,
+  idPrefix,
+}: {
+  value: SnapshotRangePreset;
+  onChange: (next: SnapshotRangePreset) => void;
+  /** Unique id prefix for aria-labelledby (e.g. rx-range, pr-range). */
+  idPrefix: string;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1 mt-2" role="group" aria-label="Date range">
+      {SNAPSHOT_RANGE_KEYS.map(([key, label]) => (
+        <button
+          key={key}
+          id={`${idPrefix}-${key}`}
+          type="button"
+          onClick={() => onChange(key)}
+          className={`px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-medium border transition-colors ${
+            value === key
+              ? "bg-primary text-primary-foreground border-primary"
+              : "border-border text-muted-foreground hover:bg-accent"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+type SessionSnapshotRow = {
+  workoutDate: string;
+  title: string;
+  scoreType: string;
+  rxOrScaled: string | null;
+  isPr: boolean;
+};
+
 export function LeaderboardsClient({
   stats,
   healthSessions,
   monthlyData,
   dayOfWeekData,
   recentPrs,
-  sessionPrRows,
+  sessionSnapshots,
   pageTitle = "Leaderboard",
   pageDescription = "Your personal achievements and statistics",
   recentPrsMoreHref = "/analytics?view=workouts",
@@ -173,7 +220,7 @@ export function LeaderboardsClient({
   monthlyData: MonthlyData;
   dayOfWeekData: DayData;
   recentPrs: PR[];
-  sessionPrRows: { workoutDate: string; isPr: boolean }[];
+  sessionSnapshots: SessionSnapshotRow[];
   pageTitle?: string;
   pageDescription?: string;
   /** "View all" link for the recent PRs teaser */
@@ -182,7 +229,7 @@ export function LeaderboardsClient({
   headingLevel?: "page" | "section";
 }) {
   const [healthPreset, setHealthPreset] = useState<HealthPreset>("30d");
-  const [prWindowPreset, setPrWindowPreset] = useState<PrWindowPreset>("30d");
+  const [snapshotRangePreset, setSnapshotRangePreset] = useState<SnapshotRangePreset>("30d");
   const [customFrom, setCustomFrom] = useState(() =>
     format(startOfDay(subDays(new Date(), 29)), "yyyy-MM-dd")
   );
@@ -206,14 +253,35 @@ export function LeaderboardsClient({
     [filteredHealthSessions]
   );
 
-  const prsInWindow = useMemo(() => {
-    const { from, to } = prWindowRange(prWindowPreset);
-    return sessionPrRows.filter(s => {
-      if (!s.isPr) return false;
+  const inSnapshotRangeRows = useMemo(() => {
+    const { from, to } = snapshotRange(snapshotRangePreset);
+    return sessionSnapshots.filter(s => {
       const d = new Date(s.workoutDate);
       return d >= from && d <= to;
-    }).length;
-  }, [sessionPrRows, prWindowPreset]);
+    });
+  }, [sessionSnapshots, snapshotRangePreset]);
+
+  const { prsInWindow, sessionsInWindow, uniqueInWindow, rxPctInWindow } = useMemo(() => {
+    const prs = inSnapshotRangeRows.filter(s => s.isPr).length;
+    const sessions = inSnapshotRangeRows.length;
+    const uniq = new Set(
+      inSnapshotRangeRows.map(s => s.title).filter((t): t is string => Boolean(t && t.trim()))
+    ).size;
+    let rx = 0;
+    let rxDenom = 0;
+    for (const s of inSnapshotRangeRows) {
+      if (!isRxOrScaledChoice(s)) continue;
+      rxDenom++;
+      if (s.rxOrScaled === "RX") rx++;
+    }
+    const rxPct = rxDenom > 0 ? Math.round((100 * rx) / rxDenom) : null;
+    return {
+      prsInWindow: prs,
+      sessionsInWindow: sessions,
+      uniqueInWindow: uniq,
+      rxPctInWindow: rxPct,
+    };
+  }, [inSnapshotRangeRows]);
 
   const hasAnyHealthEver = useMemo(
     () =>
@@ -226,7 +294,7 @@ export function LeaderboardsClient({
       ),
     [healthSessions]
   );
-  const topStats: {
+  const headStats: {
     label: string;
     value: string;
     unit: string;
@@ -234,8 +302,6 @@ export function LeaderboardsClient({
     color: string;
     bg: string;
     note: string;
-    /** second line under the main stat (e.g. scaled % for RX card) */
-    valueSubline?: string;
   }[] = [
     {
       label: "Current streak",
@@ -264,61 +330,16 @@ export function LeaderboardsClient({
       bg: "bg-cyan-50 dark:bg-cyan-950/30",
       note: "Rolling 8 weeks",
     },
-    {
-      label: "Total workouts",
-      value: `${stats.totalWorkouts}`,
-      unit: "sessions",
-      icon: Zap,
-      color: "text-indigo-500",
-      bg: "bg-indigo-50 dark:bg-indigo-950/30",
-      note: "All time",
-    },
-    {
-      label: "This month",
-      value: `${stats.thisMonthCount}`,
-      unit: "workouts",
-      icon: Calendar,
-      color: "text-violet-500",
-      bg: "bg-violet-50 dark:bg-violet-950/30",
-      note: "Calendar month",
-    },
-    {
-      label: "This year",
-      value: `${stats.thisYearCount}`,
-      unit: "workouts",
-      icon: LineChart,
-      color: "text-sky-500",
-      bg: "bg-sky-50 dark:bg-sky-950/30",
-      note: `${Math.round(stats.thisYearCount / (new Date().getMonth() + 1))} avg/month`,
-    },
-    {
-      label: "Unique WODs",
-      value: `${stats.uniqueWorkouts}`,
-      unit: "workouts",
-      icon: Medal,
-      color: "text-rose-500",
-      bg: "bg-rose-50 dark:bg-rose-950/30",
-      note: "All time",
-    },
-    {
-      label: "Total PRs",
-      value: `${stats.prCount}`,
-      unit: "records",
-      icon: Trophy,
-      color: "text-emerald-500",
-      bg: "bg-emerald-50 dark:bg-emerald-950/30",
-      note: "All time",
-    },
-    {
-      label: "RX rate",
-      value: stats.rxPercentage != null ? `${stats.rxPercentage}` : "—",
-      unit: stats.rxPercentage != null ? "%" : "",
-      icon: Percent,
-      color: "text-teal-600 dark:text-teal-400",
-      bg: "bg-teal-50 dark:bg-teal-950/30",
-      note: "",
-    },
   ];
+
+  const totalPrTile = {
+    label: "Total PRs",
+    value: `${stats.prCount}`,
+    unit: "records",
+    color: "text-emerald-500",
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+    note: "All time",
+  } as const;
 
   const hasHealthStats =
     healthStats.totalCalories > 0 ||
@@ -357,9 +378,9 @@ export function LeaderboardsClient({
         </div>
       )}
 
-      {/* Stats Grid */}
+      {/* Stats Grid — RX + PR chips share one range (sessions & unique WODs follow it too) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {topStats.map(({ label, value, unit, valueSubline, icon: Icon, color, bg, note }) => (
+        {headStats.map(({ label, value, unit, icon: Icon, color, bg, note }) => (
           <div key={label} className="p-4 rounded-xl bg-card border border-border">
             <div className={`inline-flex p-2 rounded-lg ${bg} mb-3`}>
               <Icon className={`w-4 h-4 ${color}`} />
@@ -368,13 +389,67 @@ export function LeaderboardsClient({
               {value}
               {unit ? <span className="text-sm font-normal text-muted-foreground ml-1">{unit}</span> : null}
             </p>
-            {valueSubline ? (
-              <p className="text-sm font-medium text-muted-foreground mt-1">{valueSubline}</p>
-            ) : null}
             <p className="text-xs font-medium text-foreground mt-0.5">{label}</p>
             {note ? <p className="text-xs text-muted-foreground mt-0.5">{note}</p> : null}
           </div>
         ))}
+
+        <div className="p-4 rounded-xl bg-card border border-border">
+          <div className="inline-flex p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 mb-3 w-fit">
+            <Zap className="w-4 h-4 text-indigo-500" />
+          </div>
+          <p className="text-2xl font-bold text-foreground tabular-nums">
+            {sessionsInWindow}
+            <span className="text-sm font-normal text-muted-foreground ml-1">sessions</span>
+          </p>
+          <p className="text-xs font-medium text-foreground mt-0.5">Workouts</p>
+          <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.totalWorkouts}</p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-card border border-border">
+          <div className="inline-flex p-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 mb-3">
+            <Medal className="w-4 h-4 text-rose-500" />
+          </div>
+          <p className="text-2xl font-bold text-foreground tabular-nums">
+            {uniqueInWindow}
+            <span className="text-sm font-normal text-muted-foreground ml-1">unique</span>
+          </p>
+          <p className="text-xs font-medium text-foreground mt-0.5">Unique WODs</p>
+          <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.uniqueWorkouts}</p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-card border border-border">
+          <div className={`inline-flex p-2 rounded-lg ${totalPrTile.bg} mb-3`}>
+            <Trophy className={`w-4 h-4 ${totalPrTile.color}`} />
+          </div>
+          <p className="text-2xl font-bold text-foreground">
+            {totalPrTile.value}
+            <span className="text-sm font-normal text-muted-foreground ml-1">{totalPrTile.unit}</span>
+          </p>
+          <p className="text-xs font-medium text-foreground mt-0.5">{totalPrTile.label}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{totalPrTile.note}</p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-card border border-border flex flex-col">
+          <div className="inline-flex p-2 rounded-lg bg-teal-50 dark:bg-teal-950/30 mb-3 w-fit">
+            <Percent className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+          </div>
+          <p className="text-2xl font-bold text-foreground">
+            {rxPctInWindow != null ? rxPctInWindow : "—"}
+            {rxPctInWindow != null ? (
+              <span className="text-sm font-normal text-muted-foreground ml-1">%</span>
+            ) : null}
+          </p>
+          <p className="text-xs font-medium text-foreground mt-0.5">RX rate</p>
+          {stats.rxPercentage != null ? (
+            <p className="text-xs text-muted-foreground mt-0.5">All-time · {stats.rxPercentage}%</p>
+          ) : null}
+          <RangeChips
+            value={snapshotRangePreset}
+            onChange={setSnapshotRangePreset}
+            idPrefix="rx-snapshot-range"
+          />
+        </div>
 
         <div className="p-4 rounded-xl bg-card border border-border flex flex-col">
           <div className="inline-flex p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 mb-3 w-fit">
@@ -385,36 +460,13 @@ export function LeaderboardsClient({
             <span className="text-sm font-normal text-muted-foreground ml-1">PRs</span>
           </p>
           <p className="text-xs font-medium text-foreground mt-0.5">PRs in window</p>
-          <div className="flex flex-wrap gap-1 mt-2">
-            {(
-              [
-                ["7d", "7d"],
-                ["30d", "30d"],
-                ["90d", "90d"],
-                ["1y", "1y"],
-              ] as const
-            ).map(([key, winLabel]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setPrWindowPreset(key)}
-                className={`px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-medium border transition-colors ${
-                  prWindowPreset === key
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                {winLabel}
-              </button>
-            ))}
-          </div>
+          <RangeChips
+            value={snapshotRangePreset}
+            onChange={setSnapshotRangePreset}
+            idPrefix="pr-snapshot-range"
+          />
         </div>
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        <span className="font-semibold text-foreground">{stats.rolling30Count}</span> sessions in the last 30
-        rolling days
-      </p>
 
       {/* Health & Performance Stats (time window) */}
       {hasAnyHealthEver && (
