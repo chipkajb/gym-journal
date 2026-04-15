@@ -78,7 +78,7 @@ export default async function WorkoutSessionPage({
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link
-            href="/workouts"
+            href="/training?tab=sessions"
             className="p-2 rounded-lg text-muted-foreground hover:bg-accent transition-colors"
             aria-label="Back to workouts"
           >
@@ -187,62 +187,70 @@ export default async function WorkoutSessionPage({
           <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-4">
             Health &amp; Performance
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {workoutSession.calories != null && (
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-950/30">
-                  <Flame className="w-4 h-4 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Calories</p>
-                  <p className="text-lg font-bold text-foreground">
-                    {workoutSession.calories}
-                  </p>
-                  <p className="text-xs text-muted-foreground">kcal</p>
-                </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-950/30">
+                <Flame className="w-4 h-4 text-orange-500" />
               </div>
-            )}
-            {workoutSession.maxHeartRate != null && (
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30">
-                  <Heart className="w-4 h-4 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Max HR</p>
-                  <p className="text-lg font-bold text-foreground">
-                    {workoutSession.maxHeartRate}
-                  </p>
-                  <p className="text-xs text-muted-foreground">bpm</p>
-                </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Calories</p>
+                {workoutSession.calories != null ? (
+                  <>
+                    <p className="text-lg font-bold text-foreground">{workoutSession.calories}</p>
+                    <p className="text-xs text-muted-foreground">kcal</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-0.5">—</p>
+                )}
               </div>
-            )}
-            {workoutSession.avgHeartRate != null && (
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-pink-50 dark:bg-pink-950/30">
-                  <Heart className="w-4 h-4 text-pink-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Avg HR</p>
-                  <p className="text-lg font-bold text-foreground">
-                    {workoutSession.avgHeartRate}
-                  </p>
-                  <p className="text-xs text-muted-foreground">bpm</p>
-                </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+                <Clock className="w-4 h-4 text-blue-500" />
               </div>
-            )}
-            {workoutSession.totalDurationSeconds != null && (
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30">
-                  <Clock className="w-4 h-4 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total time training</p>
+              <div>
+                <p className="text-xs text-muted-foreground">Total time training</p>
+                {workoutSession.totalDurationSeconds != null ? (
                   <p className="text-lg font-bold text-foreground">
                     {formatDuration(workoutSession.totalDurationSeconds)}
                   </p>
-                </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-0.5">—</p>
+                )}
               </div>
-            )}
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-pink-50 dark:bg-pink-950/30">
+                <Heart className="w-4 h-4 text-pink-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Avg HR</p>
+                {workoutSession.avgHeartRate != null ? (
+                  <>
+                    <p className="text-lg font-bold text-foreground">{workoutSession.avgHeartRate}</p>
+                    <p className="text-xs text-muted-foreground">bpm</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-0.5">—</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30">
+                <Heart className="w-4 h-4 text-red-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Max HR</p>
+                {workoutSession.maxHeartRate != null ? (
+                  <>
+                    <p className="text-lg font-bold text-foreground">{workoutSession.maxHeartRate}</p>
+                    <p className="text-xs text-muted-foreground">bpm</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-0.5">—</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

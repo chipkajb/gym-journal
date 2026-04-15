@@ -55,14 +55,19 @@ test.describe("Protected pages (authenticated)", () => {
     await expect(page).toHaveURL(/\/(analytics|login)/);
   });
 
-  test("library page is accessible when authenticated", async ({ page }) => {
-    await page.goto("/library");
-    await expect(page).toHaveURL(/\/(library|login)/);
+  test("training hub is accessible when authenticated", async ({ page }) => {
+    await page.goto("/training");
+    await expect(page).toHaveURL(/\/(training|login)/);
   });
 
-  test("history page is accessible when authenticated", async ({ page }) => {
+  test("tools hub is accessible when authenticated", async ({ page }) => {
+    await page.goto("/tools");
+    await expect(page).toHaveURL(/\/(tools|login)/);
+  });
+
+  test("history shortcut redirects to training calendar", async ({ page }) => {
     await page.goto("/history");
-    await expect(page).toHaveURL(/\/(history|login)/);
+    await expect(page).toHaveURL(/\/(training|login)/);
   });
 
   test("settings page is accessible when authenticated", async ({ page }) => {

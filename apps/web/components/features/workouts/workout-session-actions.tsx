@@ -17,7 +17,7 @@ export function WorkoutSessionActions({ sessionId }: Props) {
     try {
       const res = await fetch(`/api/sessions/${sessionId}`, { method: "DELETE" });
       if (res.ok) {
-        router.push("/workouts");
+        router.push("/training?tab=sessions");
         router.refresh();
       }
     } finally {

@@ -2,7 +2,17 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const protectedPaths = ["/dashboard", "/library", "/workouts", "/history"];
+const protectedPaths = [
+  "/dashboard",
+  "/library",
+  "/workouts",
+  "/history",
+  "/training",
+  "/tools",
+  "/timer",
+  "/wod",
+  "/analytics",
+];
 const authPaths = ["/login", "/register"];
 
 export async function middleware(req: NextRequest) {
@@ -31,6 +41,16 @@ export const config = {
     "/library/:path*",
     "/workouts/:path*",
     "/history/:path*",
+    "/training",
+    "/training/:path*",
+    "/tools",
+    "/tools/:path*",
+    "/timer",
+    "/timer/:path*",
+    "/wod",
+    "/wod/:path*",
+    "/analytics",
+    "/analytics/:path*",
     "/login",
     "/register",
   ],

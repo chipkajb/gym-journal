@@ -3,7 +3,19 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format, subDays, subYears, startOfDay, endOfDay } from "date-fns";
-import { Trophy, Flame, Zap, Target, TrendingUp, Calendar, Medal, Star, BarChart2, Heart } from "lucide-react";
+import {
+  type LucideIcon,
+  Trophy,
+  Flame,
+  Zap,
+  Target,
+  TrendingUp,
+  Calendar,
+  Medal,
+  Star,
+  BarChart2,
+  Heart,
+} from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 type Stats = {
@@ -18,6 +30,8 @@ type Stats = {
   uniqueWorkouts: number;
   bestMonthLabel: string;
   bestMonthCount: number;
+  /** Rolling window: sessions with workoutDate in the last 30 days. */
+  rolling30Count: number;
 };
 
 type HealthSessionRow = {
@@ -122,12 +136,22 @@ export function LeaderboardsClient({
   monthlyData,
   dayOfWeekData,
   recentPrs,
+  pageTitle = "Leaderboard",
+  pageDescription = "Your personal achievements and statistics",
+  recentPrsMoreHref = "/analytics?view=workouts",
+  headingLevel = "page",
 }: {
   stats: Stats;
   healthSessions: HealthSessionRow[];
   monthlyData: MonthlyData;
   dayOfWeekData: DayData;
   recentPrs: PR[];
+  pageTitle?: string;
+  pageDescription?: string;
+  /** "View all" link for the recent PRs teaser */
+  recentPrsMoreHref?: string;
+  /** Use "section" when nested under another page title (e.g. stats hub). */
+  headingLevel?: "page" | "section";
 }) {
   const [healthPreset, setHealthPreset] = useState<HealthPreset>("30d");
   const [customFrom, setCustomFrom] = useState(() =>
@@ -164,7 +188,17 @@ export function LeaderboardsClient({
       ),
     [healthSessions]
   );
-  const topStats = [
+  const topStats: {
+    label: string;
+    value: string;
+    unit: string;
+    icon: LucideIcon;
+    color: string;
+    bg: string;
+    note: string;
+    /** second line under the main stat (e.g. scaled % for RX card) */
+    valueSubline?: string;
+  }[] = [
     {
       label: "Current Streak",
       value: `${stats.currentStreak}`,
@@ -193,13 +227,14 @@ export function LeaderboardsClient({
       note: "All time",
     },
     {
-      label: "RX / Scaled",
-      value: `${stats.rxRate}% / ${stats.scaledRate}%`,
+      label: "RX vs scaled",
+      value: `${stats.rxRate}% RX workouts`,
       unit: "",
+      valueSubline: `${stats.scaledRate}% scaled workouts`,
       icon: Target,
       color: "text-blue-500",
       bg: "bg-blue-50 dark:bg-blue-950/30",
-      note: "Non-load sessions where RX or Scaled was logged (unset excluded)",
+      note: "",
     },
     {
       label: "This Month",
@@ -245,11 +280,17 @@ export function LeaderboardsClient({
     healthStats.avgHROverall != null ||
     healthStats.totalMinutes != null;
 
+  const HeadingTag = headingLevel === "section" ? "h2" : "h1";
+  const headingClass =
+    headingLevel === "section"
+      ? "text-xl font-bold text-foreground"
+      : "text-2xl font-bold text-foreground";
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Leaderboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Your personal achievements and statistics</p>
+        <HeadingTag className={headingClass}>{pageTitle}</HeadingTag>
+        <p className="text-muted-foreground text-sm mt-1">{pageDescription}</p>
       </div>
 
       {/* Best Month Highlight */}
@@ -270,20 +311,28 @@ export function LeaderboardsClient({
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {topStats.map(({ label, value, unit, icon: Icon, color, bg, note }) => (
+        {topStats.map(({ label, value, unit, valueSubline, icon: Icon, color, bg, note }) => (
           <div key={label} className="p-4 rounded-xl bg-card border border-border">
             <div className={`inline-flex p-2 rounded-lg ${bg} mb-3`}>
               <Icon className={`w-4 h-4 ${color}`} />
             </div>
             <p className="text-2xl font-bold text-foreground">
               {value}
-              <span className="text-sm font-normal text-muted-foreground ml-1">{unit}</span>
+              {unit ? <span className="text-sm font-normal text-muted-foreground ml-1">{unit}</span> : null}
             </p>
+            {valueSubline ? (
+              <p className="text-sm font-medium text-muted-foreground mt-1">{valueSubline}</p>
+            ) : null}
             <p className="text-xs font-medium text-foreground mt-0.5">{label}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{note}</p>
+            {note ? <p className="text-xs text-muted-foreground mt-0.5">{note}</p> : null}
           </div>
         ))}
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        <span className="font-semibold text-foreground">{stats.rolling30Count}</span> sessions logged in the
+        last 30 rolling days
+      </p>
 
       {/* Health & Performance Stats (time window) */}
       {hasAnyHealthEver && (
@@ -291,7 +340,7 @@ export function LeaderboardsClient({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2">
               <Heart className="w-4 h-4 text-muted-foreground" />
-              <h2 className="font-semibold text-foreground">Health & Performance</h2>
+              <h2 className="font-semibold text-foreground">Health</h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {(
@@ -344,67 +393,79 @@ export function LeaderboardsClient({
 
           <p className="text-xs text-muted-foreground">
             {healthPreset === "all"
-              ? "All logged history with health data."
-              : `Including sessions from ${format(from, "MMM d, yyyy")} through ${format(to, "MMM d, yyyy")}.`}
+              ? "All sessions with health data."
+              : `${format(from, "MMM d, yyyy")} – ${format(to, "MMM d, yyyy")}`}
           </p>
 
           {hasHealthStats ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {healthStats.totalCalories > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Calories Burned</p>
-                  <p className="text-xl font-bold text-orange-500">{healthStats.totalCalories.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">kcal in range</p>
-                  {healthStats.avgCaloriesPerSession != null && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      ~{healthStats.avgCaloriesPerSession.toLocaleString()} kcal avg per session with data
-                    </p>
-                  )}
-                </div>
-              )}
-              {healthStats.maxCaloriesInSession != null && healthStats.maxCaloriesInSession > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Best Single Session</p>
-                  <p className="text-xl font-bold text-orange-400">{healthStats.maxCaloriesInSession}</p>
-                  <p className="text-xs text-muted-foreground">kcal in one workout</p>
-                </div>
-              )}
-              {healthStats.allTimeMaxHR != null && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Peak Heart Rate</p>
-                  <p className="text-xl font-bold text-red-500">{healthStats.allTimeMaxHR}</p>
-                  <p className="text-xs text-muted-foreground">bpm max in range</p>
-                  {healthStats.avgPeakHrPerSession != null && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      ~{healthStats.avgPeakHrPerSession} bpm avg peak per session with data
-                    </p>
-                  )}
-                </div>
-              )}
-              {healthStats.avgHROverall != null && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Avg Heart Rate</p>
-                  <p className="text-xl font-bold text-pink-500">{healthStats.avgHROverall}</p>
-                  <p className="text-xs text-muted-foreground">bpm mean per logged session avg</p>
-                </div>
-              )}
-              {healthStats.totalMinutes != null && healthStats.totalMinutes > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Time Training</p>
-                  <p className="text-xl font-bold text-blue-500">{formatMinutes(healthStats.totalMinutes)}</p>
-                  <p className="text-xs text-muted-foreground">from logged session totals</p>
-                  {healthStats.avgMinutesPerSession != null && healthStats.avgMinutesPerSession > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      ~{formatMinutes(healthStats.avgMinutesPerSession)} avg per session with duration
-                    </p>
-                  )}
-                </div>
-              )}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Calories</p>
+                {healthStats.totalCalories > 0 ? (
+                  <>
+                    <p className="text-xl font-bold text-orange-500">{healthStats.totalCalories.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">kcal</p>
+                    {healthStats.avgCaloriesPerSession != null && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        ~{healthStats.avgCaloriesPerSession.toLocaleString()} kcal / session
+                      </p>
+                    )}
+                    {healthStats.maxCaloriesInSession != null && healthStats.maxCaloriesInSession > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Best session {healthStats.maxCaloriesInSession} kcal
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-1">—</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Training time</p>
+                {healthStats.totalMinutes != null && healthStats.totalMinutes > 0 ? (
+                  <>
+                    <p className="text-xl font-bold text-blue-500">{formatMinutes(healthStats.totalMinutes)}</p>
+                    {healthStats.avgMinutesPerSession != null && healthStats.avgMinutesPerSession > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        ~{formatMinutes(healthStats.avgMinutesPerSession)} / session
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-1">—</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Avg HR</p>
+                {healthStats.avgHROverall != null ? (
+                  <>
+                    <p className="text-xl font-bold text-pink-500">{healthStats.avgHROverall}</p>
+                    <p className="text-xs text-muted-foreground">bpm</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-1">—</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Max HR</p>
+                {healthStats.allTimeMaxHR != null ? (
+                  <>
+                    <p className="text-xl font-bold text-red-500">{healthStats.allTimeMaxHR}</p>
+                    <p className="text-xs text-muted-foreground">bpm</p>
+                    {healthStats.avgPeakHrPerSession != null && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        ~{healthStats.avgPeakHrPerSession} bpm avg peak
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-1">—</p>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              No health metrics in this window. Try a wider range or log calories, heart rate, or duration on
-              sessions.
+              Nothing in this range. Widen the window or log calories, HR, or duration on workouts.
             </p>
           )}
         </div>
@@ -467,7 +528,7 @@ export function LeaderboardsClient({
               <Trophy className="w-4 h-4 text-muted-foreground" />
               <h2 className="font-semibold text-foreground">Recent Personal Records</h2>
             </div>
-            <Link href="/analytics" className="text-xs text-primary hover:text-primary/80 font-medium">
+            <Link href={recentPrsMoreHref} className="text-xs text-primary hover:text-primary/80 font-medium">
               View all →
             </Link>
           </div>

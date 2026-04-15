@@ -510,21 +510,18 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
             </div>
             <div>
               <label
-                htmlFor="maxHeartRate"
+                htmlFor="totalDuration"
                 className="block text-xs font-medium text-muted-foreground mb-1"
               >
-                Max HR (bpm)
+                Total time training (mm:ss)
               </label>
               <input
-                id="maxHeartRate"
-                type="number"
-                inputMode="numeric"
-                value={maxHeartRate}
-                onChange={(e) => setMaxHeartRate(e.target.value)}
+                id="totalDuration"
+                type="text"
+                value={totalDurationInput}
+                onChange={(e) => setTotalDurationInput(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                placeholder="e.g. 182"
-                min={0}
-                max={250}
+                placeholder="e.g. 45:00"
               />
             </div>
             <div>
@@ -548,18 +545,21 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
             </div>
             <div>
               <label
-                htmlFor="totalDuration"
+                htmlFor="maxHeartRate"
                 className="block text-xs font-medium text-muted-foreground mb-1"
               >
-                Total time training (mm:ss)
+                Max HR (bpm)
               </label>
               <input
-                id="totalDuration"
-                type="text"
-                value={totalDurationInput}
-                onChange={(e) => setTotalDurationInput(e.target.value)}
+                id="maxHeartRate"
+                type="number"
+                inputMode="numeric"
+                value={maxHeartRate}
+                onChange={(e) => setMaxHeartRate(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                placeholder="e.g. 45:00"
+                placeholder="e.g. 182"
+                min={0}
+                max={250}
               />
             </div>
           </div>

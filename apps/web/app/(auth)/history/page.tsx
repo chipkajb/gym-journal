@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function HistoryPage() {
-  redirect("/workouts?view=calendar");
+  redirect("/training?tab=sessions&view=calendar");
 }

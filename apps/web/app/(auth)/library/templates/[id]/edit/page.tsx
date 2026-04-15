@@ -25,7 +25,7 @@ export default async function EditTemplatePage({
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link
-          href="/library"
+          href="/training?tab=library"
           className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           aria-label="Back to library"
         >

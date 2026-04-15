@@ -87,7 +87,13 @@ function getBestSession(sessions: Session[]): Session | undefined {
   return sessions.find((s) => s.isPr) ?? sessions[0];
 }
 
-export function WodClient({ templates }: { templates: Template[] }) {
+export function WodClient({
+  templates,
+  headingLevel = "page",
+}: {
+  templates: Template[];
+  headingLevel?: "page" | "section";
+}) {
   const [filters, setFilters] = useState<Filters>({
     scoreTypes: [],
     doneStatus: "any",
@@ -178,11 +184,15 @@ export function WodClient({ templates }: { templates: Template[] }) {
     (s) => s
   );
 
+  const HeadingTag = headingLevel === "section" ? "h2" : "h1";
+  const titleClass =
+    headingLevel === "section" ? "text-xl font-bold text-foreground" : "text-2xl font-bold text-foreground";
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">WOD Picker</h1>
+          <HeadingTag className={titleClass}>WOD Picker</HeadingTag>
           <p className="text-muted-foreground text-sm mt-1">
             {filtered.length} workout{filtered.length !== 1 ? "s" : ""} available
           </p>

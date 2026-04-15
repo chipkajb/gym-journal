@@ -119,6 +119,8 @@ type Props = {
   defaultProgressTitle: string;
   summary: Summary;
   preferredUnit?: string;
+  /** When set from the stats hub, omit duplicate summary cards and health charts (those live on other tabs). */
+  layout?: "full" | "hub-workouts";
 };
 
 function WorkoutCombobox({
@@ -217,6 +219,7 @@ export function AnalyticsPageClient({
   defaultProgressTitle,
   summary,
   preferredUnit = "metric",
+  layout = "full",
 }: Props) {
   const [workoutFilter, setWorkoutFilter] = useState<string>("");
   const [timeRange, setTimeRange] = useState<TimeRangeKey>("all");
@@ -343,49 +346,60 @@ export function AnalyticsPageClient({
     setWorkoutFilter(title);
   }
 
+  const isHubWorkouts = layout === "hub-workouts";
+  const HeadingTag = isHubWorkouts ? "h2" : "h1";
+  const headingClass = isHubWorkouts
+    ? "text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"
+    : "text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2";
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <Lightbulb className="w-7 h-7" />
-          Training insights
-        </h1>
+        <HeadingTag className={headingClass}>
+          {!isHubWorkouts && <Lightbulb className="w-7 h-7 shrink-0" />}
+          {isHubWorkouts ? <TrendingUp className="w-6 h-6 shrink-0 text-blue-500" /> : null}
+          {isHubWorkouts ? "Workouts & PRs" : "Training insights"}
+        </HeadingTag>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Personal records, progress over time, workout trends, and smartwatch metrics.
+          {isHubWorkouts
+            ? "Progress by workout, full PR library, and training frequency. Totals and streaks live on the Overview tab; smartwatch charts on Health trends."
+            : "Personal records, progress over time, workout trends, and smartwatch metrics."}
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
-            <Dumbbell className="w-4 h-4" />
-            <span className="text-sm font-medium">Total workouts</span>
+      {!isHubWorkouts && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
+              <Dumbbell className="w-4 h-4" />
+              <span className="text-sm font-medium">Total workouts</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              {summary.totalSessions}
+            </p>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {summary.totalSessions}
-          </p>
-        </div>
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
-            <Trophy className="w-4 h-4" />
-            <span className="text-sm font-medium">Personal records</span>
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
+              <Trophy className="w-4 h-4" />
+              <span className="text-sm font-medium">Personal records</span>
+            </div>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+              {summary.prCount}
+            </p>
           </div>
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-            {summary.prCount}
-          </p>
-        </div>
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
-            <Calendar className="w-4 h-4" />
-            <span className="text-sm font-medium">Last 30 days</span>
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
+              <Calendar className="w-4 h-4" />
+              <span className="text-sm font-medium">Last 30 days</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              {summary.recentCount}
+            </p>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {summary.recentCount}
-          </p>
         </div>
-      </div>
+      )}
 
-      <HealthMetricsCharts />
+      {!isHubWorkouts && <HealthMetricsCharts />}
 
       {workoutTitles.length > 0 && (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">

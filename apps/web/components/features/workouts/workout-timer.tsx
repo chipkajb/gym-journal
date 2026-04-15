@@ -76,9 +76,7 @@ function buildRoundsNoteFromRounds(rounds: Round[], totalSeconds: number): strin
     ...rounds.map((r) => `Round ${r.round}: ${formatTime(Math.round(r.split))}`),
   ];
   if (tailRemainderSec > 0) {
-    lines.push(
-      `Time after last split (e.g. final round if you stopped without a new mark): ${formatTime(tailRemainderSec)}`
-    );
+    lines.push(`Time after last split: ${formatTime(tailRemainderSec)}`);
   }
   return lines.join("\n");
 }

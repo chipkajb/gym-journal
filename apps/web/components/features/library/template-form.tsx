@@ -47,7 +47,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
           setLoading(false);
           return;
         }
-        router.push("/library");
+        router.push("/training?tab=library");
         router.refresh();
       } else {
         const res = await fetch("/api/templates", {

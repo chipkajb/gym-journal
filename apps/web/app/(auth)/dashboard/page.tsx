@@ -3,52 +3,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  BookOpen,
-  PenLine,
-  Lightbulb,
+  BarChart3,
   Dumbbell,
-  Shuffle,
-  Trophy,
   Flame,
   Target,
-  Zap,
   TrendingUp,
-  Timer,
+  Wrench,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { DashboardGreeting } from "./dashboard-greeting";
-
-// Calculate current streak from sorted dates (descending)
-function calcStreak(dates: Date[]): number {
-  if (dates.length === 0) return 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const sorted = [...dates].sort((a, b) => b.getTime() - a.getTime());
-  const uniqueDays = [...new Set(sorted.map(d => {
-    const day = new Date(d);
-    day.setHours(0, 0, 0, 0);
-    return day.toISOString();
-  }))].map(s => new Date(s)).sort((a, b) => b.getTime() - a.getTime());
-
-  // Check if first date is today or yesterday
-  if (uniqueDays[0].getTime() !== today.getTime() && uniqueDays[0].getTime() !== yesterday.getTime()) {
-    return 0;
-  }
-
-  let streak = 1;
-  for (let i = 1; i < uniqueDays.length; i++) {
-    const diff = (uniqueDays[i-1].getTime() - uniqueDays[i].getTime()) / (1000 * 60 * 60 * 24);
-    if (diff === 1) {
-      streak++;
-    } else {
-      break;
-    }
-  }
-  return streak;
-}
+import { computeWorkoutStreaks } from "@/lib/workout-streak";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -84,7 +49,7 @@ export default async function DashboardPage() {
     ? session.user.name.trim().split(/\s+/)[0]
     : session.user.email?.split("@")[0] ?? "there";
 
-  const currentStreak = calcStreak(allDates.map(r => r.workoutDate));
+  const currentStreak = computeWorkoutStreaks(allDates.map(r => r.workoutDate)).current;
   const totalWorkouts = allDates.length;
 
   const stats = [
@@ -109,31 +74,13 @@ export default async function DashboardPage() {
       title: "Training",
       actions: [
         {
-          href: "/wod",
-          label: "WOD Picker",
-          desc: "Random workout from your library",
-          icon: Shuffle,
+          href: "/training",
+          label: "Training",
+          desc: `WOD picker, workouts, library · ${templateCount} template${templateCount !== 1 ? "s" : ""}`,
+          icon: Dumbbell,
           accent: "text-orange-600 dark:text-orange-400",
           bg: "bg-orange-50 dark:bg-orange-950/30",
           border: "hover:border-orange-400 dark:hover:border-orange-500",
-        },
-        {
-          href: "/workouts",
-          label: "Workouts",
-          desc: "Sessions list & history",
-          icon: PenLine,
-          accent: "text-teal-600 dark:text-teal-400",
-          bg: "bg-teal-50 dark:bg-teal-950/30",
-          border: "hover:border-teal-400 dark:hover:border-teal-500",
-        },
-        {
-          href: "/library",
-          label: "Library",
-          desc: `${templateCount} template${templateCount !== 1 ? "s" : ""}`,
-          icon: BookOpen,
-          accent: "text-blue-600 dark:text-blue-400",
-          bg: "bg-blue-50 dark:bg-blue-950/30",
-          border: "hover:border-blue-400 dark:hover:border-blue-500",
         },
       ],
     },
@@ -142,21 +89,12 @@ export default async function DashboardPage() {
       actions: [
         {
           href: "/analytics",
-          label: "Insights",
-          desc: "PRs, progress, smartwatch metrics",
-          icon: Lightbulb,
+          label: "Training stats",
+          desc: "Overview, workouts & PRs, and health trends",
+          icon: BarChart3,
           accent: "text-violet-600 dark:text-violet-400",
           bg: "bg-violet-50 dark:bg-violet-950/30",
           border: "hover:border-violet-400 dark:hover:border-violet-500",
-        },
-        {
-          href: "/leaderboards",
-          label: "Leaderboard",
-          desc: "Achievements & health stats",
-          icon: Trophy,
-          accent: "text-amber-600 dark:text-amber-400",
-          bg: "bg-amber-50 dark:bg-amber-950/30",
-          border: "hover:border-amber-400 dark:hover:border-amber-500",
         },
       ],
     },
@@ -164,22 +102,13 @@ export default async function DashboardPage() {
       title: "Tools",
       actions: [
         {
-          href: "/timer",
-          label: "Timer",
-          desc: "Standalone workout timer",
-          icon: Timer,
+          href: "/tools",
+          label: "Tools",
+          desc: "Timer and 1RM calculator",
+          icon: Wrench,
           accent: "text-lime-600 dark:text-lime-400",
           bg: "bg-lime-50 dark:bg-lime-950/30",
           border: "hover:border-lime-400 dark:hover:border-lime-500",
-        },
-        {
-          href: "/tools/1rm",
-          label: "1RM estimate",
-          desc: "Strength calculator",
-          icon: Dumbbell,
-          accent: "text-rose-600 dark:text-rose-400",
-          bg: "bg-rose-50 dark:bg-rose-950/30",
-          border: "hover:border-rose-400 dark:hover:border-rose-500",
         },
       ],
     },

@@ -183,22 +183,6 @@ export function HealthMetricsCharts() {
       {!loading && hasAny && (
         <div className="space-y-8">
           <MetricBlock
-            title="Average heart rate (daily mean of your logged averages)"
-            icon={Heart}
-            color="#ec4899"
-            dataKey="avgHeartRateAvg"
-            chartData={chartData}
-            unit=" bpm"
-          />
-          <MetricBlock
-            title="Max heart rate (peak per day)"
-            icon={Heart}
-            color="#ef4444"
-            dataKey="maxHeartRateMax"
-            chartData={chartData}
-            unit=" bpm"
-          />
-          <MetricBlock
             title="Calories (sum per day)"
             icon={Flame}
             color="#f97316"
@@ -213,6 +197,22 @@ export function HealthMetricsCharts() {
             dataKey="trainingMinutesSum"
             chartData={chartData}
             unit=" min"
+          />
+          <MetricBlock
+            title="Average heart rate (daily mean of your logged averages)"
+            icon={Heart}
+            color="#ec4899"
+            dataKey="avgHeartRateAvg"
+            chartData={chartData}
+            unit=" bpm"
+          />
+          <MetricBlock
+            title="Max heart rate (peak per day)"
+            icon={Heart}
+            color="#ef4444"
+            dataKey="maxHeartRateMax"
+            chartData={chartData}
+            unit=" bpm"
           />
         </div>
       )}

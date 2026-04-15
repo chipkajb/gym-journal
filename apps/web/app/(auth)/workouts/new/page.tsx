@@ -18,7 +18,7 @@ export default async function NewWorkoutPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link
-          href="/workouts"
+          href="/training?tab=sessions"
           className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           aria-label="Back to workouts"
         >

@@ -21,6 +21,9 @@ type Session = {
 type Props = {
   sessions: Session[];
   userId: string;
+  /** When embedded in `/training`, list/calendar/table URLs use this base (default `/workouts`). */
+  urlBasePath?: string;
+  headingLevel?: "page" | "section";
 };
 
 type Tab = "list" | "calendar" | "table";
@@ -31,7 +34,12 @@ const TABS: { id: Tab; label: string; icon: ElementType }[] = [
   { id: "table", label: "Table", icon: Table },
 ];
 
-export function WorkoutsPageClient({ sessions, userId }: Props) {
+export function WorkoutsPageClient({
+  sessions,
+  userId,
+  urlBasePath = "/workouts",
+  headingLevel = "page",
+}: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const rawTab = searchParams.get("view") as Tab | null;
@@ -48,18 +56,25 @@ export function WorkoutsPageClient({ sessions, userId }: Props) {
 
   function switchTab(tab: Tab) {
     const params = new URLSearchParams(searchParams.toString());
+    if (urlBasePath === "/training") {
+      params.set("tab", "sessions");
+    }
     if (tab === "list") params.delete("view");
     else params.set("view", tab);
     const qs = params.toString();
-    router.push(`/workouts${qs ? `?${qs}` : ""}`);
+    router.push(`${urlBasePath}${qs ? `?${qs}` : ""}`);
   }
+
+  const HeadingTag = headingLevel === "section" ? "h2" : "h1";
+  const titleClass =
+    headingLevel === "section"
+      ? "text-xl font-bold text-gray-900 dark:text-white"
+      : "text-2xl font-bold text-gray-900 dark:text-white";
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Workouts
-        </h1>
+        <HeadingTag className={titleClass}>Workouts</HeadingTag>
         <Link
           href="/workouts/new"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
