@@ -42,6 +42,11 @@ jobs:
             ${{ vars.REGISTRY && format('{0}/gym-journal:latest', vars.REGISTRY) || 'gym-journal:latest' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # next build reads these at compile time; runtime uses server env / compose
+          build-args: |
+            DATABASE_URL=postgresql://dummy:dummy@localhost:5432/gymjournal
+            NEXTAUTH_SECRET=docker-build-secret-32chars-minimum!!
+            NEXTAUTH_URL=http://localhost:3001
 
       - name: Deploy to home server via SSH
         # Configure SERVER_HOST, SERVER_USER, SSH_PRIVATE_KEY secrets
