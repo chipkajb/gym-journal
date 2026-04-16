@@ -40,12 +40,12 @@ export async function GET(request: Request) {
         userId: session.user.id,
         ...(from ? { workoutDate: { gte: from } } : {}),
       },
-      select: { workoutDate: true, rxOrScaled: true },
+      select: { workoutDate: true, rxOrScaled: true, isPr: true },
       orderBy: { workoutDate: "asc" },
     });
 
     // Group actual sessions by period key
-    const buckets = new Map<string, { total: number; rx: number; scaled: number }>();
+    const buckets = new Map<string, { total: number; rx: number; scaled: number; pr: number }>();
 
     for (const s of sessions) {
       const d = new Date(s.workoutDate);
@@ -54,12 +54,13 @@ export async function GET(request: Request) {
           ? format(startOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd")
           : format(startOfMonth(d), "yyyy-MM");
       if (!buckets.has(key)) {
-        buckets.set(key, { total: 0, rx: 0, scaled: 0 });
+        buckets.set(key, { total: 0, rx: 0, scaled: 0, pr: 0 });
       }
       const b = buckets.get(key)!;
       b.total++;
       if (s.rxOrScaled === "RX") b.rx++;
       else if (s.rxOrScaled === "Scaled") b.scaled++;
+      if (s.isPr) b.pr++;
     }
 
     // Generate all expected periods in the range so zeros appear for empty periods
@@ -105,7 +106,7 @@ export async function GET(request: Request) {
     }
 
     const data = allKeys.map((period) => {
-      const counts = buckets.get(period) ?? { total: 0, rx: 0, scaled: 0 };
+      const counts = buckets.get(period) ?? { total: 0, rx: 0, scaled: 0, pr: 0 };
       return {
         period,
         label:
