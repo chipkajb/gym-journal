@@ -17,6 +17,8 @@ import {
   getResultPlaceholder,
   bestOneRmFromLoadSetDetails,
   formatLoadSetsForNotes,
+  parseValidLoadSets,
+  validateLoadSetRows,
 } from "@/lib/workout-utils";
 import { SCORE_TYPES, type ScoreType, isValidScoreType } from "@/lib/score-types";
 import { localCalendarYmd } from "@/lib/calendar-date";
@@ -150,7 +152,7 @@ export function LogWorkoutForm({ templates }: Props) {
   const [workoutDate, setWorkoutDate] = useState(() => localCalendarYmd());
   // Display result (what the user types)
   const [bestResultDisplay, setBestResultDisplay] = useState("");
-  const [loadSets, setLoadSets] = useState<LoadSetRow[]>([{ weight: "", reps: "1" }]);
+  const [loadSets, setLoadSets] = useState<LoadSetRow[]>([{ weight: "", reps: "" }]);
 
   const [scoreType, setScoreType] = useState<ScoreType>("Time");
   const [notes, setNotes] = useState("");
@@ -178,7 +180,7 @@ export function LogWorkoutForm({ templates }: Props) {
         setTitle(t.title);
         setDescription(t.description ?? "");
         setScoreType(isValidScoreType(t.scoreType) ? t.scoreType : "Time");
-        setLoadSets([{ weight: "", reps: "1" }]);
+        setLoadSets([{ weight: "", reps: "" }]);
       }
     }
   }, [useTemplate, templateId, templates]);
@@ -224,15 +226,8 @@ export function LogWorkoutForm({ templates }: Props) {
 
   useEffect(() => {
     if (!isLoadType) return;
-    const setsPayload = {
-      sets: loadSets
-        .map((s) => ({
-          weight: parseFloat(s.weight),
-          reps: parseInt(s.reps, 10) || 1,
-        }))
-        .filter((s) => !isNaN(s.weight) && s.weight > 0),
-    };
-    const best = bestOneRmFromLoadSetDetails(setsPayload);
+    const sets = parseValidLoadSets(loadSets);
+    const best = sets.length ? bestOneRmFromLoadSetDetails({ sets }) : null;
     setBestResultDisplay(best != null ? String(best) : "");
   }, [isLoadType, loadSets]);
 
@@ -262,12 +257,7 @@ export function LogWorkoutForm({ templates }: Props) {
 
   function deriveRaw(): number | null {
     if (isLoadType) {
-      const sets = loadSets
-        .map((s) => ({
-          weight: parseFloat(s.weight),
-          reps: parseInt(s.reps, 10) || 1,
-        }))
-        .filter((s) => !isNaN(s.weight) && s.weight > 0);
+      const sets = parseValidLoadSets(loadSets);
       return sets.length ? bestOneRmFromLoadSetDetails({ sets }) : null;
     }
     if (bestResultDisplay && scoreType) {
@@ -296,8 +286,13 @@ export function LogWorkoutForm({ templates }: Props) {
     }
     const bestResultRawPreview = deriveRaw();
     if (isLoadType) {
+      const rowErr = validateLoadSetRows(loadSets);
+      if (rowErr) {
+        setError(rowErr);
+        return;
+      }
       if (bestResultRawPreview == null) {
-        setError("Add at least one set with a valid weight.");
+        setError("Add at least one set with weight and reps.");
         return;
       }
     } else {
@@ -318,12 +313,7 @@ export function LogWorkoutForm({ templates }: Props) {
       const bestResultRaw = bestResultRawPreview;
       const loadSetDetails = (() => {
         if (!isLoadType) return null;
-        const sets = loadSets
-          .map((s) => ({
-            weight: parseFloat(s.weight),
-            reps: parseInt(s.reps, 10) || 1,
-          }))
-          .filter((s) => !isNaN(s.weight) && s.weight > 0);
+        const sets = parseValidLoadSets(loadSets);
         return sets.length ? { sets } : null;
       })();
 
@@ -439,7 +429,7 @@ export function LogWorkoutForm({ templates }: Props) {
               onChange={() => {
                 setUseTemplate(false);
                 setScoreType("Time");
-                setLoadSets([{ weight: "", reps: "1" }]);
+                setLoadSets([{ weight: "", reps: "" }]);
               }}
             />
             <span className="text-sm text-foreground">Free workout</span>
@@ -563,7 +553,7 @@ export function LogWorkoutForm({ templates }: Props) {
               const v = e.target.value as ScoreType;
               setScoreType(v);
               setBestResultDisplay("");
-              setLoadSets([{ weight: "", reps: "1" }]);
+              setLoadSets([{ weight: "", reps: "" }]);
             }}
             className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
           >
@@ -595,7 +585,7 @@ export function LogWorkoutForm({ templates }: Props) {
                       const v = e.target.value;
                       setLoadSets((rows) => rows.map((r, i) => (i === idx ? { ...r, weight: v } : r)));
                     }}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground"
                     placeholder="225"
                     min={0}
                   />
@@ -610,8 +600,8 @@ export function LogWorkoutForm({ templates }: Props) {
                       const v = e.target.value;
                       setLoadSets((rows) => rows.map((r, i) => (i === idx ? { ...r, reps: v } : r)));
                     }}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="1"
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground"
+                    placeholder="5"
                     min={1}
                   />
                 </div>
@@ -628,7 +618,7 @@ export function LogWorkoutForm({ templates }: Props) {
             ))}
             <button
               type="button"
-              onClick={() => setLoadSets((rows) => [...rows, { weight: "", reps: "1" }])}
+              onClick={() => setLoadSets((rows) => [...rows, { weight: "", reps: "" }])}
               className="text-sm font-medium text-primary hover:underline"
             >
               + Add set

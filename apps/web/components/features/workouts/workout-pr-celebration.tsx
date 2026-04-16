@@ -21,7 +21,7 @@ function buildCelebrationPool(title: string, result: string | null): PoolItem[] 
     { headline: "History updated", sub: `Your best on ${short} is now ${r}.` },
     { headline: "Send it, logged it", sub: `${short} · ${r}. Future-you will nod.` },
     { headline: "Peak performance", sub: `${short} — ${r}. Not luck, work.` },
-    { headline: "You beat yesterday", sub: `${short}: ${r}. Margins matter.` },
+    { headline: "Stronger than your last log", sub: `${short}: ${r}. The trend is your friend.` },
     { headline: "Trophy moment", sub: `${short} at ${r}. Earned, not given.` },
     { headline: "New high water mark", sub: `${short} — ${r}.` },
     { headline: "Yes — that counts", sub: `${short}: ${r}. PR secured.` },
@@ -30,6 +30,18 @@ function buildCelebrationPool(title: string, result: string | null): PoolItem[] 
     { headline: "PR: confirmed", sub: `${short} at ${r}.` },
     { headline: "You showed the data who is boss", sub: `${short}: ${r}.` },
     { headline: "Another rung", sub: `${short} — ${r}. Keep climbing.` },
+    { headline: "New ceiling unlocked", sub: `${short} — ${r}. Raise the roof next time too.` },
+    { headline: "That is the line moving", sub: `${short} at ${r}. Same lifts, new high mark.` },
+    { headline: "PR stamped in ink", sub: `${short}: ${r}. Hard to argue with the logbook.` },
+    { headline: "You leveled up", sub: `${short} · ${r}. Same workout, new standard.` },
+    { headline: "Gravity took notes", sub: `${short} — ${r}. Heavier story, same bar.` },
+    { headline: "Best-you showed up", sub: `${short}: ${r}. Carry that into the next session.` },
+    { headline: "Chart says: up", sub: `${short} at ${r}. Momentum is not imaginary.` },
+    { headline: "Unlocked: heavier chapter", sub: `${short} — ${r}. Turn the page when you are ready.` },
+    { headline: "PR weather: sunny", sub: `${short}: ${r}. Forecast: more reps, same grit.` },
+    { headline: "You outpaced your ghost", sub: `${short} · ${r}. Old PRs make great warmup weight.` },
+    { headline: "The work cashed a check", sub: `${short} — ${r}. Interest paid in kilos or pounds.` },
+    { headline: "Signature performance", sub: `${short}: ${r}. That is the version worth repeating.` },
   ];
 }
 

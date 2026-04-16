@@ -127,18 +127,50 @@ export function bestOneRmFromLoadSetDetails(setDetails: unknown): number | null 
   return null;
 }
 
+/** Rows with positive weight and positive reps (Epley input). Skips blank rows. */
+export function parseValidLoadSets(
+  sets: Array<{ weight: string; reps: string }>
+): Array<{ weight: number; reps: number }> {
+  const out: Array<{ weight: number; reps: number }> = [];
+  for (const s of sets) {
+    const w = parseFloat(s.weight);
+    const r = parseInt(s.reps, 10);
+    if (!isNaN(w) && w > 0 && !isNaN(r) && r > 0) {
+      out.push({ weight: w, reps: r });
+    }
+  }
+  return out;
+}
+
+/**
+ * Catch half-filled rows before save. Returns null if every non-empty field is paired
+ * (weight with reps and vice versa).
+ */
+export function validateLoadSetRows(
+  sets: Array<{ weight: string; reps: string }>
+): string | null {
+  for (const s of sets) {
+    const w = parseFloat(s.weight);
+    const r = parseInt(s.reps, 10);
+    const weightEntered = s.weight.trim() !== "";
+    const repsEntered = s.reps.trim() !== "";
+    const hasWeight = weightEntered && !isNaN(w) && w > 0;
+    const hasReps = repsEntered && !isNaN(r) && r > 0;
+    if (hasWeight && !hasReps) {
+      return "Enter reps for every set that has a weight.";
+    }
+    if (hasReps && !hasWeight) {
+      return "Enter weight for every set that has reps.";
+    }
+  }
+  return null;
+}
+
 /** Format load sets for notes (not including existing notes text). */
 export function formatLoadSetsForNotes(
   sets: Array<{ weight: string; reps: string }>
 ): string {
-  const lines: string[] = [];
-  let i = 1;
-  for (const s of sets) {
-    const w = parseFloat(s.weight);
-    const r = parseInt(s.reps, 10) || 1;
-    if (isNaN(w) || w <= 0) continue;
-    lines.push(`Set ${i}: ${w} × ${r}`);
-    i++;
-  }
+  const valid = parseValidLoadSets(sets);
+  const lines = valid.map((s, i) => `Set ${i + 1}: ${s.weight} × ${s.reps}`);
   return lines.length ? `Sets:\n${lines.join("\n")}` : "";
 }
