@@ -70,4 +70,4 @@ ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
 # Migrate, normalize PR flags (idempotent), then start the app
-CMD ["sh", "-c", "/app/.prisma-migrate/node_modules/.bin/prisma migrate deploy --schema=./packages/database/prisma/schema.prisma && /app/.prisma-migrate/node_modules/.bin/tsx /app/repair-all-prs.ts && node apps/web/server.js"]
+CMD ["sh", "-c", "/app/.prisma-migrate/node_modules/.bin/prisma migrate deploy --schema=./packages/database/prisma/schema.prisma && (/app/.prisma-migrate/node_modules/.bin/tsx /app/repair-all-prs.ts || echo 'repair-all-prs.ts failed, continuing...') && node apps/web/server.js"]
