@@ -587,8 +587,14 @@ export function AnalyticsPageClient({
                               </span>
                             )}
                             <span>
-                              {s.bestResultDisplay ??
-                                (s.bestResultRaw != null ? String(s.bestResultRaw) : "—")}
+                              {(() => {
+                                const d = s.bestResultDisplay ??
+                                  (s.bestResultRaw != null ? String(s.bestResultRaw) : "—");
+                                if (s.scoreType === "Load" && /^\d+(?:\.\d+)?$/.test(d)) {
+                                  return `~${d} est. 1RM`;
+                                }
+                                return d;
+                              })()}
                             </span>
                           </span>
                         </td>

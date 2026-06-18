@@ -211,7 +211,12 @@ export function HistoryTableView({ sessions }: Props) {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {s.bestResultDisplay || "—"}
+                      {s.bestResultDisplay
+                        ? s.scoreType === "Load" &&
+                          /^\d+(?:\.\d+)?$/.test(s.bestResultDisplay)
+                          ? `~${s.bestResultDisplay} est. 1RM`
+                          : s.bestResultDisplay
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                       {s.scoreType || "—"}
