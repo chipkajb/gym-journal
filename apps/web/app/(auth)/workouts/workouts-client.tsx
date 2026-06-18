@@ -152,7 +152,13 @@ export function WorkoutsPageClient({
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             {formatWorkoutCalendarDate(s.workoutDate, "short")}
                             {s.bestResultDisplay && (
-                              <> · {s.bestResultDisplay}</>
+                              <>
+                                {" · "}
+                                {s.scoreType === "Load" &&
+                                /^\d+(?:\.\d+)?$/.test(s.bestResultDisplay)
+                                  ? `~${s.bestResultDisplay} est. 1RM`
+                                  : s.bestResultDisplay}
+                              </>
                             )}
                             {s.rxOrScaled && <> · {s.rxOrScaled}</>}
                           </p>

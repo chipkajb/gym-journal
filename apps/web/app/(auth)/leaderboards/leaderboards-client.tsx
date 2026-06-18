@@ -661,7 +661,10 @@ export function LeaderboardsClient({
                   </div>
                   {pr.bestResultDisplay && (
                     <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
-                      {pr.bestResultDisplay}
+                      {pr.scoreType === "Load" &&
+                      /^\d+(?:\.\d+)?$/.test(pr.bestResultDisplay)
+                        ? `~${pr.bestResultDisplay} est. 1RM`
+                        : pr.bestResultDisplay}
                     </span>
                   )}
                 </Link>
