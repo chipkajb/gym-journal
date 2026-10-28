@@ -1,7 +1,3 @@
-"use client";
-
-import { useRef } from "react";
-
 type GreetingCtx = { firstName: string; streak: number };
 
 function buildGreetingPool({ firstName, streak }: GreetingCtx): { headline: string; sub: string }[] {
@@ -76,16 +72,14 @@ function buildGreetingPool({ firstName, streak }: GreetingCtx): { headline: stri
 }
 
 export function DashboardGreeting({ firstName, streak }: GreetingCtx) {
-  const picked = useRef<{ headline: string; sub: string } | null>(null);
-  if (picked.current === null) {
-    const pool = buildGreetingPool({ firstName, streak });
-    picked.current = pool[Math.floor(Math.random() * pool.length)]!;
-  }
-  const g = picked.current;
+  // Rotates daily. Deterministic so server and client render the same text
+  // (a per-render Math.random() caused hydration mismatches).
+  const pool = buildGreetingPool({ firstName, streak });
+  const g = pool[Math.floor(Date.now() / 86_400_000) % pool.length]!;
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-foreground">{g.headline}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{g.headline}</h1>
       <p className="text-muted-foreground mt-1">{g.sub}</p>
     </div>
   );

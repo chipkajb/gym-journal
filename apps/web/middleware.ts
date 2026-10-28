@@ -12,6 +12,7 @@ const protectedPaths = [
   "/timer",
   "/wod",
   "/analytics",
+  "/settings",
 ];
 const authPaths = ["/login", "/register"];
 
@@ -51,6 +52,8 @@ export const config = {
     "/wod/:path*",
     "/analytics",
     "/analytics/:path*",
+    "/settings",
+    "/settings/:path*",
     "/login",
     "/register",
   ],

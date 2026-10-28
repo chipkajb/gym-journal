@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  compress: true,
+  poweredByHeader: false,
+  experimental: {
+    // tree-shake big icon/chart/date libs instead of bundling whole packages
+    optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
+  },
   // enable standalone output for docker
   output: 'standalone',
   // transpile packages from monorepo

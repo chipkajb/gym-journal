@@ -17,8 +17,17 @@ import {
   Search,
   ChevronDown,
 } from "lucide-react";
-import { FrequencyChart } from "./frequency-chart";
-import { HealthMetricsCharts } from "./health-metrics-charts";
+import dynamic from "next/dynamic";
+
+const chartFallback = () => <div className="h-64 animate-pulse rounded-xl bg-muted" />;
+const FrequencyChart = dynamic(() => import("./frequency-chart").then((m) => m.FrequencyChart), {
+  ssr: false,
+  loading: chartFallback,
+});
+const HealthMetricsCharts = dynamic(
+  () => import("./health-metrics-charts").then((m) => m.HealthMetricsCharts),
+  { ssr: false, loading: chartFallback }
+);
 import {
   LineChart,
   Line,
