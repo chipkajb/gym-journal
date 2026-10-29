@@ -13,6 +13,7 @@ import {
   validateLoadSetRows,
 } from "@/lib/workout-utils";
 import { SCORE_TYPES, type ScoreType, isValidScoreType } from "@/lib/score-types";
+import { formatClock, parseDurationInput } from "@/lib/duration";
 
 type Props = {
   sessionId: string;
@@ -70,26 +71,6 @@ function initialLoadSets(
   return [{ weight: p.weight, reps: p.reps }];
 }
 
-function formatDurationSec(secs: string): string {
-  const n = parseInt(secs, 10);
-  if (isNaN(n) || n <= 0) return secs;
-  const m = Math.floor(n / 60);
-  const s = n % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function parseDurationInput(val: string): number | null {
-  if (!val.trim()) return null;
-  if (val.includes(":")) {
-    const parts = val.split(":").map(Number);
-    if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
-    if (parts.length === 3)
-      return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
-  }
-  const n = Number(val);
-  return isNaN(n) ? null : n * 60;
-}
-
 export function EditWorkoutForm({ sessionId, initial }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
@@ -107,7 +88,7 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
   const [maxHeartRate, setMaxHeartRate] = useState(initial.maxHeartRate);
   const [avgHeartRate, setAvgHeartRate] = useState(initial.avgHeartRate);
   const [totalDurationInput, setTotalDurationInput] = useState(
-    initial.totalDurationSeconds ? formatDurationSec(initial.totalDurationSeconds) : ""
+    initial.totalDurationSeconds ? formatClock(Number(initial.totalDurationSeconds)) : ""
   );
   const [showHealthMetrics, setShowHealthMetrics] = useState(
     !!(initial.calories || initial.maxHeartRate || initial.avgHeartRate || initial.totalDurationSeconds)

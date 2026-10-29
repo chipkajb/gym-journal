@@ -4,16 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { WorkoutTimer, type TimerResult } from "@/components/features/workouts/workout-timer";
 import { Clock, CheckCircle2 } from "lucide-react";
-
-function formatTime(totalSeconds: number): string {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
+import { formatClock } from "@/lib/duration";
 
 type Props = {
   /** Use "section" when nested under a tools hub page title. */
@@ -50,7 +41,7 @@ export function TimerToolPanel({ headingLevel = "page" }: Props) {
               Last result: {lastResult.label}
             </p>
             <p className="text-sm text-green-700 dark:text-green-400">
-              {lastResult.mode.toUpperCase()} · {formatTime(lastResult.durationSeconds)}
+              {lastResult.mode.toUpperCase()} · {formatClock(lastResult.durationSeconds)}
             </p>
             <p className="text-xs text-green-600 dark:text-green-500 mt-1">
               To log this to a workout, go to{" "}

@@ -22,6 +22,7 @@ import {
 } from "@/lib/workout-utils";
 import { SCORE_TYPES, type ScoreType, isValidScoreType } from "@/lib/score-types";
 import { localCalendarYmd } from "@/lib/calendar-date";
+import { parseDurationInput } from "@/lib/duration";
 
 type TemplateOption = {
   id: string;
@@ -223,18 +224,6 @@ export function LogWorkoutForm({ templates }: Props) {
     const best = sets.length ? bestOneRmFromLoadSetDetails({ sets }) : null;
     setBestResultDisplay(best != null ? String(best) : "");
   }, [isLoadType, loadSets]);
-
-  function parseDurationInput(val: string): number | null {
-    if (!val.trim()) return null;
-    if (val.includes(":")) {
-      const parts = val.split(":").map(Number);
-      if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
-      if (parts.length === 3)
-        return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
-    }
-    const n = Number(val);
-    return isNaN(n) ? null : n * 60;
-  }
 
   function handleTimerFinish(result: TimerResult) {
     setShowTimer(false);

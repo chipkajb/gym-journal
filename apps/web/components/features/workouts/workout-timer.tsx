@@ -2,23 +2,29 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Play, Pause, RotateCcw, StopCircle, Check, X, Plus } from "lucide-react";
+import { formatClock } from "@/lib/duration";
+import {
+  adjustRoundsAfterTimeTrim,
+  buildFinalTimerResult,
+  buildRoundsNoteFromRounds,
+  parseDisplayTime,
+  parseMmSs,
+  recomputeRoundDiffs,
+  type Round,
+  type TimerMode,
+  type TimerResult,
+} from "@/lib/timer/rounds";
+import {
+  ensureAudioContext,
+  playCountdownTickBeep,
+  playGoBeep,
+  primeAudioFromUserGesture,
+  startSilentKeepAliveOnContext,
+  stopSilentKeepAlive,
+} from "@/lib/timer/audio";
 
-export type TimerMode = "free" | "fortime" | "amrap" | "tabata" | "emom";
+export type { TimerMode, TimerResult };
 
-export type TimerResult = {
-  mode: TimerMode;
-  durationSeconds: number;
-  label: string;
-  roundsNote?: string;
-};
-
-type Round = {
-  round: number;
-  elapsed: number;
-  split: number;
-  /** seconds faster (+) or slower (-) than previous round split */
-  diffVsPrevSec: number | null;
-};
 
 type TimerConfig = {
   timeCap?: number;
@@ -33,291 +39,6 @@ type TimerConfig = {
 const COUNTDOWN_START = 10;
 /** Beeps at 3, 2, 1 before the distinct “go” tone at 0. */
 const BEEP_AT_SECONDS = new Set([3, 2, 1]);
-
-/** Peak gain for countdown ticks (0–1; higher = louder; may clip slightly at the peak). */
-const COUNTDOWN_BEEP_PEAK = 0.96;
-/** Peak gain per partial in the two-tone “go” beep. */
-const GO_BEEP_PEAK = 0.94;
-
-function formatTime(totalSeconds: number): string {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function parseMmSs(val: string): number {
-  const parts = val.split(":").map(Number);
-  if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
-  if (parts.length === 1) return parts[0] ?? 0;
-  return 0;
-}
-
-/** Parses display strings like `m:ss`, `mm:ss`, or `h:mm:ss` into total seconds. */
-function parseDisplayTime(val: string): number {
-  const trimmed = val.trim();
-  if (!trimmed) return 0;
-  const parts = trimmed.split(":").map((p) => Number.parseInt(p.trim(), 10));
-  if (parts.some((n) => Number.isNaN(n))) return 0;
-  if (parts.length === 3) return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
-  if (parts.length === 2) return parts[0]! * 60 + parts[1]!;
-  return parts[0]! ?? 0;
-}
-
-function buildRoundsNoteFromRounds(rounds: Round[], totalSeconds: number): string | undefined {
-  if (rounds.length === 0) return undefined;
-  const lastMark = rounds[rounds.length - 1]!.elapsed;
-  const tailRemainderSec = Math.max(0, Math.round(totalSeconds - lastMark));
-  const lines = [
-    "Round splits:",
-    ...rounds.map((r) => `Round ${r.round}: ${formatTime(Math.round(r.split))}`),
-  ];
-  if (tailRemainderSec > 0) {
-    lines.push(`Time after last split: ${formatTime(tailRemainderSec)}`);
-  }
-  return lines.join("\n");
-}
-
-function recomputeRoundDiffs(rounds: Round[]): Round[] {
-  return rounds.map((r, i) => {
-    const prevSplit = i > 0 ? rounds[i - 1]!.split : null;
-    const diffVsPrevSec = prevSplit != null ? Math.round(prevSplit - r.split) : null;
-    return { ...r, diffVsPrevSec };
-  });
-}
-
-/**
- * When shortening total time, trim from tail after last split first, then from round splits
- * (last round first) so Notes stay consistent with the edited clock.
- */
-function adjustRoundsAfterTimeTrim(
-  baseTotalSec: number,
-  newTotalSec: number,
-  rounds: Round[]
-): Round[] {
-  if (rounds.length === 0 || newTotalSec >= baseTotalSec) {
-    return rounds.map((r) => ({ ...r }));
-  }
-
-  let remaining = Math.round(baseTotalSec - newTotalSec);
-  if (remaining <= 0) return rounds.map((r) => ({ ...r }));
-
-  const adj: Round[] = rounds.map((r) => ({
-    round: r.round,
-    elapsed: r.elapsed,
-    split: r.split,
-    diffVsPrevSec: r.diffVsPrevSec,
-  }));
-
-  const baseTail = Math.max(
-    0,
-    Math.round(baseTotalSec - adj[adj.length - 1]!.elapsed)
-  );
-  remaining -= Math.min(remaining, baseTail);
-
-  while (remaining > 0 && adj.length > 0) {
-    const li = adj.length - 1;
-    const prevElapsed = li > 0 ? adj[li - 1]!.elapsed : 0;
-    const last = adj[li]!;
-    const splitRounded = Math.max(0, Math.round(last.split));
-    if (splitRounded === 0) {
-      adj.pop();
-      continue;
-    }
-    const take = Math.min(remaining, splitRounded);
-    last.split -= take;
-    remaining -= take;
-    last.elapsed = prevElapsed + last.split;
-    if (Math.round(last.split) <= 0) {
-      adj.pop();
-    }
-  }
-
-  let cum = 0;
-  for (let i = 0; i < adj.length; i++) {
-    const chunk = Math.max(0, adj[i]!.split);
-    adj[i]!.split = chunk;
-    cum += chunk;
-    adj[i]!.elapsed = cum;
-  }
-
-  return recomputeRoundDiffs(adj);
-}
-
-function buildFinalTimerResult(
-  result: TimerResult,
-  finishTimeInput: string,
-  mode: TimerMode,
-  rounds: Round[]
-): TimerResult {
-  const baseTotal = result.durationSeconds;
-  const parsed = parseDisplayTime(finishTimeInput);
-  const newTotal = Math.max(0, Math.round(parsed));
-  const supportsRoundsLocal = mode === "free" || mode === "fortime" || mode === "amrap";
-
-  if (!supportsRoundsLocal || rounds.length === 0) {
-    let roundsNote = result.roundsNote;
-    if (supportsRoundsLocal && rounds.length === 0 && newTotal > baseTotal) {
-      roundsNote = [result.roundsNote, `Adjusted clock +${newTotal - baseTotal}s after stop.`]
-        .filter(Boolean)
-        .join("\n\n");
-    }
-    return {
-      ...result,
-      durationSeconds: newTotal,
-      label: formatTime(newTotal),
-      roundsNote,
-    };
-  }
-
-  let nextRounds = rounds;
-  if (newTotal < baseTotal) {
-    nextRounds = adjustRoundsAfterTimeTrim(baseTotal, newTotal, rounds);
-  }
-
-  let roundsNote = buildRoundsNoteFromRounds(nextRounds, newTotal);
-  if (newTotal > baseTotal) {
-    const extra = newTotal - baseTotal;
-    roundsNote = [roundsNote, `Adjusted clock +${extra}s after stop.`].filter(Boolean).join("\n\n");
-  }
-
-  return {
-    mode,
-    durationSeconds: newTotal,
-    label: formatTime(newTotal),
-    roundsNote,
-  };
-}
-
-function getAudioContextCtor(): (typeof AudioContext) | null {
-  if (typeof window === "undefined") return null;
-  return (
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ||
-    null
-  );
-}
-
-const sharedAudio: {
-  ctx: AudioContext | null;
-  silentSource: AudioBufferSourceNode | null;
-} = { ctx: null, silentSource: null };
-
-/** Call synchronously from pointer/touch handlers so mobile Safari unlocks audio. */
-function primeAudioFromUserGesture(): void {
-  const Ctor = getAudioContextCtor();
-  if (!Ctor) return;
-  try {
-    if (!sharedAudio.ctx || sharedAudio.ctx.state === "closed") {
-      sharedAudio.ctx = new Ctor();
-      sharedAudio.silentSource = null;
-    }
-    void sharedAudio.ctx.resume();
-  } catch {
-    /* noop */
-  }
-}
-
-async function ensureAudioContext(): Promise<AudioContext | null> {
-  const Ctor = getAudioContextCtor();
-  if (!Ctor) return null;
-  try {
-    if (!sharedAudio.ctx || sharedAudio.ctx.state === "closed") {
-      sharedAudio.ctx = new Ctor();
-      sharedAudio.silentSource = null;
-    }
-    const { ctx } = sharedAudio;
-    if (ctx.state === "suspended") {
-      await ctx.resume();
-    }
-    return ctx;
-  } catch {
-    return null;
-  }
-}
-
-/** Loud countdown ticks (3–2–1) and segment warnings. */
-function playCountdownTickBeep(): void {
-  void ensureAudioContext().then((ctx) => {
-    if (!ctx) return;
-    try {
-      const t0 = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = 920;
-      gain.gain.setValueAtTime(0.001, t0);
-      gain.gain.exponentialRampToValueAtTime(COUNTDOWN_BEEP_PEAK, t0 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(t0);
-      osc.stop(t0 + 0.17);
-    } catch {
-      /* no audio */
-    }
-  });
-}
-
-/** Short two-tone “go” — clearly different from the countdown ticks. */
-function playGoBeep(): void {
-  void ensureAudioContext().then((ctx) => {
-    if (!ctx) return;
-    try {
-      const t0 = ctx.currentTime;
-      const mk = (freq: number, start: number, dur: number) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "triangle";
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.001, start);
-        gain.gain.exponentialRampToValueAtTime(GO_BEEP_PEAK, start + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + dur + 0.01);
-      };
-      mk(392, t0, 0.1);
-      mk(523.25, t0 + 0.09, 0.14);
-    } catch {
-      /* no audio */
-    }
-  });
-}
-
-function stopSilentKeepAlive(): void {
-  if (sharedAudio.silentSource) {
-    try {
-      sharedAudio.silentSource.stop();
-    } catch {
-      /* noop */
-    }
-    sharedAudio.silentSource = null;
-  }
-}
-
-/** Very quiet looping buffer on the shared context — helps mobile audio + timing. */
-function startSilentKeepAliveOnContext(ctx: AudioContext): void {
-  stopSilentKeepAlive();
-  try {
-    const buffer = ctx.createBuffer(1, Math.max(2, ctx.sampleRate), ctx.sampleRate);
-    const src = ctx.createBufferSource();
-    src.buffer = buffer;
-    src.loop = true;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.0001;
-    src.connect(gain);
-    gain.connect(ctx.destination);
-    src.start();
-    sharedAudio.silentSource = src;
-  } catch {
-    /* noop */
-  }
-}
 
 type Props = {
   mode?: TimerMode;
@@ -338,16 +59,16 @@ export function WorkoutTimer({
 
   const [timeCap, setTimeCap] = useState(initialConfig.timeCap ?? 0);
   const [timeCapInput, setTimeCapInput] = useState(
-    initialConfig.timeCap ? formatTime(initialConfig.timeCap) : ""
+    initialConfig.timeCap ? formatClock(initialConfig.timeCap) : ""
   );
   const [amrapDuration, setAmrapDuration] = useState(initialConfig.amrapDuration ?? 1200);
-  const [amrapInput, setAmrapInput] = useState(formatTime(initialConfig.amrapDuration ?? 1200));
+  const [amrapInput, setAmrapInput] = useState(formatClock(initialConfig.amrapDuration ?? 1200));
   const [tabataWork, setTabataWork] = useState(initialConfig.tabataWork ?? 20);
   const [tabataRest, setTabataRest] = useState(initialConfig.tabataRest ?? 10);
   const [tabataRounds, setTabataRounds] = useState(initialConfig.tabataRounds ?? 8);
   const [emomInterval, setEmomInterval] = useState(initialConfig.emomInterval ?? 60);
   const [emomIntervalInput, setEmomIntervalInput] = useState(
-    formatTime(initialConfig.emomInterval ?? 60)
+    formatClock(initialConfig.emomInterval ?? 60)
   );
   const [emomRounds, setEmomRounds] = useState(initialConfig.emomRounds ?? 10);
 
@@ -400,7 +121,7 @@ export function WorkoutTimer({
       setInCountdown(false);
       setFinished(true);
       const totalSeconds = Math.round(elapsed);
-      let label = formatTime(totalSeconds);
+      let label = formatClock(totalSeconds);
       if (reason === "cap") label += " (time cap)";
       const supportsRoundsLocal = mode === "free" || mode === "fortime" || mode === "amrap";
       const roundsNote =
@@ -409,7 +130,7 @@ export function WorkoutTimer({
           : undefined;
       const r: TimerResult = { mode, durationSeconds: totalSeconds, label, roundsNote };
       setResult(r);
-      setFinishTimeInput(formatTime(totalSeconds));
+      setFinishTimeInput(formatClock(totalSeconds));
     },
     [elapsed, mode, rounds]
   );
@@ -850,7 +571,7 @@ export function WorkoutTimer({
               INTERVAL {emomCurrentRound}
             </div>
             <div className="text-muted-foreground text-xs">
-              of {emomRounds} · {formatTime(emomPhaseRemaining)} left this interval
+              of {emomRounds} · {formatClock(emomPhaseRemaining)} left this interval
             </div>
           </div>
         )}
@@ -872,13 +593,13 @@ export function WorkoutTimer({
             }`}
           >
             {mode === "tabata" && running
-              ? formatTime(tabataPhaseRemaining)
-              : formatTime(display)}
+              ? formatClock(tabataPhaseRemaining)
+              : formatClock(display)}
           </div>
         )}
 
         {!inCountdown && mode === "tabata" && running && (
-          <div className="mt-1 text-muted-foreground text-xs">Total: {formatTime(secs)}</div>
+          <div className="mt-1 text-muted-foreground text-xs">Total: {formatClock(secs)}</div>
         )}
 
         {finished && result && displayFinishResult && (
@@ -1009,10 +730,10 @@ export function WorkoutTimer({
       <div className="text-center">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
           {modeLabels[mode]}
-          {mode === "fortime" && timeCap > 0 && ` · Cap: ${formatTime(timeCap)}`}
-          {mode === "amrap" && ` · ${formatTime(amrapDuration)}`}
+          {mode === "fortime" && timeCap > 0 && ` · Cap: ${formatClock(timeCap)}`}
+          {mode === "amrap" && ` · ${formatClock(amrapDuration)}`}
           {mode === "tabata" && ` · ${tabataWork}s/${tabataRest}s × ${tabataRounds}`}
-          {mode === "emom" && ` · ${formatTime(emomInterval)} × ${emomRounds}`}
+          {mode === "emom" && ` · ${formatClock(emomInterval)} × ${emomRounds}`}
         </span>
       </div>
 
@@ -1032,12 +753,12 @@ export function WorkoutTimer({
               >
                 <span className="text-muted-foreground font-medium">Round {r.round}</span>
                 <span className="font-mono font-semibold text-right tabular-nums">
-                  {formatTime(Math.round(r.split))}
+                  {formatClock(Math.round(r.split))}
                 </span>
                 <span className="font-mono text-xs text-muted-foreground text-right tabular-nums">
                   {mode === "amrap"
-                    ? formatTime(Math.max(0, amrapDuration - Math.round(r.elapsed)))
-                    : formatTime(Math.round(r.elapsed))}
+                    ? formatClock(Math.max(0, amrapDuration - Math.round(r.elapsed)))
+                    : formatClock(Math.round(r.elapsed))}
                 </span>
                 <span
                   className={`text-xs font-semibold text-right tabular-nums ${
