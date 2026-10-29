@@ -1,29 +1,21 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { HubHeader, useTabParam, type HubTab } from "@/components/ui/hub-tabs";
 import { BookOpen, PenLine, Plus, Shuffle } from "lucide-react";
 import { WodClient } from "@/app/(auth)/wod/wod-client";
 import { WorkoutsPageClient } from "@/app/(auth)/workouts/workouts-client";
 import { LibraryCardGrid } from "@/components/features/library/library-card-grid";
 
-type TrainingTab = "wod" | "sessions" | "library";
-
-function parseTab(raw: string | null): TrainingTab {
-  if (raw === "wod" || raw === "library") return raw;
-  return "sessions";
-}
-
 type WorkoutsProps = ComponentProps<typeof WorkoutsPageClient>;
 type LibraryTemplates = ComponentProps<typeof LibraryCardGrid>["templates"];
 
-const TABS: { id: TrainingTab; label: string; icon: typeof Shuffle }[] = [
+const TRAINING_TABS = [
   { id: "sessions", label: "Workouts", icon: PenLine },
   { id: "wod", label: "WOD Picker", icon: Shuffle },
   { id: "library", label: "Library", icon: BookOpen },
-];
+] as const satisfies readonly HubTab<string>[];
 
 type Template = LibraryTemplates[number] & { description: string | null };
 
@@ -36,53 +28,22 @@ export function TrainingHubClient({
   sessionsForWorkouts: WorkoutsProps["sessions"];
   userId: string;
 }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const tab = useMemo(() => parseTab(searchParams.get("tab")), [searchParams]);
-
-  const setTab = useCallback(
-    (next: TrainingTab) => {
-      const qs = new URLSearchParams(searchParams.toString());
-      if (next === "sessions") qs.delete("tab");
-      else qs.set("tab", next);
-      const tail = qs.toString();
-      router.replace(tail ? `/training?${tail}` : "/training", { scroll: false });
-    },
-    [router, searchParams]
-  );
+  const [tab, setTab] = useTabParam("tab", TRAINING_TABS);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Training</h1>
-        <div
-          role="tablist"
-          aria-label="Training sections"
-          className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 sm:inline-grid sm:w-auto"
-        >
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              id={`tab-training-${id}`}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => setTab(id)}
-              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-all ${
-                tab === id
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <HubHeader
+        title="Training"
+        label="Training sections"
+        idPrefix="tab-training"
+        tabs={TRAINING_TABS}
+        active={tab}
+        onSelect={setTab}
+      />
 
       <div
         role="tabpanel"
+        id="tab-training-panel"
         aria-labelledby={`tab-training-${tab}`}
       >
         {tab === "wod" && <WodClient templates={templates} headingLevel="section" />}
