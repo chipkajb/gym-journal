@@ -4,16 +4,10 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { WorkoutTimer, type TimerResult } from "./workout-timer";
 import { WorkoutHistoryPanel, type HistorySession } from "./workout-history-panel";
-import {
-  Clock,
-  ChevronDown,
-  ChevronUp,
-  History,
-} from "lucide-react";
+import { Clock, History } from "lucide-react";
 import {
   displayToRaw,
   validateDisplayResult,
-  getResultPlaceholder,
   bestOneRmFromLoadSetDetails,
   formatLoadSetsForNotes,
   parseValidLoadSets,
@@ -23,6 +17,7 @@ import { SCORE_TYPES, type ScoreType, isValidScoreType } from "@/lib/score-types
 import { localCalendarYmd } from "@/lib/calendar-date";
 import { parseDurationInput } from "@/lib/duration";
 import { SearchSelect } from "@/components/ui/search-select";
+import { HealthMetricsFields, ScoreFields, type LoadSetRow } from "@/components/features/workouts/workout-form-fields";
 
 type TemplateOption = {
   id: string;
@@ -35,9 +30,7 @@ type Props = {
   templates: TemplateOption[];
 };
 
-const RX_VALUES = ["RX", "SCALED"] as const;
 
-type LoadSetRow = { weight: string; reps: string };
 
 // ---------------------------------------------------------------------------
 // Searchable template combobox
@@ -268,6 +261,13 @@ export function LogWorkoutForm({ templates }: Props) {
       ? parseFloat(bestResultDisplay)
       : null;
 
+  const healthSetters = {
+    calories: setCalories,
+    totalDuration: setTotalDurationInput,
+    avgHeartRate: setAvgHeartRate,
+    maxHeartRate: setMaxHeartRate,
+  };
+
   return (
     <div className="space-y-4 max-w-lg">
       {!isLoadType && (
@@ -459,133 +459,17 @@ export function LogWorkoutForm({ templates }: Props) {
           </select>
         </div>
 
-        {/* Result — Load special case */}
-        {isLoadType ? (
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-foreground">Sets</label>
-            <p className="text-xs text-muted-foreground">
-              Add each set below. Your best estimated 1RM (Epley) across sets is saved as the score;
-              sets are copied into Notes when you log.
-            </p>
-            {loadSets.map((row, idx) => (
-              <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Weight</label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={row.weight}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setLoadSets((rows) => rows.map((r, i) => (i === idx ? { ...r, weight: v } : r)));
-                    }}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground"
-                    placeholder="225"
-                    min={0}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Reps</label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={row.reps}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setLoadSets((rows) => rows.map((r, i) => (i === idx ? { ...r, reps: v } : r)));
-                    }}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground"
-                    placeholder="5"
-                    min={1}
-                  />
-                </div>
-                {loadSets.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setLoadSets((rows) => rows.filter((_, i) => i !== idx))}
-                    className="px-2 py-2 text-xs text-muted-foreground hover:text-destructive border border-border rounded-lg"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setLoadSets((rows) => [...rows, { weight: "", reps: "" }])}
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              + Add set
-            </button>
-            {estimated1RM != null && !isNaN(estimated1RM) && (
-              <div className="px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
-                <p className="text-xs text-muted-foreground">
-                  Best est. 1RM (Epley):{" "}
-                  <span className="font-semibold text-foreground">{estimated1RM} lbs/kg</span>
-                  <span className="ml-1 text-muted-foreground">— saved as your score</span>
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Non-load result */
-          <div>
-            <label
-              htmlFor="bestResultDisplay"
-              className="block text-sm font-medium text-foreground mb-1"
-            >
-              Result
-              {scoreType && (
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  {scoreType === "Time" && "— mm:ss or hh:mm:ss"}
-                  {scoreType === "Rounds + Reps" && "— rounds+reps (e.g. 5+2)"}
-                </span>
-              )}
-            </label>
-            <input
-              id="bestResultDisplay"
-              type="text"
-              value={bestResultDisplay}
-              onChange={(e) => setBestResultDisplay(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${
-                displayError ? "border-red-400 dark:border-red-500" : "border-border"
-              }`}
-              placeholder={scoreType ? getResultPlaceholder(scoreType) : "e.g. 10:44, 5+2, 225"}
-            />
-            {displayError && (
-              <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                {displayError}
-              </p>
-            )}
-          </div>
-        )}
-
-        {!isLoadType && (
-          <div>
-            <label
-              htmlFor="rxOrScaled"
-              className="block text-sm font-medium text-foreground mb-1"
-            >
-              RX or Scaled <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="rxOrScaled"
-              value={rxOrScaled}
-              onChange={(e) => setRxOrScaled(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
-            >
-              <option value="" disabled>
-                Select RX or Scaled…
-              </option>
-              {RX_VALUES.map((o) => (
-                <option key={o} value={o}>
-                  {o === "SCALED" ? "Scaled" : o}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <ScoreFields
+          scoreType={scoreType}
+          loadSets={loadSets}
+          setLoadSets={setLoadSets}
+          estimated1RM={estimated1RM}
+          bestResultDisplay={bestResultDisplay}
+          setBestResultDisplay={setBestResultDisplay}
+          displayError={displayError}
+          rxOrScaled={rxOrScaled}
+          setRxOrScaled={setRxOrScaled}
+        />
 
         {/* Notes */}
         <div>
@@ -605,101 +489,17 @@ export function LogWorkoutForm({ templates }: Props) {
           />
         </div>
 
-        {/* Health metrics */}
-        <div className="border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setShowHealthMetrics((v) => !v)}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showHealthMetrics ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-            Health &amp; performance data
-            <span className="text-xs font-normal">
-              (optional — from your smartwatch)
-            </span>
-          </button>
-
-          {showHealthMetrics && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="calories"
-                  className="block text-xs font-medium text-muted-foreground mb-1"
-                >
-                  Calories burned
-                </label>
-                <input
-                  id="calories"
-                  type="number"
-                  inputMode="numeric"
-                  value={calories}
-                  onChange={(e) => setCalories(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                  placeholder="e.g. 420"
-                  min={0}
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="totalDuration"
-                  className="block text-xs font-medium text-muted-foreground mb-1"
-                >
-                  Total time training (mm:ss)
-                </label>
-                <input
-                  id="totalDuration"
-                  type="text"
-                  value={totalDurationInput}
-                  onChange={(e) => setTotalDurationInput(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                  placeholder="e.g. 45:00"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="avgHeartRate"
-                  className="block text-xs font-medium text-muted-foreground mb-1"
-                >
-                  Avg HR (bpm)
-                </label>
-                <input
-                  id="avgHeartRate"
-                  type="number"
-                  inputMode="numeric"
-                  value={avgHeartRate}
-                  onChange={(e) => setAvgHeartRate(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                  placeholder="e.g. 155"
-                  min={0}
-                  max={250}
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="maxHeartRate"
-                  className="block text-xs font-medium text-muted-foreground mb-1"
-                >
-                  Max HR (bpm)
-                </label>
-                <input
-                  id="maxHeartRate"
-                  type="number"
-                  inputMode="numeric"
-                  value={maxHeartRate}
-                  onChange={(e) => setMaxHeartRate(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                  placeholder="e.g. 182"
-                  min={0}
-                  max={250}
-                />
-              </div>
-            </div>
-          )}
-        </div>
+        <HealthMetricsFields
+          open={showHealthMetrics}
+          onToggle={() => setShowHealthMetrics((v) => !v)}
+          values={{
+            calories,
+            totalDuration: totalDurationInput,
+            avgHeartRate,
+            maxHeartRate,
+          }}
+          onChange={(key, v) => healthSetters[key](v)}
+        />
 
         <button
           type="submit"
