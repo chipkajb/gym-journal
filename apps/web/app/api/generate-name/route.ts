@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import Anthropic from "@anthropic-ai/sdk";
-import { APIError } from "@anthropic-ai/sdk";
+import Anthropic, { APIError } from "@anthropic-ai/sdk";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 
 const requestSchema = z.object({
@@ -10,6 +10,8 @@ const requestSchema = z.object({
   scoreType: z.string().optional().nullable(),
   existingTitle: z.string().optional().nullable(),
 });
+
+const namesSchema = z.object({ names: z.array(z.string()) });
 
 // System prompt for the CrossFit WOD naming agent
 const SYSTEM_PROMPT = `You are a CrossFit WOD (Workout of the Day) naming expert. Your job is to generate creative, memorable, and evocative names for custom CrossFit-style workouts.
@@ -37,11 +39,7 @@ const SYSTEM_PROMPT = `You are a CrossFit WOD (Workout of the Day) naming expert
 - Names must NOT be generic descriptions of the workout (e.g., don't say "Heavy Deadlift Day")
 - Names should feel like official CrossFit benchmark names
 - Consider the workout's intensity, movement patterns, and character when naming
-- Return ONLY a JSON array of strings, no explanation, no markdown, no extra text
-
-## Format
-Return exactly this format (pure JSON array, nothing else):
-["Name1", "Name2", "Name3", "Name4", "Name5", "Name6"]`;
+- Return the six names in the \`names\` field`;
 
 function buildUserMessage(data: {
   description?: string | null;
@@ -91,21 +89,24 @@ export async function POST(request: Request) {
     const client = new Anthropic({ apiKey });
     const userMessage = buildUserMessage(parsed.data);
 
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 256,
+    // Structured output: the response can start with thinking blocks, so never read content[0] as text.
+    const message = await client.messages.parse({
+      model: "claude-haiku-5-5",
+      max_tokens: 4000,
+      output_config: { effort: "low", format: zodOutputFormat(namesSchema) },
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
     });
 
-    const text =
-      message.content[0].type === "text" ? message.content[0].text : "";
-
-    // Parse the JSON array response
-    const names = JSON.parse(text.trim());
-    if (!Array.isArray(names) || names.length === 0) {
-      throw new Error("Invalid response format");
+    if (message.stop_reason === "refusal") {
+      return NextResponse.json(
+        { error: "Claude declined to name this workout — try rewording the description" },
+        { status: 422 }
+      );
     }
+
+    const names = message.parsed_output?.names.map((n) => n.trim()).filter(Boolean) ?? [];
+    if (names.length === 0) throw new Error("Invalid response format");
 
     return NextResponse.json({ names: names.slice(0, 6) });
   } catch (e) {
