@@ -24,6 +24,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { CHART_TOOLTIP_STYLE } from "@/lib/chart-theme";
 
 type Stats = {
   currentStreak: number;
@@ -593,7 +594,7 @@ export function LeaderboardsClient({
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <Tooltip
-              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
+              contentStyle={CHART_TOOLTIP_STYLE}
             />
             <Bar dataKey="total" name="RX or Scaled" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
             <Bar dataKey="rx" name="RX" fill="#10b981" radius={[3, 3, 0, 0]} />
@@ -623,7 +624,7 @@ export function LeaderboardsClient({
             <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <Tooltip
-              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
+              contentStyle={CHART_TOOLTIP_STYLE}
             />
             <Bar dataKey="count" name="Workouts" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
           </BarChart>

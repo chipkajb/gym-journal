@@ -71,11 +71,10 @@ function buildGreetingPool({ firstName, streak }: GreetingCtx): { headline: stri
   ];
 }
 
-export function DashboardGreeting({ firstName, streak }: GreetingCtx) {
-  // Rotates daily. Deterministic so server and client render the same text
-  // (a per-render Math.random() caused hydration mismatches).
+export function DashboardGreeting({ firstName, streak, dayIndex }: GreetingCtx & { dayIndex: number }) {
+  // Rotates daily; deterministic so it never flickers between renders.
   const pool = buildGreetingPool({ firstName, streak });
-  const g = pool[Math.floor(Date.now() / 86_400_000) % pool.length]!;
+  const g = pool[dayIndex % pool.length]!;
 
   return (
     <div>

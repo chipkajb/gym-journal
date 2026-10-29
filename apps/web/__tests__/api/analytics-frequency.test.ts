@@ -57,7 +57,7 @@ describe("frequency analytics bucketing", () => {
       { workoutDate: new Date("2024-01-10T12:00:00Z"), rxOrScaled: "RX" },
     ];
     const buckets = bucketSessions(sessions, "week");
-    const week = buckets.values().next().value;
+    const week = buckets.values().next().value!;
     expect(week.rx).toBe(2);
     expect(week.scaled).toBe(1);
     expect(week.total).toBe(3);
@@ -68,7 +68,7 @@ describe("frequency analytics bucketing", () => {
       { workoutDate: new Date("2024-01-08"), rxOrScaled: null },
     ];
     const buckets = bucketSessions(sessions, "week");
-    const week = buckets.values().next().value;
+    const week = buckets.values().next().value!;
     expect(week.total).toBe(1);
     expect(week.rx).toBe(0);
     expect(week.scaled).toBe(0);

@@ -42,19 +42,26 @@ export function HistoryCalendar({ userId }: Props) {
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  // fetch sessions for current month
+  const from = calendarStart.toISOString();
+  const to = calendarEnd.toISOString();
+
+  // fetch sessions for the visible grid; abort if the user pages to another month first
   useEffect(() => {
+    const ctrl = new AbortController();
     setLoading(true);
-    const from = calendarStart.toISOString();
-    const to = calendarEnd.toISOString();
-    fetch(
-      `/api/sessions?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
-    )
+    fetch(`/api/sessions?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+      signal: ctrl.signal,
+    })
       .then((res) => (res.ok ? res.json() : []))
       .then((data: Session[]) => setSessions(Array.isArray(data) ? data : []))
-      .catch(() => setSessions([]))
-      .finally(() => setLoading(false));
-  }, [calendarStart.getTime(), calendarEnd.getTime()]);
+      .catch(() => {
+        if (!ctrl.signal.aborted) setSessions([]);
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+    return () => ctrl.abort();
+  }, [from, to]);
 
   const days: Date[] = [];
   let d = new Date(calendarStart);

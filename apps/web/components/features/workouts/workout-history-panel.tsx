@@ -17,6 +17,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { CHART_TOOLTIP_STYLE } from "@/lib/chart-theme";
 
 export type HistorySession = {
   id: string;
@@ -105,23 +106,11 @@ function HistoryChart({ sessions }: { sessions: HistorySession[] }) {
               reversed={isTime}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: "var(--card)",
-                color: "var(--foreground)",
-                border: "1px solid var(--border)",
-                borderRadius: "8px",
-                fontSize: "12px",
+              contentStyle={CHART_TOOLTIP_STYLE}
+              formatter={(value, _name, item) => {
+                const p = item?.payload as { display?: string; isPr?: boolean } | undefined;
+                return [p?.isPr ? `${p.display} ★ PR` : (p?.display ?? String(value)), "Result"];
               }}
-              formatter={(
-                _value: number,
-                _name: string,
-                props: { payload?: { display?: string; isPr?: boolean } }
-              ) => [
-                props.payload?.isPr
-                  ? `${props.payload.display} ★ PR`
-                  : (props.payload?.display ?? String(_value)),
-                "Result",
-              ]}
               labelFormatter={(_, payload) =>
                 payload?.[0]?.payload?.fullDate
                   ? formatWorkoutCalendarDate(payload[0].payload.fullDate as string, "long")

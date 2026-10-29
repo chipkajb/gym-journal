@@ -166,7 +166,6 @@ export function LogWorkoutForm({ templates }: Props) {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistorySession[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [displayError, setDisplayError] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -215,14 +214,8 @@ export function LogWorkoutForm({ templates }: Props) {
     }
   }, [useTemplate, templateId, fetchHistory]);
 
-  // Validate display result whenever it or scoreType changes
-  useEffect(() => {
-    if (scoreType && bestResultDisplay) {
-      setDisplayError(validateDisplayResult(bestResultDisplay, scoreType));
-    } else {
-      setDisplayError(null);
-    }
-  }, [bestResultDisplay, scoreType]);
+  const displayError =
+    scoreType && bestResultDisplay ? validateDisplayResult(bestResultDisplay, scoreType) : null;
 
   useEffect(() => {
     if (!isLoadType) return;

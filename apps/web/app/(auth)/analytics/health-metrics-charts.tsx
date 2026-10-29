@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { CHART_TOOLTIP_STYLE } from "@/lib/chart-theme";
 
 type SeriesRow = {
   day: string;
@@ -251,14 +252,9 @@ function MetricBlock({
             <XAxis dataKey="label" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} width={44} />
             <Tooltip
-              formatter={(v: number) => [`${v}${unit}`, ""]}
+              formatter={(v) => [`${v}${unit}`, ""]}
               labelFormatter={(_, p) => (p?.length ? String(p[0]?.payload?.day ?? "") : "")}
-              contentStyle={{
-                backgroundColor: "var(--tooltip-bg, #fff)",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
             />
             <Legend />
             <Line

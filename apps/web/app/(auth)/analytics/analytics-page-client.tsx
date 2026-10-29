@@ -38,6 +38,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { CHART_TOOLTIP_STYLE } from "@/lib/chart-theme";
 
 /** Linear regression: returns trend y-values for each x index, or null if < 2 points. */
 function computeTrend(values: number[]): number[] | null {
@@ -471,21 +472,13 @@ export function AnalyticsPageClient({
                       className="text-gray-500 dark:text-gray-400"
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--tooltip-bg, #fff)",
-                        color: "var(--tooltip-color, #111827)",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(
-                        value: number,
-                        name: string,
-                        props: { payload?: { display?: string; isPr?: boolean } }
-                      ) => {
+                      contentStyle={CHART_TOOLTIP_STYLE}
+                      formatter={(value, name, item) => {
                         if (name === "Trend") return [null, null];
-                        const label = props.payload?.isPr
-                          ? `${props.payload.display ?? String(value)} ★ PR`
-                          : (props.payload?.display ?? String(value));
+                        const p = item?.payload as { display?: string; isPr?: boolean } | undefined;
+                        const label = p?.isPr
+                          ? `${p.display ?? String(value)} ★ PR`
+                          : (p?.display ?? String(value));
                         return [label, "Result"];
                       }}
                       labelFormatter={(_, payload) =>

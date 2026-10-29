@@ -16,10 +16,10 @@
     "db:repair-prs": "tsx scripts/repair-all-prs.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.7.1"
+    "@prisma/client": "^6.19.3"
   },
   "devDependencies": {
-    "prisma": "^5.7.1",
+    "prisma": "^6.19.3",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }

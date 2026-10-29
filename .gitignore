@@ -76,4 +76,4 @@ __pycache__/
 
 # AI context files
 ai/
-.cursorrules
+.cursorrules**/public/fallback-*.js

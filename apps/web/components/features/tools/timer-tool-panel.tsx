@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { WorkoutTimer, type TimerResult } from "@/components/features/workouts/workout-timer";
 import { Clock, CheckCircle2 } from "lucide-react";
 
@@ -53,9 +54,9 @@ export function TimerToolPanel({ headingLevel = "page" }: Props) {
             </p>
             <p className="text-xs text-green-600 dark:text-green-500 mt-1">
               To log this to a workout, go to{" "}
-              <a href="/workouts/new" className="underline font-medium">
+              <Link href="/workouts/new" className="underline font-medium">
                 Log workout
-              </a>{" "}
+              </Link>{" "}
               — the timer there will record your time automatically.
             </p>
           </div>

@@ -117,20 +117,15 @@ export function EditWorkoutForm({ sessionId, initial }: Props) {
     initialLoadSets(initial.scoreType, initial.setDetails, initial.bestResultDisplay)
   );
 
-  const [displayError, setDisplayError] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const isLoadType = scoreType === "Load";
 
-  // Validate display whenever it or scoreType changes
-  useEffect(() => {
-    if (scoreType && bestResultDisplay && !isLoadType) {
-      setDisplayError(validateDisplayResult(bestResultDisplay, scoreType));
-    } else {
-      setDisplayError(null);
-    }
-  }, [bestResultDisplay, scoreType, isLoadType]);
+  const displayError =
+    scoreType && bestResultDisplay && !isLoadType
+      ? validateDisplayResult(bestResultDisplay, scoreType)
+      : null;
 
   useEffect(() => {
     if (!isLoadType) return;

@@ -55,7 +55,7 @@ COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
 COPY --from=builder /app/packages/database/scripts/repair-all-prs.ts ./repair-all-prs.ts
 
-RUN npm install prisma@5.22.0 tsx@4.19.2 --prefix /app/.prisma-migrate
+RUN npm install prisma@6.19.3 tsx@4.19.2 --prefix /app/.prisma-migrate
 
 # Set permissions
 RUN chown -R nextjs:nodejs /app

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Trophy } from "lucide-react";
 
@@ -55,8 +55,8 @@ export function WorkoutPrCelebration({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [open, setOpen] = useState(false);
-  const picked = useRef<PoolItem | null>(null);
+  const [picked, setPicked] = useState<PoolItem | null>(null);
+  const open = picked !== null;
 
   const stripQuery = useCallback(() => {
     const qs = new URLSearchParams(searchParams.toString());
@@ -67,24 +67,21 @@ export function WorkoutPrCelebration({
 
   useEffect(() => {
     if (searchParams.get("celebrate") !== "pr") return;
-    if (picked.current === null) {
-      const pool = buildCelebrationPool(workoutTitle, bestResultDisplay);
-      picked.current = pool[Math.floor(Math.random() * pool.length)]!;
-    }
-    setOpen(true);
+    const pool = buildCelebrationPool(workoutTitle, bestResultDisplay);
+    setPicked((cur) => cur ?? pool[Math.floor(Math.random() * pool.length)]!);
   }, [searchParams, workoutTitle, bestResultDisplay]);
 
   useEffect(() => {
     if (!open) return;
     const t = window.setTimeout(() => {
-      setOpen(false);
+      setPicked(null);
       stripQuery();
     }, 5200);
     return () => window.clearTimeout(t);
   }, [open, stripQuery]);
 
-  if (!open || !picked.current) return null;
-  const g = picked.current;
+  if (!picked) return null;
+  const g = picked;
 
   return (
     <div
@@ -109,7 +106,7 @@ export function WorkoutPrCelebration({
         <button
           type="button"
           onClick={() => {
-            setOpen(false);
+            setPicked(null);
             stripQuery();
           }}
           className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
