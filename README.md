@@ -40,7 +40,7 @@ A full-stack progressive web application (PWA) for personal health and fitness t
 - **Next.js Route Handlers** — RESTful API routes
 - **Prisma ORM** — Type-safe database access (`@gym-journal/database`)
 - **NextAuth.js v4** — Authentication (Credentials + optional Google OAuth, JWT sessions, Prisma adapter)
-- **Anthropic Claude API** (`@anthropic-ai/sdk`) — AI workout name generation (claude-haiku-4-5-20251001)
+- **Anthropic Claude API** (`@anthropic-ai/sdk`) — AI workout name generation (claude-haiku-5-5)
 - **bcryptjs** — Password hashing
 - **Zod** — Request/response validation
 

@@ -26,7 +26,7 @@ This directory contains additional project documentation.
 ## New features (April 2026)
 
 ### AI Workout Name Generator
-Uses `claude-haiku-4-5-20251001` via the Anthropic API to suggest CrossFit-style names (like Fran, Murph, or Avalanche) based on workout description and metadata. Available on:
+Uses `claude-haiku-5-5` via the Anthropic API to suggest CrossFit-style names (like Fran, Murph, or Avalanche) based on workout description and metadata. Available on:
 - New template form (`/library/templates/new`)
 - Edit template form
 - Log workout form (`/workouts/new`)
