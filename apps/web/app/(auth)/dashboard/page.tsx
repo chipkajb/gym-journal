@@ -2,16 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  BarChart3,
-  Dumbbell,
-  Flame,
-  Target,
-  TrendingUp,
-  Wrench,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+import { Dumbbell, Flame, Plus, Shuffle, Target, Timer, TrendingUp, Zap } from "lucide-react";
 import { DashboardGreeting } from "./dashboard-greeting";
 import { computeWorkoutStreaks } from "@/lib/workout-streak";
 import { formatWorkoutCalendarDate } from "@/lib/calendar-date";
@@ -25,24 +16,31 @@ export default async function DashboardPage() {
   startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
 
-  const [recentSessions, templateCount, allDates, prCount, weekCount] = await Promise.all([
+  const [recentSessions, recentDates, totalWorkouts, prCount, weekCount] = await Promise.all([
     prisma.workoutSession.findMany({
       where: { userId: session.user.id },
       orderBy: { workoutDate: "desc" },
       take: 5,
+      select: {
+        id: true,
+        title: true,
+        workoutDate: true,
+        bestResultDisplay: true,
+        rxOrScaled: true,
+        isPr: true,
+      },
     }),
-    prisma.workoutTemplate.count({ where: { userId: session.user.id } }),
+    // ponytail: only the current streak is shown, so the last 400 workouts bound it
     prisma.workoutSession.findMany({
       where: { userId: session.user.id },
       select: { workoutDate: true },
       orderBy: { workoutDate: "desc" },
+      take: 400,
     }),
+    prisma.workoutSession.count({ where: { userId: session.user.id } }),
     prisma.workoutSession.count({ where: { userId: session.user.id, isPr: true } }),
     prisma.workoutSession.count({
-      where: {
-        userId: session.user.id,
-        workoutDate: { gte: startOfWeek },
-      },
+      where: { userId: session.user.id, workoutDate: { gte: startOfWeek } },
     }),
   ]);
 
@@ -50,8 +48,7 @@ export default async function DashboardPage() {
     ? session.user.name.trim().split(/\s+/)[0]
     : session.user.email?.split("@")[0] ?? "there";
 
-  const currentStreak = computeWorkoutStreaks(allDates.map(r => r.workoutDate)).current;
-  const totalWorkouts = allDates.length;
+  const currentStreak = computeWorkoutStreaks(recentDates.map((r) => r.workoutDate)).current;
 
   const stats = [
     { label: "Day Streak", value: currentStreak, icon: Flame, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-950/30" },
@@ -60,49 +57,13 @@ export default async function DashboardPage() {
     { label: "All Time", value: totalWorkouts, icon: TrendingUp, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-950/30" },
   ];
 
-  type QuickAction = {
-    href: string;
-    label: string;
-    desc: string;
-    icon: LucideIcon;
-    accent: string;
-    bg: string;
-    border: string;
-  };
-
-  const quickActions: QuickAction[] = [
-    {
-      href: "/training",
-      label: "Training",
-      desc: `WOD picker, workouts, library · ${templateCount} template${templateCount !== 1 ? "s" : ""}`,
-      icon: Dumbbell,
-      accent: "text-orange-600 dark:text-orange-400",
-      bg: "bg-orange-50 dark:bg-orange-950/30",
-      border: "hover:border-orange-400 dark:hover:border-orange-500",
-    },
-    {
-      href: "/analytics",
-      label: "Stats",
-      desc: "Overview, workouts & PRs, and health trends",
-      icon: BarChart3,
-      accent: "text-violet-600 dark:text-violet-400",
-      bg: "bg-violet-50 dark:bg-violet-950/30",
-      border: "hover:border-violet-400 dark:hover:border-violet-500",
-    },
-    {
-      href: "/tools",
-      label: "Tools",
-      desc: "Timer and 1RM calculator",
-      icon: Wrench,
-      accent: "text-lime-600 dark:text-lime-400",
-      bg: "bg-lime-50 dark:bg-lime-950/30",
-      border: "hover:border-lime-400 dark:hover:border-lime-500",
-    },
-  ];
-
   return (
-    <div className="space-y-8">
-      <DashboardGreeting firstName={firstName} streak={currentStreak} />
+    <div className="space-y-6">
+      <DashboardGreeting
+        firstName={firstName}
+        streak={currentStreak}
+        dayIndex={Math.floor(now.getTime() / 86_400_000)}
+      />
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -113,7 +74,7 @@ export default async function DashboardPage() {
                 <Icon className={`w-5 h-5 ${color}`} />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{value}</p>
+                <p className="text-2xl font-bold tabular text-foreground">{value}</p>
                 <p className="text-xs text-muted-foreground">{label}</p>
               </div>
             </div>
@@ -121,28 +82,29 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Quick Actions — same destinations as the header toolbar */}
-      <div className="space-y-6">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Quick Actions
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {quickActions.map(({ href, label, desc, icon: Icon, accent, bg, border }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 p-4 rounded-xl bg-card border border-border ${border} transition-all hover:shadow-sm`}
-            >
-              <div className={`p-2.5 rounded-lg ${bg} shrink-0`}>
-                <Icon className={`w-5 h-5 ${accent}`} />
-              </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-foreground text-sm">{label}</p>
-                <p className="text-xs text-muted-foreground truncate">{desc}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
+      {/* Primary actions */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Link
+          href="/workouts/new"
+          className="sm:col-span-1 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md active:scale-[0.98]"
+        >
+          <Plus className="w-5 h-5" />
+          Log workout
+        </Link>
+        <Link
+          href="/training?tab=wod"
+          className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3.5 font-medium transition-all hover:border-primary/40 hover:shadow-sm active:scale-[0.98]"
+        >
+          <Shuffle className="w-5 h-5 text-muted-foreground" />
+          Pick a WOD
+        </Link>
+        <Link
+          href="/tools"
+          className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3.5 font-medium transition-all hover:border-primary/40 hover:shadow-sm active:scale-[0.98]"
+        >
+          <Timer className="w-5 h-5 text-muted-foreground" />
+          Start timer
+        </Link>
       </div>
 
       {/* Recent Workouts */}

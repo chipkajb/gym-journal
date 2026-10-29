@@ -56,8 +56,8 @@ COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
 COPY --from=builder /app/packages/database/scripts/repair-all-prs.ts ./repair-all-prs.ts
 
 # Standalone image has no prisma CLI; `npx prisma` would fetch Prisma 7+, which rejects our schema.
-# Install Prisma 5 + tsx (for post-migrate PR repair) under a fixed prefix.
-RUN npm install prisma@5.22.0 tsx@4.19.2 --prefix /app/.prisma-migrate
+# Install Prisma 6 + tsx (for post-migrate PR repair) under a fixed prefix.
+RUN npm install prisma@6.19.3 tsx@4.19.2 --prefix /app/.prisma-migrate
 
 # Set permissions
 RUN chown -R nextjs:nodejs /app

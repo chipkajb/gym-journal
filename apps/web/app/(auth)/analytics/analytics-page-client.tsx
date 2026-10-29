@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { subMonths, subYears } from "date-fns";
 import {
@@ -15,10 +15,18 @@ import {
   TrendingUp,
   List,
   Search,
-  ChevronDown,
 } from "lucide-react";
-import { FrequencyChart } from "./frequency-chart";
-import { HealthMetricsCharts } from "./health-metrics-charts";
+import dynamic from "next/dynamic";
+
+const chartFallback = () => <div className="h-64 animate-pulse rounded-xl bg-muted" />;
+const FrequencyChart = dynamic(() => import("./frequency-chart").then((m) => m.FrequencyChart), {
+  ssr: false,
+  loading: chartFallback,
+});
+const HealthMetricsCharts = dynamic(
+  () => import("./health-metrics-charts").then((m) => m.HealthMetricsCharts),
+  { ssr: false, loading: chartFallback }
+);
 import {
   LineChart,
   Line,
@@ -29,6 +37,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { CHART_TOOLTIP_STYLE } from "@/lib/chart-theme";
+import { SearchSelect } from "@/components/ui/search-select";
 
 /** Linear regression: returns trend y-values for each x index, or null if < 2 points. */
 function computeTrend(values: number[]): number[] | null {
@@ -127,96 +137,6 @@ type Props = {
   layout?: "full" | "hub-workouts";
 };
 
-function WorkoutCombobox({
-  titles,
-  value,
-  onChange,
-}: {
-  titles: string[];
-  value: string;
-  onChange: (title: string) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const filtered = query.trim()
-    ? titles.filter((t) => t.toLowerCase().includes(query.toLowerCase()))
-    : titles;
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  function select(title: string) {
-    onChange(title);
-    setOpen(false);
-    setQuery("");
-  }
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm max-w-[260px] min-w-[160px]"
-      >
-        <span className="truncate flex-1 text-left">
-          {value || "Select a workout"}
-        </span>
-        <ChevronDown className="w-4 h-4 shrink-0 text-gray-400" />
-      </button>
-      {open && (
-        <div className="absolute z-50 mt-1 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg overflow-hidden">
-          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                autoFocus
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search workouts…"
-                className="w-full pl-7 pr-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          <ul className="max-h-64 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                No matches
-              </li>
-            ) : (
-              filtered.map((t) => (
-                <li key={t}>
-                  <button
-                    type="button"
-                    onClick={() => select(t)}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                      t === value
-                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium"
-                        : "text-gray-900 dark:text-white"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function AnalyticsPageClient({
   initialPrs,
   workoutTitles,
@@ -226,6 +146,10 @@ export function AnalyticsPageClient({
   layout = "full",
 }: Props) {
   const [workoutFilter, setWorkoutFilter] = useState<string>("");
+  const workoutTitleOptions = useMemo(
+    () => workoutTitles.map((t) => ({ value: t, label: t })),
+    [workoutTitles]
+  );
   const [timeRange, setTimeRange] = useState<TimeRangeKey>("all");
   const [workoutResults, setWorkoutResults] = useState<ProgressEntry[] | null>(
     null
@@ -353,8 +277,8 @@ export function AnalyticsPageClient({
   const isHubWorkouts = layout === "hub-workouts";
   const HeadingTag = isHubWorkouts ? "h2" : "h1";
   const headingClass = isHubWorkouts
-    ? "text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"
-    : "text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2";
+    ? "text-xl font-bold text-foreground flex items-center gap-2"
+    : "text-2xl font-bold text-foreground flex items-center gap-2";
 
   return (
     <div className="space-y-8">
@@ -365,12 +289,12 @@ export function AnalyticsPageClient({
           {isHubWorkouts ? "Workouts & PRs" : "Training insights"}
         </HeadingTag>
         {isHubWorkouts ? (
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Progress by workout, full PR library, and training frequency. Totals and streaks live on the Overview
             tab; smartwatch charts on Health trends.
           </p>
         ) : (
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Personal records, progress over time, workout trends, and smartwatch metrics.
           </p>
         )}
@@ -378,17 +302,17 @@ export function AnalyticsPageClient({
 
       {!isHubWorkouts && (
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <Dumbbell className="w-4 h-4" />
               <span className="text-sm font-medium">Total workouts</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            <p className="text-2xl font-bold text-foreground">
               {summary.totalSessions}
             </p>
           </div>
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <Trophy className="w-4 h-4" />
               <span className="text-sm font-medium">Personal records</span>
             </div>
@@ -396,12 +320,12 @@ export function AnalyticsPageClient({
               {summary.prCount}
             </p>
           </div>
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <Calendar className="w-4 h-4" />
               <span className="text-sm font-medium">Last 30 days</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            <p className="text-2xl font-bold text-foreground">
               {summary.recentCount}
             </p>
           </div>
@@ -411,23 +335,27 @@ export function AnalyticsPageClient({
       {!isHubWorkouts && <HealthMetricsCharts />}
 
       {workoutTitles.length > 0 && (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-center gap-3 mb-3">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <TrendingUp className="w-5 h-5" />
               Progress over time
             </h2>
-            <WorkoutCombobox
-              titles={workoutTitles}
+            <SearchSelect
+              options={workoutTitleOptions}
               value={workoutFilter}
               onChange={setWorkoutFilter}
+              placeholder="Select a workout"
+              searchPlaceholder="Search workouts…"
+              className="min-w-[160px] max-w-[260px]"
+              menuClassName="w-72"
             />
             <select
               value={timeRange}
               onChange={(e) =>
                 setTimeRange(e.target.value as TimeRangeKey)
               }
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              className="px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm"
             >
               {TIME_RANGES.map((tr) => (
                 <option key={tr.value} value={tr.value}>
@@ -437,7 +365,7 @@ export function AnalyticsPageClient({
             </select>
           </div>
           {loadingResults ? (
-            <p className="text-gray-500 dark:text-gray-400 py-8 text-center">
+            <p className="text-muted-foreground py-8 text-center">
               Loading results…
             </p>
           ) : chartData.length > 0 ? (
@@ -450,33 +378,25 @@ export function AnalyticsPageClient({
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      className="stroke-gray-200 dark:stroke-gray-600"
+                      className="stroke-border"
                     />
                     <XAxis
                       dataKey="date"
                       tick={{ fontSize: 12 }}
-                      className="text-gray-500 dark:text-gray-400"
+                      className="text-muted-foreground"
                     />
                     <YAxis
                       tick={{ fontSize: 12 }}
-                      className="text-gray-500 dark:text-gray-400"
+                      className="text-muted-foreground"
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--tooltip-bg, #fff)",
-                        color: "var(--tooltip-color, #111827)",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(
-                        value: number,
-                        name: string,
-                        props: { payload?: { display?: string; isPr?: boolean } }
-                      ) => {
+                      contentStyle={CHART_TOOLTIP_STYLE}
+                      formatter={(value, name, item) => {
                         if (name === "Trend") return [null, null];
-                        const label = props.payload?.isPr
-                          ? `${props.payload.display ?? String(value)} ★ PR`
-                          : (props.payload?.display ?? String(value));
+                        const p = item?.payload as { display?: string; isPr?: boolean } | undefined;
+                        const label = p?.isPr
+                          ? `${p.display ?? String(value)} ★ PR`
+                          : (p?.display ?? String(value));
                         return [label, "Result"];
                       }}
                       labelFormatter={(_, payload) =>
@@ -511,25 +431,25 @@ export function AnalyticsPageClient({
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-3 flex-wrap">
+              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-3 flex-wrap">
                 <span className="inline-flex items-center gap-1">
                   <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white ring-1 ring-amber-400" />
                   PR
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="inline-block w-5 border-t-2 border-dashed border-gray-400" />
+                  <span className="inline-block w-5 border-t-2 border-dashed border-input" />
                   Trend
                 </span>
                 Lower is better for time; higher is better for reps/load.
               </p>
             </>
           ) : workoutResults && workoutResults.length > 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 py-4">
+              <p className="text-muted-foreground py-4">
                 No numeric results in this time range for the chart. See table
                 below.
               </p>
             ) : workoutResults && workoutResults.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 py-4">
+              <p className="text-muted-foreground py-4">
                 No results yet for this workout.
               </p>
             ) : null}
@@ -538,32 +458,32 @@ export function AnalyticsPageClient({
 
       {workoutFilter && (workoutResults?.length ?? 0) > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
             <List className="w-5 h-5" />
             All results for &quot;{displayTitle}&quot;
             {timeRange !== "all" && (
-              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+              <span className="text-sm font-normal text-muted-foreground">
                 ({TIME_RANGES.find((r) => r.value === timeRange)?.label})
               </span>
             )}
           </h2>
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-100 dark:bg-gray-700/80 text-left">
+                <thead className="sticky top-0 bg-muted text-left">
                   <tr>
-                    <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-4 py-2 font-medium text-foreground">
                       Date
                     </th>
-                    <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
+                    <th className="px-4 py-2 font-medium text-foreground">
                       Result
                     </th>
                     {!hideRxColumn && (
-                      <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
+                      <th className="px-4 py-2 font-medium text-foreground">
                         RX/Scaled
                       </th>
                     )}
-                    <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300 w-20">
+                    <th className="px-4 py-2 font-medium text-foreground w-20">
                       Link
                     </th>
                   </tr>
@@ -574,12 +494,12 @@ export function AnalyticsPageClient({
                     .map((s) => (
                       <tr
                         key={s.id}
-                        className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        className="border-t border-border hover:bg-accent"
                       >
-                        <td className="px-4 py-2 text-gray-900 dark:text-white whitespace-nowrap">
+                        <td className="px-4 py-2 text-foreground whitespace-nowrap">
                           {formatWorkoutCalendarDate(s.workoutDate, "short")}
                         </td>
-                        <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                        <td className="px-4 py-2 text-foreground">
                           <span className="inline-flex items-center gap-1.5">
                             {s.isPr && (
                               <span className="text-amber-500" title="Personal record">
@@ -593,14 +513,14 @@ export function AnalyticsPageClient({
                           </span>
                         </td>
                         {!hideRxColumn && (
-                          <td className="px-4 py-2 text-gray-600 dark:text-gray-400">
+                          <td className="px-4 py-2 text-muted-foreground">
                             {s.rxOrScaled ?? "—"}
                           </td>
                         )}
                         <td className="px-4 py-2">
                           <Link
                             href={`/workouts/${s.id}`}
-                            className="text-blue-600 dark:text-blue-400 hover:underline"
+                            className="text-primary dark:text-blue-400 hover:underline"
                           >
                             View
                           </Link>
@@ -610,7 +530,7 @@ export function AnalyticsPageClient({
                 </tbody>
               </table>
             </div>
-            <p className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+            <p className="px-4 py-2 text-xs text-muted-foreground border-t border-border">
               {filteredResults.length} result{filteredResults.length !== 1 ? "s" : ""}
               {timeRange !== "all" &&
                 workoutResults &&
@@ -625,13 +545,13 @@ export function AnalyticsPageClient({
 
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-500" />
             Personal records
           </h2>
           {initialPrs.length > 0 && (
             <div className="relative sm:ml-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search PRs…"
@@ -640,18 +560,18 @@ export function AnalyticsPageClient({
                   setPrSearch(e.target.value);
                   setPrPage(1);
                 }}
-                className="pl-9 pr-4 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-56"
+                className="pl-9 pr-4 py-1.5 text-sm rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-full sm:w-56"
               />
             </div>
           )}
         </div>
 
         {initialPrs.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400">
+          <p className="text-muted-foreground">
             No PRs yet. Log workouts to see your personal records here.
           </p>
         ) : filteredPrs.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 py-4">
+          <p className="text-muted-foreground py-4">
             No PRs match &quot;{prSearch}&quot;.
           </p>
         ) : (
@@ -660,7 +580,7 @@ export function AnalyticsPageClient({
               {paginatedPrs.map((pr) => (
                 <div
                   key={pr.id}
-                  className="flex flex-col p-4 rounded-xl bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 hover:border-amber-400 dark:hover:border-amber-600 transition-colors shadow-sm"
+                  className="flex flex-col p-4 rounded-xl bg-card border border-amber-200 dark:border-amber-900/50 hover:border-amber-400 dark:hover:border-amber-600 transition-colors shadow-sm"
                 >
                   {/* Score type badge */}
                   <div className="flex items-center justify-between mb-2">
@@ -685,7 +605,7 @@ export function AnalyticsPageClient({
                   </div>
 
                   {/* Workout name */}
-                  <p className="font-semibold text-gray-900 dark:text-white leading-tight mb-1 line-clamp-2">
+                  <p className="font-semibold text-foreground leading-tight mb-1 line-clamp-2">
                     {pr.title}
                   </p>
 
@@ -697,22 +617,22 @@ export function AnalyticsPageClient({
                   )}
 
                   {/* Date */}
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  <p className="text-xs text-muted-foreground mb-3">
                     {formatWorkoutCalendarDate(pr.workoutDate, "short")}
                   </p>
 
                   {/* Actions */}
-                  <div className="flex gap-2 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex gap-2 mt-auto pt-2 border-t border-border">
                     <Link
                       href={`/workouts/${pr.id}`}
-                      className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-primary dark:text-blue-400 hover:bg-primary/10  rounded-lg transition-colors"
                     >
                       View session
                     </Link>
                     <button
                       type="button"
                       onClick={() => focusWorkout(pr.title)}
-                      className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      className="flex-1 text-center px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent rounded-lg transition-colors"
                     >
                       All results
                     </button>
@@ -722,7 +642,7 @@ export function AnalyticsPageClient({
             </div>
 
             <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Showing {paginatedPrs.length} of {filteredPrs.length} PR
                 {filteredPrs.length !== 1 ? "s" : ""}
                 {prSearch && initialPrs.length !== filteredPrs.length
@@ -733,7 +653,7 @@ export function AnalyticsPageClient({
                 <button
                   type="button"
                   onClick={() => setPrPage((p) => p + 1)}
-                  className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                  className="text-sm font-medium text-primary dark:text-blue-400 hover:text-primary/80 "
                 >
                   Show more
                 </button>

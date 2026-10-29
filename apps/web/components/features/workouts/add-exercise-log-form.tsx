@@ -60,16 +60,16 @@ export function AddExerciseLogForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-3"
+      className="rounded-xl border border-border bg-card p-4 space-y-3"
     >
-      <h3 className="font-medium text-gray-900 dark:text-white">
+      <h3 className="font-medium text-foreground">
         Log exercise
       </h3>
       <div className="flex flex-wrap gap-3 items-end">
         <div className="min-w-[180px]">
           <label
             htmlFor="exercise"
-            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
+            className="block text-xs font-medium text-muted-foreground mb-1"
           >
             Exercise
           </label>
@@ -78,7 +78,7 @@ export function AddExerciseLogForm({
             value={exerciseId}
             onChange={(e) => setExerciseId(e.target.value)}
             required
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground"
           >
             <option value="">Select…</option>
             {exercises.map((ex) => (
@@ -91,7 +91,7 @@ export function AddExerciseLogForm({
         <div className="w-20">
           <label
             htmlFor="sets"
-            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
+            className="block text-xs font-medium text-muted-foreground mb-1"
           >
             Sets
           </label>
@@ -101,13 +101,13 @@ export function AddExerciseLogForm({
             min={0}
             value={sets}
             onChange={(e) => setSets(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground"
           />
         </div>
         <div className="w-20">
           <label
             htmlFor="reps"
-            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
+            className="block text-xs font-medium text-muted-foreground mb-1"
           >
             Reps
           </label>
@@ -117,13 +117,13 @@ export function AddExerciseLogForm({
             min={0}
             value={reps}
             onChange={(e) => setReps(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground"
           />
         </div>
         <div className="w-20">
           <label
             htmlFor="weight"
-            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
+            className="block text-xs font-medium text-muted-foreground mb-1"
           >
             Weight
           </label>
@@ -134,13 +134,13 @@ export function AddExerciseLogForm({
             step={0.5}
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground"
           />
         </div>
         <div className="w-24">
           <label
             htmlFor="duration"
-            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
+            className="block text-xs font-medium text-muted-foreground mb-1"
           >
             Duration (s)
           </label>
@@ -150,13 +150,13 @@ export function AddExerciseLogForm({
             min={0}
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
         >
           {loading ? "Adding…" : "Add"}
         </button>

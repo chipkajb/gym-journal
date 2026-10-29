@@ -13,7 +13,7 @@ export function SignOutButton() {
     <button
       type="button"
       onClick={onSignOut}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+      className="flex items-center gap-2 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent"
       aria-label="Sign out"
     >
       <LogOut className="w-4 h-4" />

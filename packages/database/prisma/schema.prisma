@@ -168,6 +168,9 @@ model WorkoutSession {
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   workoutTemplate WorkoutTemplate? @relation(fields: [workoutTemplateId], references: [id], onDelete: SetNull)
 
+  @@index([userId, workoutDate(sort: Desc)])
+  @@index([userId, isPr])
+  @@index([workoutTemplateId])
   @@map("workout_sessions")
 }
 

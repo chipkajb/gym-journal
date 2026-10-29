@@ -12,6 +12,7 @@ import {
   Legend,
 } from "recharts";
 import { Activity, Trophy } from "lucide-react";
+import { CHART_TOOLTIP_STYLE } from "@/lib/chart-theme";
 
 type FrequencyPoint = {
   period: string;
@@ -62,15 +63,15 @@ export function FrequencyChart() {
       : data.every((d) => d.pr === 0));
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       {/* Tabs */}
-      <div className="flex items-center gap-1 mb-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-1 mb-4 border-b border-border">
         <button
           onClick={() => setTab("workouts")}
           className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             tab === "workouts"
-              ? "border-blue-500 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           <Activity className="w-4 h-4" />
@@ -81,7 +82,7 @@ export function FrequencyChart() {
           className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             tab === "prs"
               ? "border-amber-500 text-amber-600 dark:text-amber-400"
-              : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           <Trophy className="w-4 h-4" />
@@ -94,7 +95,7 @@ export function FrequencyChart() {
         <select
           value={groupBy}
           onChange={(e) => setGroupBy(e.target.value as GroupBy)}
-          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+          className="px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm"
         >
           <option value="week">By week</option>
           <option value="month">By month</option>
@@ -102,7 +103,7 @@ export function FrequencyChart() {
         <select
           value={range}
           onChange={(e) => setRange(e.target.value as RangeKey)}
-          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+          className="px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm"
         >
           {RANGES.map((r) => (
             <option key={r.value} value={r.value}>{r.label}</option>
@@ -111,9 +112,9 @@ export function FrequencyChart() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500 dark:text-gray-400 py-8 text-center text-sm">Loading…</p>
+        <p className="text-muted-foreground py-8 text-center text-sm">Loading…</p>
       ) : isEmpty ? (
-        <p className="text-gray-500 dark:text-gray-400 py-8 text-center text-sm">
+        <p className="text-muted-foreground py-8 text-center text-sm">
           {tab === "workouts"
             ? "No workout data in this range. Start logging to see your frequency trends."
             : "No PRs recorded in this range. Keep pushing to set new personal records."}
@@ -122,16 +123,16 @@ export function FrequencyChart() {
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 4, right: 4, left: -16, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-600" />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
                 dataKey="label"
                 tick={{ fontSize: 11 }}
-                className="text-gray-500 dark:text-gray-400"
+                className="text-muted-foreground"
                 interval="preserveStartEnd"
               />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} className="text-gray-500 dark:text-gray-400" />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} className="text-muted-foreground" />
               <Tooltip
-                contentStyle={{ backgroundColor: "var(--tooltip-bg, #fff)", color: "var(--tooltip-color, #111827)", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                contentStyle={CHART_TOOLTIP_STYLE}
                 cursor={{ fill: "rgba(99,102,241,0.08)" }}
               />
               <Legend />
@@ -144,16 +145,16 @@ export function FrequencyChart() {
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 4, right: 4, left: -16, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-600" />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
                 dataKey="label"
                 tick={{ fontSize: 11 }}
-                className="text-gray-500 dark:text-gray-400"
+                className="text-muted-foreground"
                 interval="preserveStartEnd"
               />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} className="text-gray-500 dark:text-gray-400" />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} className="text-muted-foreground" />
               <Tooltip
-                contentStyle={{ backgroundColor: "var(--tooltip-bg, #fff)", color: "var(--tooltip-color, #111827)", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                contentStyle={CHART_TOOLTIP_STYLE}
                 cursor={{ fill: "rgba(251,191,36,0.08)" }}
               />
               <Legend />

@@ -12,10 +12,11 @@ const protectedPaths = [
   "/timer",
   "/wod",
   "/analytics",
+  "/settings",
 ];
 const authPaths = ["/login", "/register"];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
@@ -51,6 +52,8 @@ export const config = {
     "/wod/:path*",
     "/analytics",
     "/analytics/:path*",
+    "/settings",
+    "/settings/:path*",
     "/login",
     "/register",
   ],

@@ -56,7 +56,7 @@ export function HistoryTableView({ sessions }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-end">
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs text-muted-foreground mb-1">
             Title
           </label>
           <input
@@ -64,17 +64,17 @@ export function HistoryTableView({ sessions }: Props) {
             placeholder="Filter by title…"
             value={titleFilter}
             onChange={(e) => setTitleFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[160px]"
+            className="px-3 py-2 border border-input rounded-lg bg-background text-foreground min-w-[160px]"
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs text-muted-foreground mb-1">
             Score type
           </label>
           <select
             value={scoreTypeFilter}
             onChange={(e) => setScoreTypeFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="px-3 py-2 border border-input rounded-lg bg-background text-foreground"
           >
             <option value="">All</option>
             {scoreTypes.map((s) => (
@@ -85,13 +85,13 @@ export function HistoryTableView({ sessions }: Props) {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs text-muted-foreground mb-1">
             RX / Scaled
           </label>
           <select
             value={rxFilter}
             onChange={(e) => setRxFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="px-3 py-2 border border-input rounded-lg bg-background text-foreground"
           >
             <option value="">All</option>
             <option value="RX">RX</option>
@@ -99,7 +99,7 @@ export function HistoryTableView({ sessions }: Props) {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs text-muted-foreground mb-1">
             From date
           </label>
           <div className="flex items-center gap-1">
@@ -107,12 +107,12 @@ export function HistoryTableView({ sessions }: Props) {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="px-3 py-2 border border-input rounded-lg bg-background text-foreground"
             />
             <button
               type="button"
               onClick={() => setDateFrom(new Date().toISOString().slice(0, 10))}
-              className="px-2 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 whitespace-nowrap"
+              className="px-2 py-2 text-xs border border-input rounded-lg bg-background text-muted-foreground hover:bg-accent whitespace-nowrap"
             >
               Today
             </button>
@@ -120,7 +120,7 @@ export function HistoryTableView({ sessions }: Props) {
               <button
                 type="button"
                 onClick={() => setDateFrom("")}
-                className="px-2 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                className="px-2 py-2 text-xs border border-input rounded-lg bg-background text-muted-foreground hover:bg-accent"
               >
                 Clear
               </button>
@@ -128,7 +128,7 @@ export function HistoryTableView({ sessions }: Props) {
           </div>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+          <label className="block text-xs text-muted-foreground mb-1">
             To date
           </label>
           <div className="flex items-center gap-1">
@@ -136,12 +136,12 @@ export function HistoryTableView({ sessions }: Props) {
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="px-3 py-2 border border-input rounded-lg bg-background text-foreground"
             />
             <button
               type="button"
               onClick={() => setDateTo(new Date().toISOString().slice(0, 10))}
-              className="px-2 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 whitespace-nowrap"
+              className="px-2 py-2 text-xs border border-input rounded-lg bg-background text-muted-foreground hover:bg-accent whitespace-nowrap"
             >
               Today
             </button>
@@ -149,7 +149,7 @@ export function HistoryTableView({ sessions }: Props) {
               <button
                 type="button"
                 onClick={() => setDateTo("")}
-                className="px-2 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                className="px-2 py-2 text-xs border border-input rounded-lg bg-background text-muted-foreground hover:bg-accent"
               >
                 Clear
               </button>
@@ -158,27 +158,27 @@ export function HistoryTableView({ sessions }: Props) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                <th className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
+              <tr className="border-b border-border bg-muted">
+                <th className="px-4 py-3 font-medium text-foreground">
                   Date
                 </th>
-                <th className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   Workout
                 </th>
-                <th className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   Result
                 </th>
-                <th className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   Score type
                 </th>
-                <th className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   RX/Scaled
                 </th>
-                <th className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   PR
                 </th>
               </tr>
@@ -188,7 +188,7 @@ export function HistoryTableView({ sessions }: Props) {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
+                    className="px-4 py-8 text-center text-muted-foreground"
                   >
                     No workouts match the filters.
                   </td>
@@ -197,26 +197,26 @@ export function HistoryTableView({ sessions }: Props) {
                 filtered.map((s) => (
                   <tr
                     key={s.id}
-                    className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${s.isPr ? "bg-amber-50/70 dark:bg-amber-900/10" : ""}`}
+                    className={`border-b border-border hover:bg-accent ${s.isPr ? "bg-amber-50/70 dark:bg-amber-900/10" : ""}`}
                   >
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                       {format(parseISO(s.workoutDate), "MMM d, yyyy")}
                     </td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/workouts/${s.id}`}
-                        className="font-medium text-gray-900 dark:text-white hover:underline"
+                        className="font-medium text-foreground hover:underline"
                       >
                         {s.title}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-muted-foreground">
                       {s.bestResultDisplay || "—"}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-muted-foreground">
                       {s.scoreType || "—"}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-muted-foreground">
                       {s.rxOrScaled || "—"}
                     </td>
                     <td className="px-4 py-3">
@@ -236,7 +236,7 @@ export function HistoryTableView({ sessions }: Props) {
           </table>
         </div>
       </div>
-      <p className="text-sm text-gray-500 dark:text-gray-400">
+      <p className="text-sm text-muted-foreground">
         Showing {filtered.length} of {sessions.length} workout
         {sessions.length !== 1 ? "s" : ""}.
       </p>

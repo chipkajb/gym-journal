@@ -28,8 +28,6 @@
     --success-foreground: 355.7 100% 97.3%;
     --warning: 37.7 92.1% 50.2%;
     --warning-foreground: 0 0% 100%;
-    --tooltip-bg: #ffffff;
-    --tooltip-color: #111827;
   }
 
   .dark {
@@ -56,8 +54,6 @@
     --success-foreground: 144.9 80.4% 10%;
     --warning: 37.7 92.1% 50.2%;
     --warning-foreground: 0 0% 100%;
-    --tooltip-bg: #1e293b;
-    --tooltip-color: #f1f5f9;
   }
 }
 
@@ -65,7 +61,46 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+  /* numbers line up in stats, timers and tables */
+  .tabular,
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+  /* 16px inputs stop iOS Safari from zooming on focus */
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* soft brand glow behind the landing / sign-in screens */
+  .auth-backdrop {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(60rem 40rem at 10% -10%, hsl(var(--primary) / 0.18), transparent 60%),
+      radial-gradient(50rem 35rem at 110% 110%, hsl(var(--warning) / 0.14), transparent 60%);
   }
 }

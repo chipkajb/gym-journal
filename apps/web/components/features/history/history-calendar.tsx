@@ -42,19 +42,26 @@ export function HistoryCalendar({ userId }: Props) {
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  // fetch sessions for current month
+  const from = calendarStart.toISOString();
+  const to = calendarEnd.toISOString();
+
+  // fetch sessions for the visible grid; abort if the user pages to another month first
   useEffect(() => {
+    const ctrl = new AbortController();
     setLoading(true);
-    const from = calendarStart.toISOString();
-    const to = calendarEnd.toISOString();
-    fetch(
-      `/api/sessions?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
-    )
+    fetch(`/api/sessions?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+      signal: ctrl.signal,
+    })
       .then((res) => (res.ok ? res.json() : []))
       .then((data: Session[]) => setSessions(Array.isArray(data) ? data : []))
-      .catch(() => setSessions([]))
-      .finally(() => setLoading(false));
-  }, [calendarStart.getTime(), calendarEnd.getTime()]);
+      .catch(() => {
+        if (!ctrl.signal.aborted) setSessions([]);
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+    return () => ctrl.abort();
+  }, [from, to]);
 
   const days: Date[] = [];
   let d = new Date(calendarStart);
@@ -83,12 +90,12 @@ export function HistoryCalendar({ userId }: Props) {
         <button
           type="button"
           onClick={() => setCurrent(subMonths(current, 1))}
-          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+          className="px-3 py-2 rounded-lg border border-input text-foreground hover:bg-accent"
         >
           Previous
         </button>
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-lg font-semibold text-foreground">
             {format(current, "MMMM yyyy")}
           </h2>
           <button
@@ -97,7 +104,7 @@ export function HistoryCalendar({ userId }: Props) {
               setCurrent(new Date());
               setSelectedDate(null);
             }}
-            className="px-2 py-1 text-xs rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="px-2 py-1 text-xs rounded-lg border border-input text-muted-foreground hover:bg-accent transition-colors"
           >
             Reset
           </button>
@@ -105,14 +112,14 @@ export function HistoryCalendar({ userId }: Props) {
         <button
           type="button"
           onClick={() => setCurrent(addMonths(current, 1))}
-          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+          className="px-3 py-2 rounded-lg border border-input text-foreground hover:bg-accent"
         >
           Next
         </button>
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-        <div className="grid grid-cols-7 text-center text-sm font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground border-b border-border">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <div key={day} className="py-2">
               {day}
@@ -131,10 +138,10 @@ export function HistoryCalendar({ userId }: Props) {
                 type="button"
                 onClick={() => setSelectedDate(day)}
                 className={`
-                  min-h-[44px] p-1 border-b border-r border-gray-100 dark:border-gray-700
-                  ${isCurrentMonth ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white" : "bg-gray-50 dark:bg-gray-800/50 text-gray-400"}
-                  ${isSelected ? "ring-2 ring-blue-500 ring-inset" : ""}
-                  hover:bg-gray-50 dark:hover:bg-gray-700
+                  min-h-[44px] p-1 border-b border-r border-border
+                  ${isCurrentMonth ? "bg-card text-foreground" : "bg-muted text-muted-foreground"}
+                  ${isSelected ? "ring-2 ring-primary ring-inset" : ""}
+                  hover:bg-accent
                 `}
               >
                 <span className="text-sm">{format(day, "d")}</span>
@@ -142,12 +149,12 @@ export function HistoryCalendar({ userId }: Props) {
                   {daySessions.slice(0, 3).map((s) => (
                     <span
                       key={s.id}
-                      className={`w-1.5 h-1.5 rounded-full ${RX_SCALED_COLORS[s.rxOrScaled ?? ""] ?? "bg-gray-400"}`}
+                      className={`w-1.5 h-1.5 rounded-full ${RX_SCALED_COLORS[s.rxOrScaled ?? ""] ?? "bg-muted-foreground/40"}`}
                       title={s.title}
                     />
                   ))}
                   {daySessions.length > 3 && (
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-muted-foreground">
                       +{daySessions.length - 3}
                     </span>
                   )}
@@ -159,18 +166,18 @@ export function HistoryCalendar({ userId }: Props) {
       </div>
 
       {loading && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Loading…
         </p>
       )}
 
       {selectedDate && (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-          <h3 className="font-medium text-gray-900 dark:text-white mb-2">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="font-medium text-foreground mb-2">
             {format(selectedDate, "EEEE, MMM d")}
           </h3>
           {selectedSessions.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-muted-foreground">
               No workouts this day
             </p>
           ) : (
@@ -178,16 +185,16 @@ export function HistoryCalendar({ userId }: Props) {
               {selectedSessions.map((s) => (
                 <li key={s.id} className="flex items-center gap-2 text-sm">
                   <span
-                    className={`w-2 h-2 rounded-full flex-shrink-0 ${RX_SCALED_COLORS[s.rxOrScaled ?? ""] ?? "bg-gray-400"}`}
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${RX_SCALED_COLORS[s.rxOrScaled ?? ""] ?? "bg-muted-foreground/40"}`}
                   />
                   <Link
                     href={`/workouts/${s.id}`}
-                    className="text-gray-900 dark:text-white hover:underline"
+                    className="text-foreground hover:underline"
                   >
                     {s.title}
                   </Link>
                   {s.bestResultDisplay && (
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span className="text-muted-foreground">
                       {s.bestResultDisplay}
                     </span>
                   )}

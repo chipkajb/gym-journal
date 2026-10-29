@@ -71,7 +71,7 @@ export function StartWorkoutForm({ categories, templates }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-4 max-w-lg"
+      className="rounded-xl border border-border bg-card p-6 space-y-4 max-w-lg"
     >
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded">
@@ -88,7 +88,7 @@ export function StartWorkoutForm({ categories, templates }: Props) {
             onChange={() => setUseTemplate(true)}
             className="rounded-full"
           />
-          <span className="text-gray-700 dark:text-gray-300">
+          <span className="text-foreground">
             From template
           </span>
         </label>
@@ -100,7 +100,7 @@ export function StartWorkoutForm({ categories, templates }: Props) {
             onChange={() => setUseTemplate(false)}
             className="rounded-full"
           />
-          <span className="text-gray-700 dark:text-gray-300">
+          <span className="text-foreground">
             Free workout
           </span>
         </label>
@@ -110,7 +110,7 @@ export function StartWorkoutForm({ categories, templates }: Props) {
         <div>
           <label
             htmlFor="template"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            className="block text-sm font-medium text-foreground mb-1"
           >
             Template
           </label>
@@ -118,7 +118,7 @@ export function StartWorkoutForm({ categories, templates }: Props) {
             id="template"
             value={templateId}
             onChange={(e) => setTemplateId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground"
           >
             {templates.map((t) => (
               <option key={t.id} value={t.id}>
@@ -134,7 +134,7 @@ export function StartWorkoutForm({ categories, templates }: Props) {
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Workout name
             </label>
@@ -143,14 +143,14 @@ export function StartWorkoutForm({ categories, templates }: Props) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground"
               placeholder="e.g. Morning run"
             />
           </div>
           <div>
             <label
               htmlFor="category"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Category
             </label>
@@ -158,7 +158,7 @@ export function StartWorkoutForm({ categories, templates }: Props) {
               id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground"
             >
               {categories.map((c) => (
                 <option key={c} value={c}>
@@ -171,7 +171,7 @@ export function StartWorkoutForm({ categories, templates }: Props) {
       )}
 
       {useTemplate && templates.length === 0 && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-muted-foreground">
           No templates yet. Create one in the Library, or use a free workout.
         </p>
       )}
@@ -179,7 +179,7 @@ export function StartWorkoutForm({ categories, templates }: Props) {
       <button
         type="submit"
         disabled={loading}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-lg"
+        className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-medium rounded-lg"
       >
         {loading ? "Starting…" : "Start workout"}
       </button>

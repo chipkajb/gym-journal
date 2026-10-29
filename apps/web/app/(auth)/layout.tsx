@@ -1,9 +1,10 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { NavLinks } from "@/components/nav-links";
+import { NavLinks, MobileTabBar } from "@/components/nav-links";
 import { AppScreenWakeLock } from "@/components/screen-wake-lock";
 import { Settings } from "lucide-react";
 
@@ -21,7 +22,7 @@ export default async function AuthLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session) return null;
+  if (!session) redirect("/login");
 
   const label = displayName(session);
   const fullEmail = session.user?.email ?? "";
@@ -29,7 +30,7 @@ export default async function AuthLayout({
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <AppScreenWakeLock />
-      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <Link
             href="/dashboard"
@@ -43,7 +44,7 @@ export default async function AuthLayout({
                 className="object-contain p-0.5"
               />
             </span>
-            <span className="hidden sm:inline text-foreground">Gym Journal</span>
+            <span className="text-foreground">Gym Journal</span>
           </Link>
 
           <NavLinks />
@@ -66,7 +67,8 @@ export default async function AuthLayout({
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">{children}</main>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 pb-28 md:pb-6">{children}</main>
+      <MobileTabBar />
     </div>
   );
 }

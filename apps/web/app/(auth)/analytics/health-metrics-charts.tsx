@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { CHART_TOOLTIP_STYLE } from "@/lib/chart-theme";
 
 type SeriesRow = {
   day: string;
@@ -105,11 +106,11 @@ export function HealthMetricsCharts() {
   );
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-4">
+    <div className="rounded-xl border border-border bg-card p-4 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-2">
           <Activity className="w-5 h-5 text-rose-500" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-lg font-semibold text-foreground">
             Smartwatch metrics over time
           </h2>
         </div>
@@ -130,7 +131,7 @@ export function HealthMetricsCharts() {
               className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
                 preset === key
                   ? "bg-primary text-primary-foreground border-primary"
-                  : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  : "border-input text-muted-foreground hover:bg-accent"
               }`}
             >
               {label}
@@ -147,7 +148,7 @@ export function HealthMetricsCharts() {
               type="date"
               value={customFrom}
               onChange={(e) => setCustomFrom(e.target.value)}
-              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="px-2 py-1 border border-input rounded-lg bg-background text-foreground"
             />
           </div>
           <div>
@@ -156,7 +157,7 @@ export function HealthMetricsCharts() {
               type="date"
               value={customTo}
               onChange={(e) => setCustomTo(e.target.value)}
-              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="px-2 py-1 border border-input rounded-lg bg-background text-foreground"
             />
           </div>
           <button
@@ -172,9 +173,9 @@ export function HealthMetricsCharts() {
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
-      {loading && <p className="text-sm text-gray-500 dark:text-gray-400">Loading…</p>}
+      {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
       {!loading && !hasAny && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Log workouts with health data (calories, heart rate, or total time training) to see charts
           here.
         </p>
@@ -242,23 +243,18 @@ function MetricBlock({
     <div>
       <div className="flex items-center gap-2 mb-2">
         <Icon className="w-4 h-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       </div>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-600" />
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="label" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} width={44} />
             <Tooltip
-              formatter={(v: number) => [`${v}${unit}`, ""]}
+              formatter={(v) => [`${v}${unit}`, ""]}
               labelFormatter={(_, p) => (p?.length ? String(p[0]?.payload?.day ?? "") : "")}
-              contentStyle={{
-                backgroundColor: "var(--tooltip-bg, #fff)",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
             />
             <Legend />
             <Line

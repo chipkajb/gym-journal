@@ -17,10 +17,10 @@ export function LibraryTemplateCard({ id, title, scoreType, sessions }: Props) {
   const [showHistory, setShowHistory] = useState(false);
 
   return (
-    <div className="flex flex-col h-full p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+    <div className="flex flex-col h-full p-4 rounded-xl bg-card border border-border">
       <div className="flex-1">
-        <h2 className="font-semibold text-gray-900 dark:text-white">{title}</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{scoreType}</p>
+        <h2 className="font-semibold text-foreground">{title}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{scoreType}</p>
         {sessions.length > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
             {sessions.length} logged session{sessions.length !== 1 ? "s" : ""}
@@ -32,14 +32,14 @@ export function LibraryTemplateCard({ id, title, scoreType, sessions }: Props) {
       <div className="flex flex-wrap gap-2 mt-3">
         <Link
           href={`/library/templates/${id}/edit`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input text-foreground hover:bg-accent text-sm"
         >
           <PenLine className="w-3.5 h-3.5" />
           Edit
         </Link>
         <Link
           href={`/workouts/new?templateId=${id}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 text-sm"
         >
           Log workout
         </Link>

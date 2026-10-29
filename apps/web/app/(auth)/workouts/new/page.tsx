@@ -19,12 +19,12 @@ export default async function NewWorkoutPage() {
       <div className="flex items-center gap-4">
         <Link
           href="/training?tab=sessions"
-          className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="p-2 rounded-lg text-muted-foreground hover:bg-accent"
           aria-label="Back to workouts"
         >
           <ChevronLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-foreground">
           Log workout
         </h1>
       </div>

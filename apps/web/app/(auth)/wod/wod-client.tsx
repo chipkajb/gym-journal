@@ -19,6 +19,7 @@ import { WorkoutHistoryPanel } from "@/components/features/workouts/workout-hist
 import type { HistorySession } from "@/components/features/workouts/workout-history-panel";
 import { roundOneRepMax } from "@/lib/workout-utils";
 import { formatWorkoutCalendarDate } from "@/lib/calendar-date";
+import { formatClock } from "@/lib/duration";
 
 type Session = {
   id: string;
@@ -75,12 +76,6 @@ function getAvgDurationForTimedTemplate(sessions: Session[]): number | null {
   const valid = sessions.filter((s) => s.bestResultRaw != null);
   if (valid.length === 0) return null;
   return valid.reduce((sum, s) => sum + (s.bestResultRaw ?? 0), 0) / valid.length;
-}
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 /** Best (PR) session for a template */
@@ -453,7 +448,7 @@ export function WodClient({
                         </span>
                       </div>
                       <p className="font-semibold text-foreground text-sm">
-                        {formatDuration(avgDuration)}
+                        {formatClock(Math.round(avgDuration))}
                       </p>
                     </div>
                   )}

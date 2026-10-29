@@ -113,20 +113,20 @@ export function SessionsEditor({ sessions }: { sessions: Session[] }) {
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         {/* Search */}
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search workouts…"
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full pl-9 pr-3 py-2 border border-input rounded-lg bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
         {/* Filter by workout title */}
         <select
           value={filterTitle}
           onChange={(e) => setFilterTitle(e.target.value)}
-          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+          className="px-3 py-2 border border-input rounded-lg bg-card text-foreground text-sm"
         >
           <option value="">All workouts</option>
           {uniqueTitles.map((t) => (
@@ -157,28 +157,28 @@ export function SessionsEditor({ sessions }: { sessions: Session[] }) {
         </div>
       </div>
 
-      <p className="text-xs text-gray-500 dark:text-gray-400">
+      <p className="text-xs text-muted-foreground">
         Showing {filtered.length} of {sessions.length} entries. Edit Notes or RX/Scaled inline, then save.
       </p>
 
       {/* Table */}
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700/80 text-left z-10">
+            <thead className="sticky top-0 bg-muted text-left z-10">
               <tr>
-                <th className="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Date</th>
-                <th className="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300">Workout</th>
-                <th className="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Result</th>
-                <th className="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300 w-28">RX/Scaled</th>
-                <th className="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300">Notes</th>
-                <th className="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300 w-10"></th>
+                <th className="px-3 py-2.5 font-medium text-foreground whitespace-nowrap">Date</th>
+                <th className="px-3 py-2.5 font-medium text-foreground">Workout</th>
+                <th className="px-3 py-2.5 font-medium text-foreground whitespace-nowrap">Result</th>
+                <th className="px-3 py-2.5 font-medium text-foreground w-28">RX/Scaled</th>
+                <th className="px-3 py-2.5 font-medium text-foreground">Notes</th>
+                <th className="px-3 py-2.5 font-medium text-foreground w-10"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                     No sessions match your filters.
                   </td>
                 </tr>
@@ -188,18 +188,18 @@ export function SessionsEditor({ sessions }: { sessions: Session[] }) {
                   return (
                     <tr
                       key={session.id}
-                      className={`border-t border-gray-200 dark:border-gray-700 ${
-                        isDirty ? "bg-amber-50/50 dark:bg-amber-950/10" : "hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                      className={`border-t border-border ${
+                        isDirty ? "bg-amber-50/50 dark:bg-amber-950/10" : "hover:bg-accent"
                       }`}
                     >
                       {/* Date */}
-                      <td className="px-3 py-2 text-gray-900 dark:text-white whitespace-nowrap align-top pt-3">
+                      <td className="px-3 py-2 text-foreground whitespace-nowrap align-top pt-3">
                         {format(parseISO(session.workoutDate), "MMM d, yyyy")}
                       </td>
 
                       {/* Workout title + badges */}
                       <td className="px-3 py-2 align-top pt-3">
-                        <span className="font-medium text-gray-900 dark:text-white">
+                        <span className="font-medium text-foreground">
                           {session.title}
                         </span>
                         {session.isPr && (
@@ -208,7 +208,7 @@ export function SessionsEditor({ sessions }: { sessions: Session[] }) {
                       </td>
 
                       {/* Result (read-only) */}
-                      <td className="px-3 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap align-top pt-3">
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap align-top pt-3">
                         {session.bestResultDisplay ?? "—"}
                       </td>
 
@@ -217,7 +217,7 @@ export function SessionsEditor({ sessions }: { sessions: Session[] }) {
                         <select
                           value={getField(session, "rxOrScaled")}
                           onChange={(e) => setField(session.id, "rxOrScaled", e.target.value)}
-                          className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="w-full px-2 py-1.5 border border-input rounded-lg bg-card text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                         >
                           <option value="">—</option>
                           <option value="RX">RX</option>
@@ -232,7 +232,7 @@ export function SessionsEditor({ sessions }: { sessions: Session[] }) {
                           onChange={(e) => setField(session.id, "notes", e.target.value)}
                           rows={2}
                           placeholder="Add notes…"
-                          className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm resize-y focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-gray-400"
+                          className="w-full px-2 py-1.5 border border-input rounded-lg bg-card text-foreground text-sm resize-y focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
                         />
                       </td>
 
@@ -241,7 +241,7 @@ export function SessionsEditor({ sessions }: { sessions: Session[] }) {
                         <Link
                           href={`/workouts/${session.id}`}
                           title="View session"
-                          className="text-gray-400 hover:text-primary transition-colors"
+                          className="text-muted-foreground hover:text-primary transition-colors"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </Link>
