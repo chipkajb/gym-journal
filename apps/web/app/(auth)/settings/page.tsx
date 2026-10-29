@@ -88,18 +88,18 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="max-w-xl">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <SettingsIcon className="w-6 h-6" />
           Settings
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-2">Loading…</p>
+        <p className="text-muted-foreground mt-2">Loading…</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-xl space-y-8">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+      <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
         <SettingsIcon className="w-6 h-6" />
         Preferences
       </h1>
@@ -111,14 +111,14 @@ export default function SettingsPage() {
           </p>
         )}
 
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+          <h2 className="text-lg font-semibold text-foreground">
             Profile
           </h2>
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Name
             </label>
@@ -127,29 +127,29 @@ export default function SettingsPage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-background text-foreground"
               placeholder="Your name"
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-muted-foreground">
               Used in the header and as “Welcome back, [first name]” on the dashboard.
             </p>
           </div>
           {data?.email && (
             <div>
-              <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Email
               </label>
-              <p className="text-sm text-gray-700 dark:text-gray-300">{data.email}</p>
+              <p className="text-sm text-foreground">{data.email}</p>
             </div>
           )}
         </div>
 
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">
             Appearance
           </h2>
           <label className="flex items-center justify-between gap-4 cursor-pointer">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span className="text-sm font-medium text-foreground">
               Dark mode
             </span>
             <button
@@ -157,8 +157,8 @@ export default function SettingsPage() {
               role="switch"
               aria-checked={darkMode}
               onClick={() => handleDarkModeChange(!darkMode)}
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
-                darkMode ? "bg-blue-600" : "bg-gray-200 dark:bg-gray-600"
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background ${
+                darkMode ? "bg-primary" : "bg-muted"
               }`}
             >
               <span
@@ -173,33 +173,33 @@ export default function SettingsPage() {
         <button
           type="submit"
           disabled={saving}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold rounded-lg"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
       </form>
 
       {/* Data Export */}
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Download className="w-5 h-5" />
           Export your data
         </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Download all your workout logs as CSV or JSON.
         </p>
         <div className="flex flex-wrap gap-3">
           <a
             href="/api/export?format=csv"
             download="workouts.csv"
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-input text-foreground hover:bg-accent"
           >
             Workouts CSV
           </a>
           <a
             href="/api/export?format=json"
             download="gym-journal-export.json"
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary hover:bg-primary/90 text-white"
           >
             Full export (JSON)
           </a>
@@ -207,20 +207,20 @@ export default function SettingsPage() {
       </div>
 
       {/* Device Integrations shortcut */}
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+      <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Smartphone className="w-5 h-5" />
               Device integrations
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Connect Apple Health, Google Fit, Fitbit, and Garmin to sync your activity data.
             </p>
           </div>
           <Link
             href="/settings/integrations"
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0"
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-input text-foreground hover:bg-accent shrink-0"
           >
             Manage
           </Link>

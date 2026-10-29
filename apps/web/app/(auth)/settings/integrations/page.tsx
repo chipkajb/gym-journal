@@ -80,11 +80,11 @@ export default function IntegrationsPage() {
   if (loading) {
     return (
       <div className="max-w-2xl">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Smartphone className="w-6 h-6" />
           Device Integrations
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-4">Loading…</p>
+        <p className="text-muted-foreground mt-4">Loading…</p>
       </div>
     );
   }
@@ -92,14 +92,14 @@ export default function IntegrationsPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Smartphone className="w-6 h-6" />
           Device Integrations
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+        <p className="text-muted-foreground mt-1 text-sm">
           Connect wearables and fitness apps to automatically sync activity data into
           your journal. OAuth credentials must be configured before a connection can
-          be established — see <code className="text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">docs/INTEGRATIONS.md</code> for setup instructions.
+          be established — see <code className="text-xs bg-muted px-1 rounded">docs/INTEGRATIONS.md</code> for setup instructions.
         </p>
       </div>
 
@@ -107,12 +107,12 @@ export default function IntegrationsPage() {
         {devices.map((device) => (
           <div
             key={device.id}
-            className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5"
+            className="rounded-xl border border-border bg-card p-5"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-semibold text-gray-900 dark:text-white">
+                  <h2 className="font-semibold text-foreground">
                     {device.name}
                   </h2>
                   {device.connected && device.isActive ? (
@@ -121,12 +121,12 @@ export default function IntegrationsPage() {
                       Connected
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
                       Not connected
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   {device.description}
                 </p>
                 <div className="flex flex-wrap gap-1 mt-2">
@@ -140,7 +140,7 @@ export default function IntegrationsPage() {
                   ))}
                 </div>
                 {device.connected && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                  <p className="text-xs text-muted-foreground mt-2">
                     {device.dataPointCount} data point{device.dataPointCount !== 1 ? "s" : ""}
                     {device.lastSyncAt &&
                       ` · Last synced ${new Date(device.lastSyncAt).toLocaleDateString()}`}
@@ -154,7 +154,7 @@ export default function IntegrationsPage() {
                     <button
                       onClick={() => handleSync(device.id)}
                       disabled={syncing === device.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-primary/10  disabled:opacity-50"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${syncing === device.id ? "animate-spin" : ""}`} />
                       {syncing === device.id ? "Syncing…" : "Sync"}
@@ -171,7 +171,7 @@ export default function IntegrationsPage() {
                 ) : (
                   <button
                     onClick={() => handleConnect(device.id)}
-                    className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+                    className="px-3 py-1.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg"
                   >
                     Connect
                   </button>

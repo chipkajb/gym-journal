@@ -27,9 +27,9 @@ export function SessionTimer({ startedAt }: Props) {
   }, [start]);
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Elapsed</p>
-      <p className="text-3xl font-mono font-semibold text-gray-900 dark:text-white">
+    <div className="rounded-xl border border-border bg-card p-4">
+      <p className="text-sm text-muted-foreground mb-1">Elapsed</p>
+      <p className="text-3xl font-mono font-semibold text-foreground">
         {formatDuration(elapsed)}
       </p>
     </div>

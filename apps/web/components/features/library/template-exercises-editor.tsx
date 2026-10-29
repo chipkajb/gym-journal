@@ -119,8 +119,8 @@ export function TemplateExercisesEditor({
   const availableExercises = allExercises.filter((e) => !usedIds.has(e.id));
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-4">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+    <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+      <h2 className="text-lg font-semibold text-foreground">
         Exercises
       </h2>
       {error && (
@@ -131,11 +131,11 @@ export function TemplateExercisesEditor({
         {rows.map((row, index) => (
           <li
             key={row.id}
-            className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50"
+            className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted"
           >
-            <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 dark:text-white truncate">
+              <p className="font-medium text-foreground truncate">
                 {row.exerciseName}
               </p>
               <div className="flex flex-wrap gap-2 mt-1">
@@ -149,7 +149,7 @@ export function TemplateExercisesEditor({
                       sets: e.target.value ? parseInt(e.target.value, 10) : null,
                     })
                   }
-                  className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-16 px-2 py-1 text-sm border border-input rounded bg-background text-foreground"
                 />
                 <input
                   type="number"
@@ -161,14 +161,14 @@ export function TemplateExercisesEditor({
                       reps: e.target.value ? parseInt(e.target.value, 10) : null,
                     })
                   }
-                  className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-16 px-2 py-1 text-sm border border-input rounded bg-background text-foreground"
                 />
               </div>
             </div>
             <button
               type="button"
               onClick={() => removeRow(index)}
-              className="p-2 rounded text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="p-2 rounded text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
               aria-label="Remove exercise"
             >
               <Trash2 className="w-4 h-4" />
@@ -182,7 +182,7 @@ export function TemplateExercisesEditor({
           <select
             value={addExerciseId}
             onChange={(e) => setAddExerciseId(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[180px]"
+            className="px-3 py-2 border border-input rounded-lg bg-background text-foreground min-w-[180px]"
           >
             <option value="">Add exercise…</option>
             {availableExercises.map((ex) => (
@@ -195,7 +195,7 @@ export function TemplateExercisesEditor({
             type="button"
             onClick={addExercise}
             disabled={!addExerciseId || saving}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             Add
@@ -204,7 +204,7 @@ export function TemplateExercisesEditor({
       )}
 
       {saving && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">Saving…</p>
+        <p className="text-sm text-muted-foreground">Saving…</p>
       )}
     </div>
   );

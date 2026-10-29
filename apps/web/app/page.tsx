@@ -32,10 +32,10 @@ export default async function HomePage() {
 
         {/* App Title */}
         <div className="space-y-2">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground">
             Gym Journal
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
+          <p className="text-lg text-muted-foreground">
             Track your fitness journey
           </p>
         </div>
@@ -44,20 +44,20 @@ export default async function HomePage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
           <Link
             href="/login"
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+            className="px-6 py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
           >
             Sign In
           </Link>
           <Link
             href="/register"
-            className="px-6 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg shadow-md border border-gray-300 dark:border-gray-600 transition-colors duration-200"
+            className="px-6 py-3 bg-card hover:bg-accent text-foreground font-semibold rounded-lg shadow-md border border-input transition-colors duration-200"
           >
             Sign Up
           </Link>
         </div>
 
         {/* Footer */}
-        <p className="text-sm text-gray-500 dark:text-gray-400 pt-8">
+        <p className="text-sm text-muted-foreground pt-8">
           Your personal fitness companion
         </p>
       </div>

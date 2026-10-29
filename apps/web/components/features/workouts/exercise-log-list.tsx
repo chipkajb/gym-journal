@@ -42,8 +42,8 @@ export function ExerciseLogList({ sessionId, logs, isCompleted }: Props) {
 
   if (logs.length === 0 && !isCompleted) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-6 text-center">
-        <p className="text-gray-500 dark:text-gray-400">
+      <div className="rounded-xl border border-dashed border-input p-6 text-center">
+        <p className="text-muted-foreground">
           No exercises logged yet. Add one below.
         </p>
       </div>
@@ -52,20 +52,20 @@ export function ExerciseLogList({ sessionId, logs, isCompleted }: Props) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+      <h2 className="text-lg font-semibold text-foreground">
         Exercises
       </h2>
       <ul className="space-y-2">
         {logs.map((log) => (
           <li
             key={log.id}
-            className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+            className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-card border border-border"
           >
-            <span className="font-medium text-gray-900 dark:text-white">
+            <span className="font-medium text-foreground">
               {log.exercise.name}
             </span>
             {(log.sets != null || log.reps != null || log.weight != null || log.duration != null) && (
-              <span className="text-sm text-gray-500 dark:text-gray-400">
+              <span className="text-sm text-muted-foreground">
                 {[
                   log.sets != null && `${log.sets} sets`,
                   log.reps != null && `${log.reps} reps`,

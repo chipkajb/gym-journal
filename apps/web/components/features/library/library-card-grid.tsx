@@ -54,12 +54,12 @@ export function LibraryCardGrid({ templates }: { templates: Template[] }) {
           placeholder="Filter by title…"
           value={titleFilter}
           onChange={(e) => setTitleFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[180px]"
+          className="px-3 py-2 border border-input rounded-lg bg-background text-foreground min-w-[180px]"
         />
         <select
           value={scoreTypeFilter}
           onChange={(e) => setScoreTypeFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          className="px-3 py-2 border border-input rounded-lg bg-background text-foreground"
         >
           <option value="">All score types</option>
           {scoreTypes.map((s) => (
@@ -71,7 +71,7 @@ export function LibraryCardGrid({ templates }: { templates: Template[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
+        <p className="text-sm text-muted-foreground py-6 text-center">
           No templates match the filters.
         </p>
       ) : (
