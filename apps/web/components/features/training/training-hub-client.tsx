@@ -16,19 +16,24 @@ function parseTab(raw: string | null): TrainingTab {
   return "sessions";
 }
 
-type WodProps = ComponentProps<typeof WodClient>;
 type WorkoutsProps = ComponentProps<typeof WorkoutsPageClient>;
 type LibraryTemplates = ComponentProps<typeof LibraryCardGrid>["templates"];
 
+const TABS: { id: TrainingTab; label: string; icon: typeof Shuffle }[] = [
+  { id: "sessions", label: "Workouts", icon: PenLine },
+  { id: "wod", label: "WOD Picker", icon: Shuffle },
+  { id: "library", label: "Library", icon: BookOpen },
+];
+
+type Template = LibraryTemplates[number] & { description: string | null };
+
 export function TrainingHubClient({
-  wodTemplates,
+  templates,
   sessionsForWorkouts,
-  libraryTemplates,
   userId,
 }: {
-  wodTemplates: WodProps["templates"];
+  templates: Template[];
   sessionsForWorkouts: WorkoutsProps["sessions"];
-  libraryTemplates: LibraryTemplates;
   userId: string;
 }) {
   const router = useRouter();
@@ -48,69 +53,39 @@ export function TrainingHubClient({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Training</h1>
-      </div>
-
-      <div
-        role="tablist"
-        aria-label="Training sections"
-        className="flex flex-nowrap gap-1 sm:gap-2 overflow-x-auto border-b border-border pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        <button
-          id="tab-training-wod"
-          type="button"
-          role="tab"
-          aria-selected={tab === "wod"}
-          onClick={() => setTab("wod")}
-          className={`inline-flex shrink-0 items-center gap-1 sm:gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border transition-colors whitespace-nowrap ${
-            tab === "wod"
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent"
-          }`}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Training</h1>
+        <div
+          role="tablist"
+          aria-label="Training sections"
+          className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 sm:inline-grid sm:w-auto"
         >
-          <Shuffle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-          WOD Picker
-        </button>
-        <button
-          id="tab-training-sessions"
-          type="button"
-          role="tab"
-          aria-selected={tab === "sessions"}
-          onClick={() => setTab("sessions")}
-          className={`inline-flex shrink-0 items-center gap-1 sm:gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border transition-colors whitespace-nowrap ${
-            tab === "sessions"
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent"
-          }`}
-        >
-          <PenLine className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-          Workouts
-        </button>
-        <button
-          id="tab-training-library"
-          type="button"
-          role="tab"
-          aria-selected={tab === "library"}
-          onClick={() => setTab("library")}
-          className={`inline-flex shrink-0 items-center gap-1 sm:gap-2 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium border transition-colors whitespace-nowrap ${
-            tab === "library"
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent"
-          }`}
-        >
-          <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-          Library
-        </button>
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              id={`tab-training-${id}`}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-all ${
+                tab === id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div
         role="tabpanel"
-        aria-labelledby={
-          tab === "wod" ? "tab-training-wod" : tab === "library" ? "tab-training-library" : "tab-training-sessions"
-        }
+        aria-labelledby={`tab-training-${tab}`}
       >
-        {tab === "wod" && <WodClient templates={wodTemplates} headingLevel="section" />}
+        {tab === "wod" && <WodClient templates={templates} headingLevel="section" />}
         {tab === "sessions" && (
           <WorkoutsPageClient
             sessions={sessionsForWorkouts}
@@ -134,7 +109,7 @@ export function TrainingHubClient({
               </div>
             </div>
 
-            {libraryTemplates.length === 0 ? (
+            {templates.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border p-12 text-center">
                 <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">
@@ -149,7 +124,7 @@ export function TrainingHubClient({
                 </Link>
               </div>
             ) : (
-              <LibraryCardGrid templates={libraryTemplates} />
+              <LibraryCardGrid templates={templates} />
             )}
           </div>
         )}

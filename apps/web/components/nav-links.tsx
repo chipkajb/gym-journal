@@ -14,8 +14,8 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard, match: ["/dashboard"] },
-  { href: "/training", label: "Training", icon: Dumbbell, match: ["/training", "/workouts", "/library", "/wod"] },
-  { href: "/analytics", label: "Stats", icon: BarChart3, match: ["/analytics", "/history", "/leaderboards"] },
+  { href: "/training", label: "Training", icon: Dumbbell, match: ["/training", "/workouts", "/library", "/wod", "/history"] },
+  { href: "/analytics", label: "Stats", icon: BarChart3, match: ["/analytics", "/leaderboards"] },
   { href: "/tools", label: "Tools", icon: Wrench, match: ["/tools", "/timer"] },
 ];
 
