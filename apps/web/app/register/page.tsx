@@ -63,7 +63,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center auth-backdrop px-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center space-y-4">
           <div className="flex justify-center">
@@ -85,10 +85,10 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <div className="bg-card rounded-lg shadow-lg p-8 space-y-6">
+        <div className="bg-card/90 backdrop-blur rounded-2xl border border-border shadow-xl p-6 sm:p-8 space-y-6">
           <form className="space-y-4" onSubmit={handleSubmit}>
             {error && (
-              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded">
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
                 {error}
               </p>
             )}
@@ -103,6 +103,7 @@ export default function RegisterPage() {
                 id="name"
                 type="text"
                 name="name"
+                autoComplete="name"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -121,6 +122,7 @@ export default function RegisterPage() {
               <input
                 id="email"
                 type="email"
+                autoComplete="email"
                 name="email"
                 required
                 value={email}
@@ -140,6 +142,7 @@ export default function RegisterPage() {
               <input
                 id="password"
                 type="password"
+                autoComplete="new-password"
                 name="password"
                 required
                 minLength={8}
@@ -163,6 +166,7 @@ export default function RegisterPage() {
               <input
                 id="confirmPassword"
                 type="password"
+                autoComplete="new-password"
                 name="confirmPassword"
                 required
                 value={confirmPassword}

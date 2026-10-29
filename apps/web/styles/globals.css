@@ -94,3 +94,13 @@
     }
   }
 }
+
+@layer components {
+  /* soft brand glow behind the landing / sign-in screens */
+  .auth-backdrop {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(60rem 40rem at 10% -10%, hsl(var(--primary) / 0.18), transparent 60%),
+      radial-gradient(50rem 35rem at 110% 110%, hsl(var(--warning) / 0.14), transparent 60%);
+  }
+}

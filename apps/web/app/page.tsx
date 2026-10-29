@@ -15,7 +15,7 @@ export default async function HomePage() {
     redirect("/dashboard");
   }
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center auth-backdrop px-4">
       <div className="max-w-md w-full space-y-8 text-center">
         {/* Logo */}
         <div className="flex justify-center">
@@ -44,7 +44,7 @@ export default async function HomePage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
           <Link
             href="/login"
-            className="px-6 py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+            className="px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg shadow-md transition-colors duration-200"
           >
             Sign In
           </Link>
