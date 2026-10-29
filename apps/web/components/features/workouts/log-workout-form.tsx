@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { WorkoutTimer, type TimerResult } from "./workout-timer";
 import { WorkoutHistoryPanel, type HistorySession } from "./workout-history-panel";
@@ -8,7 +8,6 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
-  Search,
   History,
 } from "lucide-react";
 import {
@@ -23,6 +22,7 @@ import {
 import { SCORE_TYPES, type ScoreType, isValidScoreType } from "@/lib/score-types";
 import { localCalendarYmd } from "@/lib/calendar-date";
 import { parseDurationInput } from "@/lib/duration";
+import { SearchSelect } from "@/components/ui/search-select";
 
 type TemplateOption = {
   id: string;
@@ -42,100 +42,6 @@ type LoadSetRow = { weight: string; reps: string };
 // ---------------------------------------------------------------------------
 // Searchable template combobox
 // ---------------------------------------------------------------------------
-function TemplateCombobox({
-  templates,
-  value,
-  onChange,
-}: {
-  templates: TemplateOption[];
-  value: string;
-  onChange: (id: string) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const selected = templates.find((t) => t.id === value);
-
-  const filtered = query.trim()
-    ? templates.filter((t) =>
-        t.title.toLowerCase().includes(query.toLowerCase())
-      )
-    : templates;
-
-  // Close on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  function select(id: string) {
-    onChange(id);
-    setOpen(false);
-    setQuery("");
-  }
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-left flex items-center justify-between gap-2 text-sm"
-      >
-        <span className="truncate">
-          {selected
-            ? `${selected.title}${selected.scoreType ? ` (${selected.scoreType})` : ""}`
-            : "Select template…"}
-        </span>
-        <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
-      </button>
-
-      {open && (
-        <div className="absolute z-50 mt-1 w-full bg-card border border-border rounded-lg shadow-lg overflow-hidden">
-          <div className="p-2 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <input
-                autoFocus
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search workouts…"
-                className="w-full pl-7 pr-3 py-1.5 text-sm bg-background border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-          </div>
-          <ul className="max-h-56 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>
-            ) : (
-              filtered.map((t) => (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => select(t.id)}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
-                      t.id === value ? "bg-primary/10 text-primary font-medium" : "text-foreground"
-                    }`}
-                  >
-                    <span className="block font-medium">{t.title}</span>
-                    <span className="text-xs text-muted-foreground">{t.scoreType}</span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Main form
 // ---------------------------------------------------------------------------
@@ -171,6 +77,10 @@ export function LogWorkoutForm({ templates }: Props) {
   const [loading, setLoading] = useState(false);
 
   const isLoadType = scoreType === "Load";
+  const templateOptions = useMemo(
+    () => templates.map((t) => ({ value: t.id, label: t.title, hint: t.scoreType ?? undefined })),
+    [templates]
+  );
 
   // Auto-fill title/description/scoreType when template changes
   useEffect(() => {
@@ -424,10 +334,12 @@ export function LogWorkoutForm({ templates }: Props) {
             <label className="block text-sm font-medium text-foreground mb-1">
               Template
             </label>
-            <TemplateCombobox
-              templates={templates}
+            <SearchSelect
+              options={templateOptions}
               value={templateId}
               onChange={setTemplateId}
+              placeholder="Select template…"
+              searchPlaceholder="Search workouts…"
             />
 
             {/* Inline history toggle */}

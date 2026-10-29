@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { subMonths, subYears } from "date-fns";
 import {
@@ -15,7 +15,6 @@ import {
   TrendingUp,
   List,
   Search,
-  ChevronDown,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -39,6 +38,7 @@ import {
   Legend,
 } from "recharts";
 import { CHART_TOOLTIP_STYLE } from "@/lib/chart-theme";
+import { SearchSelect } from "@/components/ui/search-select";
 
 /** Linear regression: returns trend y-values for each x index, or null if < 2 points. */
 function computeTrend(values: number[]): number[] | null {
@@ -137,96 +137,6 @@ type Props = {
   layout?: "full" | "hub-workouts";
 };
 
-function WorkoutCombobox({
-  titles,
-  value,
-  onChange,
-}: {
-  titles: string[];
-  value: string;
-  onChange: (title: string) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const filtered = query.trim()
-    ? titles.filter((t) => t.toLowerCase().includes(query.toLowerCase()))
-    : titles;
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  function select(title: string) {
-    onChange(title);
-    setOpen(false);
-    setQuery("");
-  }
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm max-w-[260px] min-w-[160px]"
-      >
-        <span className="truncate flex-1 text-left">
-          {value || "Select a workout"}
-        </span>
-        <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
-      </button>
-      {open && (
-        <div className="absolute z-50 mt-1 w-72 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
-          <div className="p-2 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <input
-                autoFocus
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search workouts…"
-                className="w-full pl-7 pr-3 py-1.5 text-sm bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-          </div>
-          <ul className="max-h-64 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-muted-foreground">
-                No matches
-              </li>
-            ) : (
-              filtered.map((t) => (
-                <li key={t}>
-                  <button
-                    type="button"
-                    onClick={() => select(t)}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-accent ${
-                      t === value
-                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium"
-                        : "text-foreground"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function AnalyticsPageClient({
   initialPrs,
   workoutTitles,
@@ -236,6 +146,10 @@ export function AnalyticsPageClient({
   layout = "full",
 }: Props) {
   const [workoutFilter, setWorkoutFilter] = useState<string>("");
+  const workoutTitleOptions = useMemo(
+    () => workoutTitles.map((t) => ({ value: t, label: t })),
+    [workoutTitles]
+  );
   const [timeRange, setTimeRange] = useState<TimeRangeKey>("all");
   const [workoutResults, setWorkoutResults] = useState<ProgressEntry[] | null>(
     null
@@ -427,10 +341,14 @@ export function AnalyticsPageClient({
               <TrendingUp className="w-5 h-5" />
               Progress over time
             </h2>
-            <WorkoutCombobox
-              titles={workoutTitles}
+            <SearchSelect
+              options={workoutTitleOptions}
               value={workoutFilter}
               onChange={setWorkoutFilter}
+              placeholder="Select a workout"
+              searchPlaceholder="Search workouts…"
+              className="min-w-[160px] max-w-[260px]"
+              menuClassName="w-72"
             />
             <select
               value={timeRange}
