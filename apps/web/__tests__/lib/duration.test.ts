@@ -1,4 +1,4 @@
-import { formatClock, parseDurationInput } from "@/lib/duration";
+import { formatClock, maskClockInput, parseDurationInput } from "@/lib/duration";
 
 describe("formatClock", () => {
   it.each([
@@ -34,6 +34,30 @@ describe("parseDurationInput", () => {
   it("round-trips with formatClock", () => {
     for (const secs of [0, 59, 600, 3725]) {
       expect(parseDurationInput(formatClock(secs))).toBe(secs);
+    }
+  });
+});
+
+describe("maskClockInput", () => {
+  it.each([
+    ["", ""],
+    ["2", "0:02"],
+    ["21", "0:21"],
+    ["213", "2:13"],
+    ["2132", "21:32"],
+    ["21:3", "2:13"], // backspace from "21:32"
+    ["0:0", ""], // backspace from "0:02"
+    ["0532", "5:32"],
+    ["12345", "1:23:45"],
+    ["1234567", "12:34:56"],
+    ["4a5b0c0", "45:00"],
+  ])("%p -> %p", (input, expected) => {
+    expect(maskClockInput(input)).toBe(expected);
+  });
+
+  it("is idempotent on formatClock output", () => {
+    for (const secs of [5, 750, 3725]) {
+      expect(maskClockInput(formatClock(secs))).toBe(formatClock(secs));
     }
   });
 });

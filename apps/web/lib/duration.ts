@@ -25,3 +25,18 @@ export function parseDurationInput(val: string): number | null {
   const minutes = Number(trimmed);
   return Number.isFinite(minutes) && minutes >= 0 ? Math.round(minutes * 60) : null;
 }
+
+/**
+ * Formats raw keystrokes as a clock, filling from the right like a microwave:
+ * "2" -> "0:02", "213" -> "2:13", "2132" -> "21:32", "12345" -> "1:23:45".
+ * Non-digits are dropped, so backspacing through the colon just works.
+ */
+export function maskClockInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").replace(/^0+/, "").slice(0, 6);
+  if (!digits) return "";
+  const padded = digits.padStart(3, "0");
+  const ss = padded.slice(-2);
+  const rest = padded.slice(0, -2);
+  if (rest.length <= 2) return `${rest}:${ss}`;
+  return `${rest.slice(0, -2)}:${rest.slice(-2)}:${ss}`;
+}
