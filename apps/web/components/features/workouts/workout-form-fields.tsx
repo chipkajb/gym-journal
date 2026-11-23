@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { maskClockInput } from "@/lib/duration";
 import { getResultPlaceholder } from "@/lib/workout-utils";
 
 /** Form sections shared by the log and edit workout forms. */
@@ -169,10 +170,11 @@ const HEALTH_FIELDS: {
   label: string;
   placeholder: string;
   numeric: boolean;
+  clock?: boolean;
   max?: number;
 }[] = [
   { key: "calories", label: "Calories burned", placeholder: "e.g. 420", numeric: true },
-  { key: "totalDuration", label: "Total time training (mm:ss)", placeholder: "e.g. 45:00", numeric: false },
+  { key: "totalDuration", label: "Total time training (mm:ss)", placeholder: "type 4500 for 45:00", numeric: false, clock: true },
   { key: "avgHeartRate", label: "Avg HR (bpm)", placeholder: "e.g. 155", numeric: true, max: 250 },
   { key: "maxHeartRate", label: "Max HR (bpm)", placeholder: "e.g. 182", numeric: true, max: 250 },
 ];
@@ -211,9 +213,9 @@ export function HealthMetricsFields({
               <input
                 id={f.key}
                 type={f.numeric ? "number" : "text"}
-                inputMode={f.numeric ? "numeric" : undefined}
+                inputMode={f.numeric || f.clock ? "numeric" : undefined}
                 value={values[f.key]}
-                onChange={(e) => onChange(f.key, e.target.value)}
+                onChange={(e) => onChange(f.key, f.clock ? maskClockInput(e.target.value) : e.target.value)}
                 className={`${inputClass} text-sm`}
                 placeholder={f.placeholder}
                 min={f.numeric ? 0 : undefined}
